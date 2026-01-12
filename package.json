@@ -1,0 +1,25 @@
+{
+  "name": "swarm-io",
+  "version": "0.0.1",
+  "private": true,
+  "workspaces": [
+    "src/client",
+    "src/server",
+    "src/shared"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:client": "npm run dev --workspace=@swarm-io/client",
+    "dev:server": "npm run dev --workspace=@swarm-io/server",
+    "build": "npm run build --workspaces",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "eslint src --ext .ts,.tsx"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "concurrently": "^8.2.2",
+    "eslint": "^8.55.0",
+    "typescript": "^5.3.0"
+  }
+}
