@@ -107,3 +107,11 @@ export class GameState extends Schema {
     return orb;
   }
 }
+
+// Re-export schema classes for use in systems
+export { PlayerSchema } from './PlayerSchema';
+export { EnemySchema } from './EnemySchema';
+export { ProjectileSchema } from './ProjectileSchema';
+export { XPOrbSchema } from './XPOrbSchema';
+export { WeaponSchema } from './WeaponSchema';
+export { WorldSchema } from './WorldSchema';

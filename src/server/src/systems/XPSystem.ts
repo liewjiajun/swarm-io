@@ -1,0 +1,422 @@
+import { GameState, PlayerSchema, XPOrbSchema } from '../state/GameState.js';
+import { SpatialHash } from './SpatialHash.js';
+import { GAME_CONSTANTS, UPGRADE_POOL, getXPForLevel, WEAPON_CONFIGS } from '@swarm-io/shared';
+import { withinRadius } from '@swarm-io/shared';
+
+interface XPMetrics {
+  totalXPCollected: number;
+  orbsCollected: number;
+  levelsGained: number;
+  upgradesApplied: number;
+  magnetizationEvents: number;
+  securityViolations: number;
+}
+
+interface UpgradeChoice {
+  id: string;
+  type: 'weapon' | 'stat';
+  weaponType?: string;
+  statType?: string;
+  description: string;
+  weight: number;
+}
+
+export class XPSystem {
+  private xpMetrics: XPMetrics = {
+    totalXPCollected: 0,
+    orbsCollected: 0,
+    levelsGained: 0,
+    upgradesApplied: 0,
+    magnetizationEvents: 0,
+    securityViolations: 0
+  };
+
+  constructor() {
+    console.log('[XPSystem] Initialized with XP collection and leveling');
+  }
+
+  update(gameState: GameState, spatialHash: SpatialHash, deltaTime: number): void {
+    // Process XP orb magnetization
+    this.processOrbMagnetization(gameState, spatialHash);
+
+    // Process XP orb collection
+    this.processOrbCollection(gameState, spatialHash);
+
+    // Check for level ups
+    this.processLevelUps(gameState);
+
+    // Clean up collected orbs
+    this.cleanupCollectedOrbs(gameState);
+  }
+
+  private processOrbMagnetization(gameState: GameState, spatialHash: SpatialHash): void {
+    Object.values(gameState.xpOrbs).forEach(orb => {
+      // Skip already magnetized orbs
+      if (orb.magnetized || orb.collected) return;
+
+      // Find nearest living player within magnet range
+      let nearestPlayer: PlayerSchema | null = null;
+      let nearestDistance = Infinity;
+
+      Object.values(gameState.players).forEach(player => {
+        if (player.dead) return;
+
+        const distance = Math.sqrt((orb.x - player.x) ** 2 + (orb.y - player.y) ** 2);
+        if (distance <= player.magnetRange && distance < nearestDistance) {
+          nearestPlayer = player;
+          nearestDistance = distance;
+        }
+      });
+
+      // Magnetize to nearest player
+      if (nearestPlayer) {
+        orb.magnetized = true;
+        orb.targetPlayerId = nearestPlayer.id;
+        this.xpMetrics.magnetizationEvents++;
+      }
+    });
+  }
+
+  private processOrbCollection(gameState: GameState, spatialHash: SpatialHash): void {
+    Object.values(gameState.players).forEach(player => {
+      if (player.dead) return;
+
+      // Get nearby XP orbs
+      const nearbyOrbs = spatialHash.queryRadius(
+        player.x,
+        player.y,
+        GAME_CONSTANTS.XP_ORB.COLLECTION_RADIUS,
+        'xp'
+      );
+
+      nearbyOrbs.forEach(spatialEntity => {
+        const orb = spatialEntity.entity as XPOrbSchema;
+
+        // Skip already collected orbs
+        if (orb.collected) return;
+
+        // Check collection radius
+        const distance = Math.sqrt((player.x - orb.x) ** 2 + (player.y - orb.y) ** 2);
+        if (distance <= GAME_CONSTANTS.XP_ORB.COLLECTION_RADIUS) {
+          this.collectXPOrb(gameState, player, orb);
+        }
+      });
+    });
+  }
+
+  private collectXPOrb(gameState: GameState, player: PlayerSchema, orb: XPOrbSchema): void {
+    // Security validation: Ensure orb value is reasonable
+    const validatedValue = this.validateXPValue(orb.value);
+
+    if (validatedValue <= 0) {
+      this.logSecurityViolation('Invalid XP orb value', {
+        playerId: player.id,
+        orbId: orb.id,
+        value: orb.value
+      });
+      return;
+    }
+
+    // Award XP to player (handles hostility reduction)
+    player.addXP(validatedValue);
+
+    // Mark orb as collected
+    orb.collected = true;
+
+    // Update metrics
+    this.xpMetrics.totalXPCollected += validatedValue;
+    this.xpMetrics.orbsCollected++;
+
+    console.log(`[XPSystem] Player ${player.id} collected ${validatedValue} XP (total: ${player.xp})`);
+  }
+
+  private processLevelUps(gameState: GameState): void {
+    Object.values(gameState.players).forEach(player => {
+      // Skip if player already has pending upgrade
+      if (player.pendingUpgrade || player.dead) return;
+
+      // Check if player has enough XP to level up
+      const requiredXP = getXPForLevel(player.level + 1);
+
+      if (player.xp >= requiredXP) {
+        this.levelUpPlayer(gameState, player);
+      }
+    });
+  }
+
+  private levelUpPlayer(gameState: GameState, player: PlayerSchema): void {
+    // Calculate new level
+    let newLevel = player.level;
+    while (player.xp >= getXPForLevel(newLevel + 1) && newLevel < 100) {
+      newLevel++;
+    }
+
+    if (newLevel > player.level) {
+      const oldLevel = player.level;
+      player.level = newLevel;
+      player.xpToNextLevel = getXPForLevel(newLevel + 1) - player.xp;
+
+      // Generate upgrade choices
+      const upgradeChoices = this.generateUpgradeChoices(player);
+
+      // Set pending upgrade state (this will be handled by GameRoom message system)
+      player.pendingUpgrade = true;
+
+      this.xpMetrics.levelsGained += (newLevel - oldLevel);
+
+      console.log(`[XPSystem] Player ${player.id} leveled up: ${oldLevel} → ${newLevel}`);
+
+      // Note: Upgrade choice presentation and selection will be handled by GameRoom
+      // through client messages. This system just generates the choices.
+    }
+  }
+
+  private generateUpgradeChoices(player: PlayerSchema): UpgradeChoice[] {
+    const choices: UpgradeChoice[] = [];
+    const availableUpgrades = [...UPGRADE_POOL];
+
+    // Security validation: Ensure upgrade pool is valid
+    if (!availableUpgrades || availableUpgrades.length === 0) {
+      this.logSecurityViolation('Empty upgrade pool', { playerId: player.id });
+      return choices;
+    }
+
+    // Generate 4 weighted random choices
+    for (let i = 0; i < 4; i++) {
+      if (availableUpgrades.length === 0) break;
+
+      const upgrade = this.selectWeightedUpgrade(availableUpgrades, player);
+      if (upgrade) {
+        choices.push(upgrade);
+
+        // Remove selected upgrade to prevent duplicates
+        const index = availableUpgrades.findIndex(u =>
+          u.type === upgrade.type &&
+          u.weaponType === upgrade.weaponType &&
+          u.statType === upgrade.statType
+        );
+        if (index >= 0) {
+          availableUpgrades.splice(index, 1);
+        }
+      }
+    }
+
+    return choices;
+  }
+
+  private selectWeightedUpgrade(upgrades: any[], player: PlayerSchema): UpgradeChoice | null {
+    // Filter valid upgrades for this player
+    const validUpgrades = upgrades.filter(upgrade => {
+      if (upgrade.type === 'new_weapon' || upgrade.type === 'upgrade_weapon') {
+        // Only offer weapon upgrades if player doesn't have it or can upgrade it
+        const hasWeapon = player.hasWeapon(upgrade.weaponType);
+        const weaponLevel = player.getWeaponLevel(upgrade.weaponType);
+
+        return !hasWeapon || (hasWeapon && weaponLevel < 10);
+      } else if (upgrade.type === 'stat_boost') {
+        // All stat upgrades are always valid
+        return true;
+      }
+      return false;
+    });
+
+    if (validUpgrades.length === 0) return null;
+
+    // Calculate total weight
+    const totalWeight = validUpgrades.reduce((sum, upgrade) => sum + upgrade.weight, 0);
+
+    if (totalWeight <= 0) return null;
+
+    // Select weighted random upgrade
+    let random = Math.random() * totalWeight;
+
+    for (const upgrade of validUpgrades) {
+      random -= upgrade.weight;
+      if (random <= 0) {
+        return {
+          id: `${upgrade.type}_${upgrade.weaponType || upgrade.statType}_${Date.now()}`,
+          type: (upgrade.type === 'new_weapon' || upgrade.type === 'upgrade_weapon') ? 'weapon' : 'stat',
+          weaponType: upgrade.weaponType,
+          statType: upgrade.statType,
+          description: this.generateUpgradeDescription(upgrade, player),
+          weight: upgrade.weight
+        };
+      }
+    }
+
+    // Fallback to first upgrade
+    const fallback = validUpgrades[0];
+    return {
+      id: `${fallback.type}_${fallback.weaponType || fallback.statType}_${Date.now()}`,
+      type: (fallback.type === 'new_weapon' || fallback.type === 'upgrade_weapon') ? 'weapon' : 'stat',
+      weaponType: fallback.weaponType,
+      statType: fallback.statType,
+      description: this.generateUpgradeDescription(fallback, player),
+      weight: fallback.weight
+    };
+  }
+
+  private generateUpgradeDescription(upgrade: any, player: PlayerSchema): string {
+    if (upgrade.type === 'new_weapon' || upgrade.type === 'upgrade_weapon') {
+      const weaponConfig = WEAPON_CONFIGS[upgrade.weaponType];
+      const hasWeapon = player.hasWeapon(upgrade.weaponType);
+      const currentLevel = player.getWeaponLevel(upgrade.weaponType);
+
+      if (!hasWeapon) {
+        return `${weaponConfig?.name || upgrade.weaponType} - ${weaponConfig?.description || 'New weapon'}`;
+      } else {
+        return `${weaponConfig?.name || upgrade.weaponType} Level ${currentLevel + 1} - Improved damage and effects`;
+      }
+    } else if (upgrade.type === 'stat_boost') {
+      switch (upgrade.statType) {
+        case 'health':
+          return `+20 Max Health (Current: ${player.maxHealth})`;
+        case 'speed':
+          return `+10% Movement Speed (Current: ${player.speed.toFixed(1)})`;
+        case 'magnet':
+          return `+1 Magnet Range (Current: ${player.magnetRange})`;
+        case 'armor':
+          return `+5 Armor (Current: ${player.armor})`;
+        default:
+          return `${upgrade.statType} upgrade`;
+      }
+    }
+
+    return 'Unknown upgrade';
+  }
+
+  // Public method for applying upgrades (called from GameRoom)
+  applyUpgrade(gameState: GameState, playerId: string, upgradeChoice: UpgradeChoice): boolean {
+    const player = gameState.players.get(playerId);
+    if (!player || !player.pendingUpgrade) {
+      this.logSecurityViolation('Invalid upgrade application', {
+        playerId,
+        pendingUpgrade: player?.pendingUpgrade
+      });
+      return false;
+    }
+
+    // Security validation: Ensure upgrade choice is valid
+    if (!upgradeChoice || !upgradeChoice.type) {
+      this.logSecurityViolation('Invalid upgrade choice structure', {
+        playerId,
+        upgradeChoice
+      });
+      return false;
+    }
+
+    let success = false;
+
+    if (upgradeChoice.type === 'weapon' && upgradeChoice.weaponType) {
+      success = this.applyWeaponUpgrade(player, upgradeChoice.weaponType);
+    } else if (upgradeChoice.type === 'stat' && upgradeChoice.statType) {
+      success = this.applyStatUpgrade(player, upgradeChoice.statType);
+    }
+
+    if (success) {
+      player.pendingUpgrade = false;
+      this.xpMetrics.upgradesApplied++;
+      console.log(`[XPSystem] Applied upgrade to player ${playerId}: ${upgradeChoice.type}/${upgradeChoice.weaponType || upgradeChoice.statType}`);
+    }
+
+    return success;
+  }
+
+  private applyWeaponUpgrade(player: PlayerSchema, weaponType: string): boolean {
+    // Validate weapon type exists
+    if (!WEAPON_CONFIGS[weaponType]) {
+      this.logSecurityViolation('Invalid weapon type for upgrade', {
+        playerId: player.id,
+        weaponType
+      });
+      return false;
+    }
+
+    if (player.hasWeapon(weaponType)) {
+      // Upgrade existing weapon
+      const currentLevel = player.getWeaponLevel(weaponType);
+      if (currentLevel >= 10) {
+        this.logSecurityViolation('Weapon already at max level', {
+          playerId: player.id,
+          weaponType,
+          level: currentLevel
+        });
+        return false;
+      }
+      player.upgradeWeapon(weaponType);
+    } else {
+      // Add new weapon
+      player.addWeapon(weaponType);
+    }
+
+    return true;
+  }
+
+  private applyStatUpgrade(player: PlayerSchema, statType: string): boolean {
+    switch (statType) {
+      case 'health':
+        player.maxHealth += 20;
+        player.health = Math.min(player.health + 20, player.maxHealth); // Also heal
+        break;
+      case 'speed':
+        player.speed *= 1.1; // 10% increase
+        break;
+      case 'magnet':
+        player.magnetRange += 20;
+        break;
+      case 'armor':
+        player.armor += 5;
+        break;
+      default:
+        this.logSecurityViolation('Invalid stat type for upgrade', {
+          playerId: player.id,
+          statType
+        });
+        return false;
+    }
+
+    return true;
+  }
+
+  private validateXPValue(value: number): number {
+    // Ensure XP value is finite and reasonable
+    if (!Number.isFinite(value) || value < 0) {
+      return 0;
+    }
+
+    // Cap XP value to prevent exploits
+    const maxXPValue = 1000; // Reasonable maximum for single orb
+    return Math.min(value, maxXPValue);
+  }
+
+  private cleanupCollectedOrbs(gameState: GameState): void {
+    Object.keys(gameState.xpOrbs).forEach(orbId => {
+      const orb = gameState.xpOrbs.get(orbId);
+      if (orb && orb.collected) {
+        gameState.xpOrbs.delete(orbId);
+      }
+    });
+  }
+
+  private logSecurityViolation(reason: string, data: any): void {
+    console.warn(`[XPSystem] Security violation: ${reason}`, data);
+    this.xpMetrics.securityViolations++;
+  }
+
+  // Public methods for monitoring and debugging
+  getXPMetrics(): XPMetrics {
+    return { ...this.xpMetrics };
+  }
+
+  reset(): void {
+    this.xpMetrics = {
+      totalXPCollected: 0,
+      orbsCollected: 0,
+      levelsGained: 0,
+      upgradesApplied: 0,
+      magnetizationEvents: 0,
+      securityViolations: 0
+    };
+    console.log('[XPSystem] Reset for new game');
+  }
+}

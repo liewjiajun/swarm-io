@@ -11,6 +11,12 @@ export const GAME_CONSTANTS = {
   WORLD_EDGE_DAMAGE: 10, // DPS when outside world bounds
 
   // Player
+  PLAYER: {
+    START_HEALTH: 100,
+    BASE_SPEED: 5,
+    HITBOX_RADIUS: 0.5,
+    INVULN_TIME: 3, // Seconds after respawn
+  },
   PLAYER_START_HEALTH: 100,
   PLAYER_BASE_SPEED: 5,
   PLAYER_HITBOX_RADIUS: 0.5,
@@ -18,6 +24,11 @@ export const GAME_CONSTANTS = {
   RESPAWN_DELAY: 3, // Seconds before respawn allowed
 
   // XP & Leveling
+  XP_ORB: {
+    COLLECTION_RADIUS: 0.5,
+    MAGNET_RADIUS: 3,
+    SPEED: 8, // When magnetized
+  },
   XP_MAGNET_RADIUS: 3,
   XP_PICKUP_RADIUS: 0.5,
   XP_ORB_SPEED: 8, // When magnetized
@@ -28,11 +39,12 @@ export const GAME_CONSTANTS = {
   HOSTILITY_XP_PENALTY_THRESHOLD: 10,
 
   // Network
-  SERVER_TICK_RATE: 60, // Hz
+  SERVER_TICK_RATE: 16, // Milliseconds (60Hz)
   NETWORK_SEND_RATE: 20, // Hz
   INTEREST_RADIUS: 50, // Only sync entities within this radius
 
   // Spawning
+  ENEMY_SPAWN_INTERVAL: 0.5, // Seconds between spawns
   ENEMY_SPAWN_DISTANCE: 30, // Outside visible area
   MAX_ENEMIES_PER_PLAYER: 50,
   WAVE_DURATION: 60, // Seconds per wave
@@ -47,19 +59,25 @@ export const WEAPON_CONFIGS: Record<string, WeaponConfig> = {
     type: 'knife',
     name: 'Knife',
     description: 'Quick slashing attack in facing direction',
+    damage: 10,
+    cooldown: 0.5,
+    range: 2,
+    maxLevel: 8,
     baseDamage: 10,
     baseCooldown: 0.5,
     baseRange: 2,
-    maxLevel: 8,
   },
   wand: {
     type: 'wand',
     name: 'Magic Wand',
     description: 'Fires a magic projectile',
+    damage: 15,
+    cooldown: 1.0,
+    range: 15,
+    maxLevel: 8,
     baseDamage: 15,
     baseCooldown: 1.0,
     baseRange: 15,
-    maxLevel: 8,
     projectileSpeed: 12,
     projectileCount: 1,
   },
@@ -67,48 +85,63 @@ export const WEAPON_CONFIGS: Record<string, WeaponConfig> = {
     type: 'bible',
     name: 'King Bible',
     description: 'Orbits around you, damaging enemies',
-    baseDamage: 8,
-    baseCooldown: 0, // Continuous
-    baseRange: 3,
+    damage: 8,
+    cooldown: 0, // Continuous
+    range: 3,
     maxLevel: 8,
+    baseDamage: 8,
+    baseCooldown: 0,
+    baseRange: 3,
   },
   garlic: {
     type: 'garlic',
     name: 'Garlic',
     description: 'Damages nearby enemies continuously',
+    damage: 5,
+    cooldown: 0.5,
+    range: 2.5,
+    maxLevel: 8,
     baseDamage: 5,
     baseCooldown: 0.5,
     baseRange: 2.5,
-    maxLevel: 8,
     area: 2.5,
   },
   lightning: {
     type: 'lightning',
     name: 'Lightning Ring',
     description: 'Strikes random nearby enemies',
+    damage: 25,
+    cooldown: 2.0,
+    range: 10,
+    maxLevel: 8,
     baseDamage: 25,
     baseCooldown: 2.0,
     baseRange: 10,
-    maxLevel: 8,
   },
   axe: {
     type: 'axe',
     name: 'Axe',
     description: 'Thrown axe that passes through enemies',
+    damage: 20,
+    cooldown: 1.5,
+    range: 12,
+    maxLevel: 8,
     baseDamage: 20,
     baseCooldown: 1.5,
     baseRange: 12,
-    maxLevel: 8,
     projectileSpeed: 8,
   },
   fireball: {
     type: 'fireball',
     name: 'Fireball',
     description: 'Explodes on impact',
+    damage: 30,
+    cooldown: 3.0,
+    range: 20,
+    maxLevel: 8,
     baseDamage: 30,
     baseCooldown: 3.0,
     baseRange: 20,
-    maxLevel: 8,
     projectileSpeed: 10,
     area: 3,
   },
@@ -116,10 +149,13 @@ export const WEAPON_CONFIGS: Record<string, WeaponConfig> = {
     type: 'whip',
     name: 'Whip',
     description: 'Wide horizontal attack',
+    damage: 12,
+    cooldown: 1.0,
+    range: 4,
+    maxLevel: 8,
     baseDamage: 12,
     baseCooldown: 1.0,
     baseRange: 4,
-    maxLevel: 8,
     area: 4,
   },
 };
@@ -237,20 +273,20 @@ export const XP_ORB_VALUES = {
 
 export interface WaveConfig {
   time: number; // When this wave starts (seconds)
-  enemies: { type: string; count: number }[];
-  boss?: string;
+  enemies: { [type: string]: number };
+  bossType?: string;
 }
 
 export const WAVE_SCHEDULE: WaveConfig[] = [
-  { time: 0, enemies: [{ type: 'bat', count: 20 }] },
-  { time: 30, enemies: [{ type: 'bat', count: 30 }, { type: 'skeleton', count: 5 }] },
-  { time: 60, enemies: [{ type: 'bat', count: 25 }, { type: 'skeleton', count: 15 }] },
-  { time: 90, enemies: [{ type: 'skeleton', count: 20 }, { type: 'zombie', count: 10 }] },
-  { time: 120, enemies: [{ type: 'zombie', count: 20 }, { type: 'ghost', count: 15 }], boss: 'boss_slime' },
-  { time: 180, enemies: [{ type: 'ghost', count: 30 }, { type: 'slime', count: 20 }] },
-  { time: 240, enemies: [{ type: 'slime', count: 30 }, { type: 'demon', count: 10 }], boss: 'boss_skeleton' },
-  { time: 300, enemies: [{ type: 'demon', count: 25 }, { type: 'zombie', count: 30 }] },
-  { time: 360, enemies: [{ type: 'demon', count: 40 }, { type: 'ghost', count: 30 }], boss: 'boss_demon' },
+  { time: 0, enemies: { bat: 20 } },
+  { time: 30, enemies: { bat: 30, skeleton: 5 } },
+  { time: 60, enemies: { bat: 25, skeleton: 15 } },
+  { time: 90, enemies: { skeleton: 20, zombie: 10 } },
+  { time: 120, enemies: { zombie: 20, ghost: 15 }, bossType: 'boss_slime' },
+  { time: 180, enemies: { ghost: 30, slime: 20 } },
+  { time: 240, enemies: { slime: 30, demon: 10 }, bossType: 'boss_skeleton' },
+  { time: 300, enemies: { demon: 25, zombie: 30 } },
+  { time: 360, enemies: { demon: 40, ghost: 30 }, bossType: 'boss_demon' },
   // After 360s, repeat last wave with increasing difficulty multiplier
 ];
 

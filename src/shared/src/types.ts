@@ -63,6 +63,10 @@ export interface WeaponConfig {
   projectileSpeed?: number;
   projectileCount?: number;
   area?: number; // For AOE weapons
+  // Computed properties for backward compatibility
+  damage: number;
+  cooldown: number;
+  range: number;
 }
 
 export interface WeaponState {
@@ -220,6 +224,18 @@ export interface ChooseUpgradeMessage extends ClientMessage {
 
 export interface RespawnMessage extends ClientMessage {
   type: 'respawn';
+}
+
+export interface UpgradeMessage extends ClientMessage {
+  type: 'choose_upgrade';
+  choice: {
+    id: string;
+    type: 'weapon' | 'stat';
+    weaponType?: string;
+    statType?: string;
+    description: string;
+    weight: number;
+  };
 }
 
 // =============================================================================
