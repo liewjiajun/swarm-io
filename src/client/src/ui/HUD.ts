@@ -221,7 +221,7 @@ export class HUD {
       <div class="tutorial-overlay hidden">
         <div class="tutorial-content">
           <div class="tutorial-title">HOW TO PLAY</div>
-          <div class="tutorial-section">
+          <div class="tutorial-section tutorial-desktop-controls">
             <div class="tutorial-heading">MOVEMENT</div>
             <div class="tutorial-keys">
               <span class="key">W</span>
@@ -231,6 +231,15 @@ export class HUD {
             </div>
             <div class="tutorial-text">Use WASD or Arrow Keys to move</div>
           </div>
+          <div class="tutorial-section tutorial-mobile-controls">
+            <div class="tutorial-heading">MOVEMENT</div>
+            <div class="tutorial-joystick-icon">
+              <div class="joystick-demo-base">
+                <div class="joystick-demo-knob"></div>
+              </div>
+            </div>
+            <div class="tutorial-text">Touch and drag the virtual joystick to move</div>
+          </div>
           <div class="tutorial-section">
             <div class="tutorial-heading">COMBAT</div>
             <div class="tutorial-text">Weapons auto-attack nearby enemies</div>
@@ -239,9 +248,15 @@ export class HUD {
             <div class="tutorial-heading">SURVIVE</div>
             <div class="tutorial-text">Collect XP orbs to level up and choose upgrades</div>
           </div>
-          <div class="tutorial-section">
+          <div class="tutorial-section tutorial-tips-desktop">
             <div class="tutorial-heading">TIPS</div>
             <div class="tutorial-text">• ESC opens Settings</div>
+            <div class="tutorial-text">• Avoid the world edge</div>
+            <div class="tutorial-text">• Watch out for bosses!</div>
+          </div>
+          <div class="tutorial-section tutorial-tips-mobile">
+            <div class="tutorial-heading">TIPS</div>
+            <div class="tutorial-text">• Tap the gear icon for Settings</div>
             <div class="tutorial-text">• Avoid the world edge</div>
             <div class="tutorial-text">• Watch out for bosses!</div>
           </div>
@@ -755,6 +770,74 @@ export class HUD {
         color: #aaa;
         line-height: 1.8;
         text-shadow: 1px 1px 0 #000;
+      }
+
+      /* Mobile/Desktop specific tutorial sections */
+      .tutorial-mobile-controls,
+      .tutorial-tips-mobile {
+        display: none;
+      }
+
+      .tutorial-desktop-controls,
+      .tutorial-tips-desktop {
+        display: block;
+      }
+
+      @media (max-width: 768px), (hover: none) and (pointer: coarse) {
+        .tutorial-mobile-controls,
+        .tutorial-tips-mobile {
+          display: block;
+        }
+
+        .tutorial-desktop-controls,
+        .tutorial-tips-desktop {
+          display: none;
+        }
+
+        .tutorial-content {
+          max-width: 350px;
+          padding: 25px;
+        }
+
+        .tutorial-title {
+          font-size: 22px;
+          margin-bottom: 20px;
+        }
+      }
+
+      /* Joystick demo icon for tutorial */
+      .tutorial-joystick-icon {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 10px;
+      }
+
+      .joystick-demo-base {
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.15);
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .joystick-demo-knob {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 30% 30%, rgba(78, 205, 196, 0.9), rgba(26, 188, 156, 0.8));
+        border: 2px solid rgba(255, 255, 255, 0.5);
+        animation: joystick-pulse 2s ease-in-out infinite;
+      }
+
+      @keyframes joystick-pulse {
+        0%, 100% { transform: translate(0, 0); }
+        25% { transform: translate(10px, 0); }
+        50% { transform: translate(0, 10px); }
+        75% { transform: translate(-10px, 0); }
       }
 
       .tutorial-start-btn {

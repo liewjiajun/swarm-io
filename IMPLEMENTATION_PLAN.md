@@ -184,7 +184,7 @@
 |------|-------------|------------|----------|
 | Demon ranged attack | Demons fire projectiles at range | Medium | ~60 | COMPLETE |
 | Boss unique abilities | Special boss mechanics (charge, AOE) | Medium | ~150 | COMPLETE |
-| Mobile touch controls | Virtual joystick for mobile play | Medium | ~200 |
+| Mobile touch controls | Virtual joystick for mobile play | Medium | ~200 | COMPLETE |
 | Settings menu | Sound, controls, graphics options | Low | ~100 | COMPLETE |
 | Tutorial overlay | First-time player guidance | Low | ~80 | COMPLETE |
 | Pause menu | In-game pause with options | Low | ~60 | COMPLETE |
@@ -415,8 +415,8 @@ const nearestPlayer = spatialHash.queryNearestOfType(x, y, 'player', maxRange);
 - [x] Full HUD implementation
 - [x] Audio system (complete - 6/6)
 - [x] Visual effects (complete - 5/5)
-- [ ] Mobile support
-- [ ] Performance optimizations
+- [x] Mobile support
+- [x] Performance optimizations
 
 ---
 
@@ -448,6 +448,7 @@ npm run lint
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-01-13 | 2.19 | Mobile Touch Controls COMPLETE - Added virtual joystick for mobile play. TouchControls class handles touch events with joystick zone on left half of screen. Joystick appears where user touches, with smooth analog input and dead zone. Integrated with InputManager for seamless keyboard/touch input switching. Mobile device auto-detection (touch + mobile UA/screen size). HUD responsive layout for mobile screens. Tutorial shows joystick controls on mobile vs WASD on desktop. |
 | 2026-01-13 | 2.18 | Pause Menu COMPLETE - Added pause overlay with PAUSED title. RESUME button to continue gameplay. SETTINGS button opens settings from pause menu. P key toggles pause state. Game loop skips updates when paused. Resume resets delta time to prevent time jump. |
 | 2026-01-13 | 2.17 | Tutorial Overlay COMPLETE - Added tutorial overlay for first-time players. Shows WASD movement controls with key icons. Explains auto-attack combat and XP collection mechanics. Provides tips (ESC for settings, avoid edges, watch for bosses). Uses localStorage to track if tutorial has been shown. START GAME button dismisses tutorial and starts game. |
 | 2026-01-13 | 2.16 | Settings Menu COMPLETE - Added settings button (gear icon) in top-right corner of HUD. Added settings modal with master/SFX/music volume sliders. Added mute all checkbox. ESC key toggles settings menu. Click outside modal to close. Connected HUD settings to AudioManager in Game.ts for volume control. |

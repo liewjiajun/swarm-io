@@ -489,6 +489,7 @@ export class Game {
       this.network.disconnect();
       this.connected = false;
     }
+    this.input.destroy();
     this.hud.destroy();
     this.audio.destroy();
     console.log('[Game] Stopped');
