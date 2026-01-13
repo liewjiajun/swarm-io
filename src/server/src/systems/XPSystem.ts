@@ -362,7 +362,7 @@ export class XPSystem {
         player.speed *= 1.1; // 10% increase
         break;
       case 'magnet':
-        player.magnetRange += 20;
+        player.magnetRange += 1; // +1 per upgrade as per UPGRADE_POOL spec
         break;
       case 'armor':
         player.armor += 5;

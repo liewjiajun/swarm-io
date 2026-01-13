@@ -4,6 +4,7 @@
 
 **Last Updated:** 2026-01-13
 **Implementation Progress:** 101/85 tasks completed (118.8%)
+**Test Count:** 209 tests (136 server + 73 shared)
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
 **Next Priority:** Quality of Life features (Phase 6.4) - optional enhancements
 
@@ -366,6 +367,8 @@ const nearestPlayer = spatialHash.queryNearestOfType(x, y, 'player', maxRange);
 |----|-------|----------|----------|--------|
 | TEST-001 | No unit tests exist | N/A | Low | Resolved |
 | DESIGN-001 | Garlic creates unused explosion projectiles | `WeaponSystem.ts:259-274` | Info | Won't Fix |
+| SPEC-001 | Ghost phasing not implemented | types.ts | Info | Won't Fix (flavor text only) |
+| SPEC-002 | Player-player collision not implemented | CombatSystem | Info | Won't Fix (optional per spec line 466) |
 
 ### Verified Constants
 
@@ -448,6 +451,7 @@ npm run lint
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-01-13 | 2.24 | Fixed magnet range boost bug in XPSystem - was incorrectly adding +20 per upgrade instead of +1 as specified in UPGRADE_POOL. Magnet boost now correctly adds +1 per upgrade (max 5 upgrades: 3→4→5→6→7→8 range). Added comprehensive schema unit tests - Created PlayerSchema.test.ts (33 tests) and GameState.test.ts (27 tests) covering weapon management, XP system, damage/death/respawn, and entity CRUD operations with object pooling. Total test count now 209 (136 server + 73 shared). Note: Ghost enemy phasing (spec flavor text) and player-player collision (marked optional in spec) documented as future enhancements. |
 | 2026-01-13 | 2.23 | Bible Weapon Orbital Mechanics FIX - Fixed bug where Bible orb projectiles were static instead of orbiting the player. Added special handling in PhysicsSystem for 'orb' type projectiles to orbit their owner at π radians/sec. Fixed orbit radius in WeaponSystem to scale with weapon level (was hardcoded to 50, now uses config.range * level scaling). Orbs now properly follow player movement and rotate around them. |
 | 2026-01-13 | 2.22 | InputSystem Tests COMPLETE - Added comprehensive InputSystem test suite (41 tests) covering input validation, rate limiting, spam detection, and player kicking. Fixed bug where first input was always detected as spam due to lastInputTime being initialized to current time. Total test count now 149 (76 server + 73 shared). All tests passing. |
 | 2026-01-13 | 2.21 | ESLint Configuration ADDED - Created .eslintrc.json with TypeScript support. Installed @typescript-eslint/parser and @typescript-eslint/eslint-plugin. Fixed 18 lint warnings across client/server packages (unused imports, unused vars, unused parameters). All lint, typecheck, and tests pass. |
