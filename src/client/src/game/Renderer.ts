@@ -1,6 +1,34 @@
 import * as THREE from 'three';
 import type { GameState, PlayerState, EnemyState, ProjectileState, XPOrbState } from '@swarm-io/shared';
 
+/**
+ * DamageNumber - Floating damage text that animates upward and fades
+ * Uses CSS-positioned DOM elements for crisp text rendering
+ */
+interface DamageNumber {
+  element: HTMLDivElement;
+  worldX: number;
+  worldY: number;
+  startTime: number;
+  duration: number;
+}
+
+/**
+ * Particle - Individual sparkle/particle for visual effects
+ */
+interface Particle {
+  x: number;
+  y: number;
+  z: number;
+  vx: number;
+  vy: number;
+  vz: number;
+  life: number;
+  maxLife: number;
+  scale: number;
+  color: number;
+}
+
 export class Renderer {
   private scene: THREE.Scene;
   private camera: THREE.OrthographicCamera;
@@ -22,6 +50,19 @@ export class Renderer {
   // Camera
   private cameraTarget = { x: 0, y: 0 };
   private frustumSize = 30;
+
+  // Damage numbers
+  private damageNumbers: DamageNumber[] = [];
+  private damageContainer: HTMLDivElement | null = null;
+  private lastEnemyHealth: Map<string, number> = new Map();
+
+  // Particle effects
+  private particles: Particle[] = [];
+  private particleMesh!: THREE.InstancedMesh;
+  private lastXpOrbPositions: Map<string, { x: number; y: number; value: number }> = new Map();
+
+  // Delta time tracking
+  private lastRenderTime: number = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     // Scene
@@ -50,9 +91,30 @@ export class Renderer {
     this.createGround();
     this.createEntityPools();
     this.createLighting();
+    this.createDamageContainer();
 
     // Handle resize
     window.addEventListener('resize', () => this.onResize(canvas));
+  }
+
+  /**
+   * Create DOM container for damage number overlays
+   * Uses DOM elements for crisp text that scales well
+   */
+  private createDamageContainer(): void {
+    this.damageContainer = document.createElement('div');
+    this.damageContainer.id = 'damage-numbers';
+    this.damageContainer.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 100;
+    `;
+    document.body.appendChild(this.damageContainer);
   }
 
   private createGround() {
@@ -94,6 +156,17 @@ export class Renderer {
     this.xpOrbMesh = new THREE.InstancedMesh(xpGeometry, xpMaterial, 2000);
     this.xpOrbMesh.count = 0;
     this.scene.add(this.xpOrbMesh);
+
+    // Particle pool for sparkle effects
+    const particleGeometry = new THREE.SphereGeometry(0.08, 4, 4);
+    const particleMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 1,
+    });
+    this.particleMesh = new THREE.InstancedMesh(particleGeometry, particleMaterial, 500);
+    this.particleMesh.count = 0;
+    this.scene.add(this.particleMesh);
   }
 
   private createEnemyPool(type: string, color: number, maxCount: number) {
@@ -120,6 +193,11 @@ export class Renderer {
   }
 
   render(state: any, localPlayerId: string) {
+    // Calculate delta time for physics
+    const now = performance.now();
+    const dt = this.lastRenderTime > 0 ? Math.min((now - this.lastRenderTime) / 1000, 0.1) : 0.016;
+    this.lastRenderTime = now;
+
     // Smooth camera follow
     const lerpFactor = 0.1;
     this.camera.position.x += (this.cameraTarget.x - this.camera.position.x) * lerpFactor;
@@ -133,14 +211,26 @@ export class Renderer {
     // Update players
     this.updatePlayers(state.players, localPlayerId);
 
+    // Detect damage before updating enemies (to track health changes)
+    this.detectDamage(state.enemies);
+
     // Update enemies
     this.updateEnemies(state.enemies);
 
     // Update projectiles
     this.updateProjectiles(state.projectiles);
 
+    // Detect XP collection before updating (to track removed orbs)
+    this.detectXPCollection(state.xpOrbs);
+
     // Update XP orbs
     this.updateXPOrbs(state.xpOrbs);
+
+    // Update particle effects
+    this.updateParticles(dt);
+
+    // Update damage number animations
+    this.updateDamageNumbers();
 
     // Render
     this.renderer.render(this.scene, this.camera);
@@ -270,4 +360,244 @@ export class Renderer {
     this.renderer.setSize(canvas.clientWidth, canvas.clientHeight);
   }
 
+  /**
+   * Spawn a floating damage number at the given world position
+   * @param damage - The damage amount to display
+   * @param worldX - World X coordinate
+   * @param worldY - World Y coordinate (Z in 3D space)
+   * @param isCritical - Whether to show as critical hit (larger, different color)
+   */
+  spawnDamageNumber(damage: number, worldX: number, worldY: number, isCritical: boolean = false): void {
+    if (!this.damageContainer) return;
+
+    const element = document.createElement('div');
+    element.textContent = Math.round(damage).toString();
+    element.style.cssText = `
+      position: absolute;
+      font-family: 'Press Start 2P', monospace;
+      font-size: ${isCritical ? '16px' : '12px'};
+      font-weight: bold;
+      color: ${isCritical ? '#ffff00' : '#ff6b6b'};
+      text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+      pointer-events: none;
+      white-space: nowrap;
+      transform: translate(-50%, -50%);
+      transition: none;
+    `;
+
+    this.damageContainer.appendChild(element);
+
+    this.damageNumbers.push({
+      element,
+      worldX,
+      worldY,
+      startTime: performance.now(),
+      duration: 800, // milliseconds
+    });
+  }
+
+  /**
+   * Update and animate all active damage numbers
+   * Removes expired numbers and updates screen positions
+   */
+  private updateDamageNumbers(): void {
+    const now = performance.now();
+    const canvas = this.renderer.domElement;
+    const halfWidth = canvas.clientWidth / 2;
+    const halfHeight = canvas.clientHeight / 2;
+
+    // Process damage numbers in reverse to safely remove during iteration
+    for (let i = this.damageNumbers.length - 1; i >= 0; i--) {
+      const dn = this.damageNumbers[i];
+      const elapsed = now - dn.startTime;
+      const progress = elapsed / dn.duration;
+
+      if (progress >= 1) {
+        // Remove expired damage number
+        dn.element.remove();
+        this.damageNumbers.splice(i, 1);
+        continue;
+      }
+
+      // Calculate vertical offset (float upward)
+      const floatOffset = progress * 2; // Rise 2 units over duration
+
+      // Convert world position to screen position
+      const worldPos = new THREE.Vector3(dn.worldX, 0.5 + floatOffset, dn.worldY);
+      worldPos.project(this.camera);
+
+      const screenX = (worldPos.x * halfWidth) + halfWidth;
+      const screenY = -(worldPos.y * halfHeight) + halfHeight;
+
+      // Update element position
+      dn.element.style.left = `${screenX}px`;
+      dn.element.style.top = `${screenY}px`;
+
+      // Fade out
+      const opacity = 1 - progress;
+      dn.element.style.opacity = opacity.toString();
+
+      // Scale up slightly at start, then shrink
+      const scale = progress < 0.2 ? 1 + progress : 1.2 - (progress - 0.2) * 0.3;
+      dn.element.style.transform = `translate(-50%, -50%) scale(${scale})`;
+    }
+  }
+
+  /**
+   * Detect enemy health changes and spawn damage numbers
+   */
+  private detectDamage(enemies: Map<string, EnemyState>): void {
+    enemies.forEach((enemy, id) => {
+      const lastHealth = this.lastEnemyHealth.get(id);
+
+      if (lastHealth !== undefined && enemy.health < lastHealth) {
+        const damage = lastHealth - enemy.health;
+        // Spawn damage number with slight random offset for visual variety
+        const offsetX = (Math.random() - 0.5) * 0.5;
+        const offsetY = (Math.random() - 0.5) * 0.5;
+        const isCritical = damage >= 25; // Consider high damage as critical
+        this.spawnDamageNumber(damage, enemy.x + offsetX, enemy.y + offsetY, isCritical);
+      }
+
+      this.lastEnemyHealth.set(id, enemy.health);
+    });
+
+    // Clean up tracking for removed enemies
+    const currentIds = new Set(enemies.keys());
+    this.lastEnemyHealth.forEach((_, id) => {
+      if (!currentIds.has(id)) {
+        this.lastEnemyHealth.delete(id);
+      }
+    });
+  }
+
+  /**
+   * Spawn sparkle particles when XP orbs are collected
+   * Creates a burst of particles at the collection point
+   */
+  spawnXPSparkle(x: number, z: number, orbValue: number): void {
+    // Number of particles scales with orb value
+    const particleCount = Math.min(8 + Math.floor(orbValue / 5), 20);
+
+    // Color based on orb size (value)
+    let color: number;
+    if (orbValue >= 25) {
+      color = 0xffff00; // Gold for large orbs
+    } else if (orbValue >= 5) {
+      color = 0x00ffff; // Cyan for medium orbs
+    } else {
+      color = 0x00ff88; // Green for small orbs
+    }
+
+    for (let i = 0; i < particleCount; i++) {
+      // Random direction in a sphere
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      const speed = 2 + Math.random() * 3;
+
+      const vx = Math.sin(phi) * Math.cos(theta) * speed;
+      const vy = Math.abs(Math.sin(phi) * Math.sin(theta)) * speed + 2; // Bias upward
+      const vz = Math.cos(phi) * speed;
+
+      this.particles.push({
+        x,
+        y: 0.3, // Start at orb height
+        z,
+        vx,
+        vy,
+        vz,
+        life: 0.5 + Math.random() * 0.3, // 0.5-0.8 seconds
+        maxLife: 0.5 + Math.random() * 0.3,
+        scale: 0.5 + Math.random() * 0.5,
+        color,
+      });
+    }
+  }
+
+  /**
+   * Update particle physics and render them
+   */
+  private updateParticles(dt: number): void {
+    // Update particle physics
+    const gravity = -15;
+
+    for (let i = this.particles.length - 1; i >= 0; i--) {
+      const p = this.particles[i];
+
+      // Update position
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.z += p.vz * dt;
+
+      // Apply gravity
+      p.vy += gravity * dt;
+
+      // Reduce life
+      p.life -= dt;
+
+      // Remove dead particles
+      if (p.life <= 0 || p.y < 0) {
+        this.particles.splice(i, 1);
+      }
+    }
+
+    // Render particles
+    this.particleMesh.count = Math.min(this.particles.length, 500);
+
+    this.particles.slice(0, 500).forEach((p, index) => {
+      const lifeRatio = p.life / p.maxLife;
+
+      this.dummy.position.set(p.x, p.y, p.z);
+      this.dummy.scale.setScalar(p.scale * lifeRatio);
+      this.dummy.updateMatrix();
+      this.particleMesh.setMatrixAt(index, this.dummy.matrix);
+
+      // Update color with fade
+      this.tempColor.setHex(p.color);
+      this.particleMesh.setColorAt(index, this.tempColor);
+    });
+
+    if (this.particles.length > 0) {
+      this.particleMesh.instanceMatrix.needsUpdate = true;
+      if (this.particleMesh.instanceColor) {
+        this.particleMesh.instanceColor.needsUpdate = true;
+      }
+    }
+  }
+
+  /**
+   * Detect XP orb collection and spawn sparkles
+   */
+  private detectXPCollection(orbs: Map<string, XPOrbState>): void {
+    // Track current orbs
+    const currentOrbIds = new Set<string>();
+    orbs.forEach((orb, id) => {
+      currentOrbIds.add(id);
+      // Store position for when orb is collected
+      this.lastXpOrbPositions.set(id, { x: orb.x, y: orb.y, value: orb.value });
+    });
+
+    // Check for collected orbs (orbs that disappeared)
+    this.lastXpOrbPositions.forEach((pos, id) => {
+      if (!currentOrbIds.has(id)) {
+        // Orb was collected - spawn sparkle effect
+        this.spawnXPSparkle(pos.x, pos.y, pos.value);
+        this.lastXpOrbPositions.delete(id);
+      }
+    });
+  }
+
+  /**
+   * Clean up DOM elements on destroy
+   */
+  destroy(): void {
+    if (this.damageContainer) {
+      this.damageContainer.remove();
+      this.damageContainer = null;
+    }
+    this.damageNumbers = [];
+    this.lastEnemyHealth.clear();
+    this.particles = [];
+    this.lastXpOrbPositions.clear();
+  }
 }

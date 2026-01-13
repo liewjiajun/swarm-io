@@ -3,7 +3,8 @@ import { InputManager } from './InputManager';
 import { Interpolator } from './Interpolator';
 import { NetworkClient, SerializedGameState } from '../network';
 import { HUD } from '../ui';
-import type { PlayerInput } from '@swarm-io/shared';
+import { AudioManager } from '../audio';
+import type { PlayerInput, WeaponType } from '@swarm-io/shared';
 
 export class Game {
   private renderer: Renderer;
@@ -11,6 +12,7 @@ export class Game {
   private interpolator: Interpolator;
   private network: NetworkClient;
   private hud: HUD;
+  private audio: AudioManager;
 
   private localPlayerId: string = '';
   private lastUpdateTime: number = 0;
@@ -18,12 +20,20 @@ export class Game {
   private connected: boolean = false;
   private inputSequence: number = 0;
 
+  // Track state for audio event detection
+  private lastPlayerHealth: number = 100;
+  private lastProjectileCount: number = 0;
+  private lastXpOrbIds: Set<string> = new Set();
+  private lastEnemyIds: Set<string> = new Set();
+  private knownProjectileIds: Set<string> = new Set();
+
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new Renderer(canvas);
     this.input = new InputManager();
     this.interpolator = new Interpolator();
     this.network = new NetworkClient();
     this.hud = new HUD();
+    this.audio = new AudioManager();
   }
 
   async start() {
@@ -65,6 +75,8 @@ export class Game {
     this.network.onPlayerDied((data) => {
       if (data.playerId === this.localPlayerId) {
         console.log('[Game] Local player died. Final score:', data.finalScore);
+        // Play death sound
+        this.audio.playDeathSound();
         // Get player stats from the last known state
         const state = this.interpolator.getInterpolatedState(performance.now() - 100);
         const player = state.players.get(this.localPlayerId);
@@ -80,6 +92,8 @@ export class Game {
     // Handle level up with upgrade choices
     this.network.onLevelUp((data) => {
       console.log('[Game] Level up! New level:', data.newLevel);
+      // Play level up sound
+      this.audio.playLevelUpSound();
       // Store choices so we can look them up by ID when the user selects
       const choiceMap = new Map(data.choices.map(c => [c.id, c]));
       this.hud.showUpgradeUI(data.choices, (choiceId: string) => {
@@ -275,11 +289,99 @@ export class Game {
       this.renderer.setCameraTarget(localPlayer.x, localPlayer.y);
     }
 
+    // Process audio events based on state changes
+    this.processAudioEvents(state, localPlayer);
+
     // Render all entities
     this.renderer.render(state, this.localPlayerId);
 
     // Update HUD with current state
     this.hud.update(localPlayer, state.world, state.players, this.localPlayerId);
+  }
+
+  /**
+   * Detect state changes and play appropriate audio
+   * Compares current state with previous frame to detect:
+   * - New projectiles (weapon fired)
+   * - Removed XP orbs (collected)
+   * - Removed enemies (killed)
+   * - Player health decrease (damage taken)
+   */
+  private processAudioEvents(state: any, localPlayer: any): void {
+    // Detect player damage
+    if (localPlayer) {
+      if (localPlayer.health < this.lastPlayerHealth && this.lastPlayerHealth > 0) {
+        this.audio.playPlayerDamageSound();
+      }
+      this.lastPlayerHealth = localPlayer.health;
+    }
+
+    // Detect new projectiles (weapon fired) - only from local player
+    const currentProjectileIds = new Set<string>();
+    state.projectiles.forEach((proj: any, id: string) => {
+      currentProjectileIds.add(id);
+
+      // If this is a new projectile we haven't seen
+      if (!this.knownProjectileIds.has(id)) {
+        // Try to determine weapon type from projectile type
+        const weaponType = this.getWeaponTypeFromProjectile(proj.type);
+        if (weaponType) {
+          this.audio.playWeaponSound(weaponType);
+        }
+      }
+    });
+    this.knownProjectileIds = currentProjectileIds;
+
+    // Detect XP orb collection (orbs that disappeared while player nearby)
+    const currentXpOrbIds = new Set<string>();
+    state.xpOrbs.forEach((_orb: any, id: string) => {
+      currentXpOrbIds.add(id);
+    });
+
+    // Check for removed orbs (collected)
+    this.lastXpOrbIds.forEach(id => {
+      if (!currentXpOrbIds.has(id)) {
+        // Orb was removed - likely collected
+        this.audio.playPickupSound('small'); // Default to small sound
+      }
+    });
+    this.lastXpOrbIds = currentXpOrbIds;
+
+    // Detect enemy deaths
+    const currentEnemyIds = new Set<string>();
+    state.enemies.forEach((_enemy: any, id: string) => {
+      currentEnemyIds.add(id);
+    });
+
+    // Check for removed enemies (killed)
+    let enemiesKilled = 0;
+    this.lastEnemyIds.forEach(id => {
+      if (!currentEnemyIds.has(id)) {
+        enemiesKilled++;
+      }
+    });
+
+    // Play enemy death sound (limit to avoid audio spam)
+    if (enemiesKilled > 0 && enemiesKilled <= 3) {
+      this.audio.playEnemyDeathSound();
+    }
+    this.lastEnemyIds = currentEnemyIds;
+  }
+
+  /**
+   * Map projectile type to weapon type for audio
+   */
+  private getWeaponTypeFromProjectile(projectileType: string): WeaponType | null {
+    const mapping: Record<string, WeaponType> = {
+      'slash': 'knife',
+      'bullet': 'wand',
+      'orb': 'bible',
+      'lightning_bolt': 'lightning',
+      'axe_spin': 'axe',
+      'fireball': 'fireball',
+      'explosion': 'fireball', // Explosion is part of fireball
+    };
+    return mapping[projectileType] || null;
   }
 
   stop() {
@@ -289,6 +391,7 @@ export class Game {
       this.connected = false;
     }
     this.hud.destroy();
+    this.audio.destroy();
     console.log('[Game] Stopped');
   }
 
