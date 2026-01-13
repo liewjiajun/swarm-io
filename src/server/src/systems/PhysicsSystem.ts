@@ -25,12 +25,13 @@ export class PhysicsSystem {
           const currentDist = Math.sqrt(dx * dx + dy * dy);
           const currentAngle = Math.atan2(dy, dx);
 
-          // Rotate at ~1 revolution per 2 seconds (π radians/sec)
-          const orbitSpeed = Math.PI;
-          const newAngle = currentAngle + orbitSpeed * dt;
+          // Rotate at ~1 revolution per 2 seconds
+          const newAngle = currentAngle + GAME_CONSTANTS.ORB_ORBIT_SPEED * dt;
 
-          // Maintain orbit radius (use current distance or default to 3 units)
-          const orbitRadius = currentDist > 0.5 ? currentDist : 3;
+          // Maintain orbit radius (use current distance or default radius)
+          const orbitRadius = currentDist > GAME_CONSTANTS.ORB_MIN_DISTANCE_THRESHOLD
+            ? currentDist
+            : GAME_CONSTANTS.ORB_DEFAULT_RADIUS;
 
           // Update position to orbit around owner
           projectile.x = owner.x + Math.cos(newAngle) * orbitRadius;
@@ -95,7 +96,7 @@ export class PhysicsSystem {
   private updateEnemyAI(state: GameState, enemy: any, dt: number) {
     // Find nearest player
     const nearestPlayer = this.spatialHash.queryNearestOfType(
-      enemy.x, enemy.y, 'player', 100
+      enemy.x, enemy.y, 'player', GAME_CONSTANTS.ENEMY_DETECTION_RANGE
     );
 
     // Check if this enemy has ranged attack capability
@@ -143,14 +144,14 @@ export class PhysicsSystem {
           }
 
           // Ranged enemies try to maintain distance (stop moving if close enough)
-          if (dist < attackConfig.range * 0.5) {
+          if (dist < attackConfig.range * GAME_CONSTANTS.RANGED_RETREAT_DISTANCE_RATIO) {
             // Move away from player to maintain distance
             const dir = direction(
               { x: nearestPlayer.x, y: nearestPlayer.y },
               { x: enemy.x, y: enemy.y }
             );
-            enemy.velocityX = dir.x * enemy.speed * 0.5;
-            enemy.velocityY = dir.y * enemy.speed * 0.5;
+            enemy.velocityX = dir.x * enemy.speed * GAME_CONSTANTS.ENEMY_SLOW_SPEED_RATIO;
+            enemy.velocityY = dir.y * enemy.speed * GAME_CONSTANTS.ENEMY_SLOW_SPEED_RATIO;
           } else {
             // Stay in place while attacking
             enemy.velocityX = 0;
@@ -177,8 +178,8 @@ export class PhysicsSystem {
     } else {
       // Wander toward center
       const dir = direction({ x: enemy.x, y: enemy.y }, { x: 0, y: 0 });
-      enemy.velocityX = dir.x * enemy.speed * 0.5;
-      enemy.velocityY = dir.y * enemy.speed * 0.5;
+      enemy.velocityX = dir.x * enemy.speed * GAME_CONSTANTS.ENEMY_SLOW_SPEED_RATIO;
+      enemy.velocityY = dir.y * enemy.speed * GAME_CONSTANTS.ENEMY_SLOW_SPEED_RATIO;
     }
 
     enemy.x += enemy.velocityX * dt;
@@ -201,7 +202,7 @@ export class PhysicsSystem {
     if (ability.type === 'summon' && ability.summonCount && ability.summonType && ability.summonRange) {
       const angleStep = (Math.PI * 2) / ability.summonCount;
       for (let i = 0; i < ability.summonCount; i++) {
-        const angle = angleStep * i + Math.random() * 0.5;
+        const angle = angleStep * i + Math.random() * GAME_CONSTANTS.BOSS_SUMMON_ANGLE_VARIANCE;
         const spawnX = enemy.x + Math.cos(angle) * ability.summonRange;
         const spawnY = enemy.y + Math.sin(angle) * ability.summonRange;
 
@@ -240,7 +241,7 @@ export class PhysicsSystem {
     const dy = enemy.chargeTargetY - enemy.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
-    if (dist < 0.5) {
+    if (dist < GAME_CONSTANTS.CHARGE_TARGET_REACHED_THRESHOLD) {
       // Reached target, end charge
       enemy.isCharging = false;
       enemy.velocityX = 0;
@@ -255,9 +256,9 @@ export class PhysicsSystem {
         0,
         0,
         chargeDamage,
-        0.2,  // Short lifetime for AOE effect
-        3,    // 3 unit radius damage
-        999   // Hits all in radius
+        GAME_CONSTANTS.CHARGE_IMPACT_LIFETIME,
+        GAME_CONSTANTS.CHARGE_IMPACT_RADIUS,
+        GAME_CONSTANTS.CHARGE_IMPACT_MAX_PIERCE
       );
       console.log(`[PhysicsSystem] Boss ${enemy.type} charge impact at (${enemy.x.toFixed(1)}, ${enemy.y.toFixed(1)})`);
       return;
@@ -298,7 +299,7 @@ export class PhysicsSystem {
       attackConfig.damage,
       attackConfig.projectileLifetime,
       attackConfig.projectileRadius,
-      1  // Single hit, no piercing
+      GAME_CONSTANTS.ENEMY_PROJECTILE_PIERCE
     );
   }
 }

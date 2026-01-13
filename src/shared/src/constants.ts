@@ -11,12 +11,6 @@ export const GAME_CONSTANTS = {
   WORLD_EDGE_DAMAGE: 10, // DPS when outside world bounds
 
   // Player
-  PLAYER: {
-    START_HEALTH: 100,
-    BASE_SPEED: 5,
-    HITBOX_RADIUS: 0.5,
-    INVULN_TIME: 3, // Seconds after respawn
-  },
   PLAYER_START_HEALTH: 100,
   PLAYER_BASE_SPEED: 5,
   PLAYER_HITBOX_RADIUS: 0.5,
@@ -24,14 +18,9 @@ export const GAME_CONSTANTS = {
   RESPAWN_DELAY: 3, // Seconds before respawn allowed
 
   // XP & Leveling
-  XP_ORB: {
-    COLLECTION_RADIUS: 0.5,
-    MAGNET_RADIUS: 3,
-    SPEED: 8, // When magnetized
-  },
-  XP_MAGNET_RADIUS: 3,
-  XP_PICKUP_RADIUS: 0.5,
-  XP_ORB_SPEED: 8, // When magnetized
+  XP_COLLECTION_RADIUS: 0.5, // Radius for XP orb collection
+  XP_MAGNET_RADIUS: 3, // Radius for magnetizing XP orbs
+  XP_ORB_SPEED: 8, // Speed when magnetized
 
   // Combat
   PVP_DAMAGE_MULTIPLIER: 0.15, // 15% damage to other players
@@ -48,6 +37,20 @@ export const GAME_CONSTANTS = {
   ENEMY_SPAWN_DISTANCE: 30, // Outside visible area
   MAX_ENEMIES_PER_PLAYER: 50,
   WAVE_DURATION: 60, // Seconds per wave
+
+  // Physics (Enemy AI and Projectile behavior)
+  ENEMY_DETECTION_RANGE: 100, // Max distance to detect players
+  ENEMY_SLOW_SPEED_RATIO: 0.5, // Speed multiplier for retreat/wander
+  RANGED_RETREAT_DISTANCE_RATIO: 0.5, // Ranged enemies retreat when within this ratio of range
+  ORB_ORBIT_SPEED: Math.PI, // Bible orb rotation speed (radians/sec) ~1 rev per 2 sec
+  ORB_MIN_DISTANCE_THRESHOLD: 0.5, // Min distance before using default radius
+  ORB_DEFAULT_RADIUS: 3, // Default orbit radius for Bible orbs
+  CHARGE_TARGET_REACHED_THRESHOLD: 0.5, // Distance to consider charge target reached
+  CHARGE_IMPACT_LIFETIME: 0.2, // Lifetime of charge impact AOE
+  CHARGE_IMPACT_RADIUS: 3, // Radius of charge impact damage
+  CHARGE_IMPACT_MAX_PIERCE: 999, // Max targets hit by charge impact
+  BOSS_SUMMON_ANGLE_VARIANCE: 0.5, // Random variance in summon spawn angles (radians)
+  ENEMY_PROJECTILE_PIERCE: 1, // Single hit for enemy projectiles
 } as const;
 
 // =============================================================================

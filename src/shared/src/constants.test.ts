@@ -28,7 +28,7 @@ describe('GAME_CONSTANTS', () => {
 
   it('should have valid XP configuration', () => {
     expect(GAME_CONSTANTS.XP_MAGNET_RADIUS).toBeGreaterThan(0);
-    expect(GAME_CONSTANTS.XP_PICKUP_RADIUS).toBeGreaterThan(0);
+    expect(GAME_CONSTANTS.XP_COLLECTION_RADIUS).toBeGreaterThan(0);
     expect(GAME_CONSTANTS.XP_ORB_SPEED).toBeGreaterThan(0);
   });
 

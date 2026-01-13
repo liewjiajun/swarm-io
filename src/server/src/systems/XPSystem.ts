@@ -85,7 +85,7 @@ export class XPSystem {
       const nearbyOrbs = spatialHash.queryRadius(
         player.x,
         player.y,
-        GAME_CONSTANTS.XP_ORB.COLLECTION_RADIUS,
+        GAME_CONSTANTS.XP_COLLECTION_RADIUS,
         'xp'
       );
 
@@ -97,7 +97,7 @@ export class XPSystem {
 
         // Check collection radius
         const distance = Math.sqrt((player.x - orb.x) ** 2 + (player.y - orb.y) ** 2);
-        if (distance <= GAME_CONSTANTS.XP_ORB.COLLECTION_RADIUS) {
+        if (distance <= GAME_CONSTANTS.XP_COLLECTION_RADIUS) {
           this.collectXPOrb(gameState, player, orb);
         }
       });

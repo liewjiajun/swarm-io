@@ -1,12 +1,12 @@
 # SWARM.IO Implementation Plan
 
-## Current Status: Phase 6 Complete - All Systems Tested
+## Current Status: Phase 6 Complete - All Quality Issues Resolved
 
 **Last Updated:** 2026-01-13
-**Implementation Progress:** 102/85 tasks completed (120.0%)
+**Implementation Progress:** 104/85 tasks completed (122.4%)
 **Test Count:** 440 tests (357 server + 73 shared + 10 client)
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
-**Next Priority:** Code quality cleanup (QUALITY-001, QUALITY-004)
+**Next Priority:** Production deployment or new feature development
 
 ---
 
@@ -15,11 +15,11 @@
 | Metric | Value | Notes |
 |--------|-------|-------|
 | Total Tasks | 85 | Across 6 phases |
-| Completed | 102 | 120.0% (all phases complete) |
+| Completed | 104 | 122.4% (all phases complete) |
 | Critical Bugs | 0 | All critical bugs resolved |
 | Medium Bugs | 0 | All medium bugs resolved |
 | Test Gaps | 0 | All systems have tests |
-| Code Quality | 2 issues | Constant patterns and magic numbers |
+| Code Quality | 0 issues | All quality issues resolved |
 
 ---
 
@@ -55,13 +55,11 @@
 
 ---
 
-## CODE QUALITY (Remaining)
+## CODE QUALITY (All Resolved)
 
-### QUALITY-001: Duplicate Constants Pattern (LOW)
+### QUALITY-001: Duplicate Constants Pattern ✅ RESOLVED
 
-**Location:** `src/shared/src/constants.ts:7-51`
-**Issue:** Both nested (`GAME_CONSTANTS.PLAYER.START_HEALTH`) and flat (`GAME_CONSTANTS.PLAYER_START_HEALTH`) patterns exist
-**Recommendation:** Deprecate flat pattern, use only nested access
+**Fix Applied:** Removed duplicate nested patterns (PLAYER, XP_ORB). Kept flat pattern which is used 86/88 times in codebase. Renamed `XP_PICKUP_RADIUS` to `XP_COLLECTION_RADIUS` for consistency.
 
 ### QUALITY-002: Missing ProjectileType ✅ RESOLVED
 
@@ -69,16 +67,23 @@
 
 ### QUALITY-003: UpgradeChoice Type Simplification (Intentional)
 
-**Location:** `src/server/src/systems/XPSystem.ts:14-21` vs `src/shared/src/types.ts:206-213`
-**Note:** Implementation deliberately uses simplified `'weapon' | 'stat'` instead of spec's `'new_weapon' | 'upgrade_weapon' | 'stat_boost'` for practical client-side handling. Both server (XPSystem) and client (NetworkClient) use the same simplified types, so they are consistent. This is an intentional design decision.
+**Note:** Implementation deliberately uses simplified `'weapon' | 'stat'` instead of spec's `'new_weapon' | 'upgrade_weapon' | 'stat_boost'` for practical client-side handling. This is an intentional design decision.
 
-### QUALITY-004: Magic Numbers in PhysicsSystem (LOW)
+### QUALITY-004: Magic Numbers in PhysicsSystem ✅ RESOLVED
 
-**Location:** `src/server/src/systems/PhysicsSystem.ts`
-**Issue:** Hardcoded values should be constants
-- Line 29: `Math.PI` orbital speed → `BIBLE_ORBIT_SPEED`
-- Line 33: Orbit radius `3` → `WEAPON_CONFIGS.bible.range`
-- Line 98: Query radius `100` → `ENEMY_DETECTION_RANGE`
+**Fix Applied:** Extracted 12 magic numbers to named constants in GAME_CONSTANTS:
+- `ORB_ORBIT_SPEED` - Bible orb rotation speed (Math.PI rad/sec)
+- `ORB_MIN_DISTANCE_THRESHOLD` - Min distance for orbit radius calculation (0.5)
+- `ORB_DEFAULT_RADIUS` - Default orbit radius for Bible orbs (3)
+- `ENEMY_DETECTION_RANGE` - Max distance for enemy to detect players (100)
+- `ENEMY_SLOW_SPEED_RATIO` - Speed multiplier for retreat/wander (0.5)
+- `RANGED_RETREAT_DISTANCE_RATIO` - When ranged enemies retreat (0.5)
+- `CHARGE_TARGET_REACHED_THRESHOLD` - Distance for charge completion (0.5)
+- `CHARGE_IMPACT_LIFETIME` - Charge impact AOE duration (0.2)
+- `CHARGE_IMPACT_RADIUS` - Charge impact damage radius (3)
+- `CHARGE_IMPACT_MAX_PIERCE` - Max targets for charge impact (999)
+- `BOSS_SUMMON_ANGLE_VARIANCE` - Random variance in summon angles (0.5)
+- `ENEMY_PROJECTILE_PIERCE` - Pierce count for enemy projectiles (1)
 
 ---
 
@@ -179,6 +184,7 @@ npm run test
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-01-13 | 2.31 | CODE QUALITY CLEANUP - Fixed QUALITY-001: Removed duplicate nested constants (PLAYER, XP_ORB) from constants.ts, standardized on flat pattern used throughout codebase. Fixed QUALITY-004: Extracted 12 magic numbers from PhysicsSystem to GAME_CONSTANTS (orb orbit, enemy detection, charge impact, etc.). Updated XPSystem to use XP_COLLECTION_RADIUS. All code quality issues now resolved. |
 | 2026-01-13 | 2.30 | CLIENT TESTING + TYPE FIX - Set up client test infrastructure with Vitest and jsdom. Added NetworkClient test suite (10 tests) covering constructor, disconnected state behavior, and callback registration. Fixed QUALITY-002: Added `demon_fireball` to ProjectileType union in types.ts. Documented QUALITY-003 as intentional design decision (simplified upgrade types). Test count increased from 357+73 to 357+73+10 = 440 total. |
 | 2026-01-13 | 2.29 | PHYSICSSYSTEM TESTS COMPLETE - Added comprehensive PhysicsSystem test suite (58 tests): Enemy AI target acquisition and movement, ranged enemy behavior (demon), melee AI, no-target wandering, projectile movement (linear and orbital), Bible orb orbital mechanics, XP orb magnetization, world boundary enforcement with edge damage, boss abilities (summon for boss_skeleton, charge for boss_demon), edge cases and integration tests. Test count increased from 299 to 357. |
 | 2026-01-13 | 2.28 | HIGH PRIORITY TESTS COMPLETE - Added comprehensive test suites for 4 core systems: CombatSystem (40 tests - projectile collisions, piercing mechanics, PvP damage, contact damage, damage validation), WeaponSystem (48 tests - all 8 weapons, cooldowns, auto-fire, damage scaling), SpawnSystem (35 tests - wave progression, boss spawning, spawn caps, difficulty scaling), XPSystem (40 tests - orb magnetization, collection, level-up, upgrade generation, stat boosts). Test count increased from 209 to 299 (90 new tests). All HIGH priority test gaps now resolved. |
