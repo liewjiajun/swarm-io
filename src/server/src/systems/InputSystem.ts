@@ -14,7 +14,11 @@ interface SecurityMetrics {
   totalInvalidInputs: number;
   rateLimitViolations: number;
   maliciousInputAttempts: number;
+  playersKicked: number;
 }
+
+// Callback type for kicking players due to security violations
+type KickCallback = (playerId: string, reason: string) => void;
 
 export class InputSystem {
   // Rate limiting - CRITICAL for DoS prevention
@@ -33,11 +37,23 @@ export class InputSystem {
     totalInputsProcessed: 0,
     totalInvalidInputs: 0,
     rateLimitViolations: 0,
-    maliciousInputAttempts: 0
+    maliciousInputAttempts: 0,
+    playersKicked: 0
   };
 
   // Player sequence tracking for reconciliation
   private lastProcessedSequences = new Map<string, number>();
+
+  // Callback to kick players when they exceed violation threshold
+  private onKickPlayer: KickCallback | null = null;
+
+  /**
+   * Set the callback function for kicking players
+   * Called when a player exceeds the violation threshold
+   */
+  setKickCallback(callback: KickCallback): void {
+    this.onKickPlayer = callback;
+  }
 
   /**
    * Process player input with comprehensive security validation
@@ -164,12 +180,15 @@ export class InputSystem {
         `Rate limit exceeded: ${playerRate.count}/${this.MAX_INPUTS_PER_SECOND} inputs/sec`
       );
 
-      // TODO: Implement player kick/ban mechanism when violations exceed threshold
+      // SECURITY: Kick player when violations exceed threshold
       if (playerRate.violations >= this.MAX_VIOLATIONS_BEFORE_KICK) {
-        console.warn(
-          `Player ${playerId} exceeded violation threshold (${playerRate.violations}). ` +
-          'Consider implementing kick/ban mechanism.'
-        );
+        const reason = `Rate limit violations exceeded (${playerRate.violations}/${this.MAX_VIOLATIONS_BEFORE_KICK})`;
+        console.warn(`[SECURITY] Kicking player ${playerId}: ${reason}`);
+
+        if (this.onKickPlayer) {
+          this.onKickPlayer(playerId, reason);
+          this.securityMetrics.playersKicked++;
+        }
       }
 
       return false;
@@ -297,7 +316,8 @@ export class InputSystem {
       totalInputsProcessed: 0,
       totalInvalidInputs: 0,
       rateLimitViolations: 0,
-      maliciousInputAttempts: 0
+      maliciousInputAttempts: 0,
+      playersKicked: 0
     };
   }
 

@@ -49,6 +49,11 @@ export class GameRoom extends Room<GameState> {
     // Initialize game state
     this.setState(new GameState());
 
+    // Setup security kick callback
+    this.inputSystem.setKickCallback((playerId, reason) => {
+      this.kickPlayer(playerId, reason);
+    });
+
     // Register message handlers
     this.setupMessageHandlers();
 
@@ -56,6 +61,22 @@ export class GameRoom extends Room<GameState> {
     this.startGameLoop();
 
     console.log('[GameRoom] Game loop started at 60Hz');
+  }
+
+  /**
+   * Kick a player from the game due to security violation
+   */
+  private kickPlayer(playerId: string, reason: string): void {
+    const client = this.clients.find(c => c.sessionId === playerId);
+    if (client) {
+      console.log(`[SECURITY] Kicking player ${playerId}: ${reason}`);
+
+      // Send kick notification to client before disconnecting
+      client.send('kicked', { reason });
+
+      // Disconnect with custom close code (4000 = kicked for security)
+      client.leave(4000);
+    }
   }
 
   private setupMessageHandlers() {
