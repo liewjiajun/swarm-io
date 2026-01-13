@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { SpawnSystem } from './SpawnSystem.js';
-import { GAME_CONSTANTS, WAVE_SCHEDULE, ENEMY_CONFIGS } from '@swarm-io/shared';
+import { GAME_CONSTANTS, WAVE_SCHEDULE } from '@swarm-io/shared';
 
 // Helper to create mock world
 function createMockWorld(overrides: Partial<{
@@ -180,7 +180,7 @@ describe('SpawnSystem', () => {
 
       // First update - boss spawns
       spawnSystem.update(gameState, deltaTime);
-      const firstCallCount = gameState.addEnemy.mock.calls.length;
+      const _firstCallCount = gameState.addEnemy.mock.calls.length;
 
       // Second update - boss should NOT spawn again
       world.gameTime = 121;

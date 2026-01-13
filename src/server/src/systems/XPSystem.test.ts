@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { XPSystem } from './XPSystem.js';
 import { SpatialHash } from './SpatialHash.js';
-import { GAME_CONSTANTS, getXPForLevel, WEAPON_CONFIGS } from '@swarm-io/shared';
+import { GAME_CONSTANTS, getXPForLevel } from '@swarm-io/shared';
 
 // Helper to create mock player
 function createMockPlayer(overrides: Partial<{
@@ -428,7 +428,7 @@ describe('XPSystem', () => {
       xpSystem.update(gameState, spatialHash, deltaTime);
 
       // Should have choices, but knife should not be offered for upgrade
-      const knifeUpgrade = player.pendingChoices.find(
+      const _knifeUpgrade = player.pendingChoices.find(
         (c: any) => c.weaponType === 'knife'
       );
       // Knife might still appear as a new weapon for players who don't have it,
