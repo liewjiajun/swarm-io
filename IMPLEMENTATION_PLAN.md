@@ -4,7 +4,7 @@
 
 **Last Updated:** 2026-01-13
 **Implementation Progress:** 101/85 tasks completed (118.8%)
-**Test Count:** 209 tests (136 server + 73 shared)
+**Test Count:** 299 tests (226 server + 73 shared)
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
 **Next Priority:** Test coverage improvements and code quality cleanup
 
@@ -18,7 +18,7 @@
 | Completed | 101 | 118.8% (all phases complete) |
 | Critical Bugs | 0 | All critical bugs resolved |
 | Medium Bugs | 0 | All medium bugs resolved |
-| Test Gaps | 6 systems | Core gameplay systems need tests |
+| Test Gaps | 2 systems | PhysicsSystem and NetworkClient need tests |
 | Code Quality | 4 issues | Type safety and constant cleanup |
 
 ---
@@ -27,19 +27,23 @@
 
 | System | File | Current Tests | Priority | Description |
 |--------|------|---------------|----------|-------------|
-| CombatSystem | `CombatSystem.test.ts` | 0 | HIGH | Projectile collisions, damage validation, death handling |
-| WeaponSystem | `WeaponSystem.test.ts` | 0 | HIGH | All 8 weapon firing, cooldowns, targeting |
-| SpawnSystem | `SpawnSystem.test.ts` | 0 | HIGH | Wave progression, boss spawning, difficulty scaling |
-| XPSystem | `XPSystem.test.ts` | 0 | HIGH | Orb collection, level-up, upgrade generation |
+| CombatSystem | `CombatSystem.test.ts` | 40 | ✅ DONE | Projectile collisions, damage validation, death handling |
+| WeaponSystem | `WeaponSystem.test.ts` | 48 | ✅ DONE | All 8 weapon firing, cooldowns, targeting |
+| SpawnSystem | `SpawnSystem.test.ts` | 35 | ✅ DONE | Wave progression, boss spawning, difficulty scaling |
+| XPSystem | `XPSystem.test.ts` | 40 | ✅ DONE | Orb collection, level-up, upgrade generation |
 | PhysicsSystem | `PhysicsSystem.test.ts` | 0 | MEDIUM | Enemy AI, projectile movement, boundaries |
 | NetworkClient | `NetworkClient.test.ts` | 0 | MEDIUM | Client-server sync, reconnection |
 
-**Existing Tests (209 total):**
+**Existing Tests (299 total):**
 - `src/shared/src/utils.test.ts` - Vector math, distance, interpolation
 - `src/shared/src/constants.test.ts` - Config validation
 - `src/server/src/systems/SpatialHash.test.ts` - Spatial queries
 - `src/server/src/systems/ObjectPool.test.ts` - Pool acquire/release
 - `src/server/src/systems/InputSystem.test.ts` - Input validation, rate limiting
+- `src/server/src/systems/CombatSystem.test.ts` - Projectile collisions, piercing, PvP, damage validation
+- `src/server/src/systems/WeaponSystem.test.ts` - All 8 weapons, cooldowns, auto-fire, security
+- `src/server/src/systems/SpawnSystem.test.ts` - Wave progression, boss spawning, spawn caps
+- `src/server/src/systems/XPSystem.test.ts` - Orb collection, level-up, upgrades, stat boosts
 - `src/server/src/state/PlayerSchema.test.ts` - Player state management
 - `src/server/src/state/GameState.test.ts` - Entity CRUD operations
 
@@ -183,6 +187,7 @@ npm run test
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-01-13 | 2.28 | HIGH PRIORITY TESTS COMPLETE - Added comprehensive test suites for 4 core systems: CombatSystem (40 tests - projectile collisions, piercing mechanics, PvP damage, contact damage, damage validation), WeaponSystem (48 tests - all 8 weapons, cooldowns, auto-fire, damage scaling), SpawnSystem (35 tests - wave progression, boss spawning, spawn caps, difficulty scaling), XPSystem (40 tests - orb magnetization, collection, level-up, upgrade generation, stat boosts). Test count increased from 209 to 299 (90 new tests). All HIGH priority test gaps now resolved. |
 | 2026-01-13 | 2.27 | MEDIUM BUG FIXES - Fixed 5 medium bugs: BUG-006 (Lightning bypasses CombatSystem - now creates projectiles through CombatSystem), BUG-007 (ObjectPool state leak - resetEnemy now clears boss fields: attackCooldown, abilityCooldown, isCharging, chargeTargetX, chargeTargetY), BUG-009 (Explosion radius 33x too large - changed hardcoded 100 to WEAPON_CONFIGS.fireball.area), BUG-010 (Fixed hostility increase - changed from +10 fixed to damage-based validatedDamage * 0.1), BUG-011 (Client input rate inefficiency - added throttling in Game.ts to match server 30Hz rate). All medium bugs are now resolved. |
 | 2026-01-13 | 2.26 | CRITICAL BUG FIXES - Fixed 6 bugs: BUG-001 (enemy initialization missing), BUG-002 (upgrade choices never sent to client), BUG-003 (server never sends player_died message), BUG-004 (unlimited piercing projectiles destroyed on first hit), BUG-005 (double PvP damage reduction), BUG-008 (hostility decay rate 20x too fast). All critical game-breaking bugs are now resolved. |
 | 2026-01-13 | 2.25 | COMPREHENSIVE CODEBASE AUDIT - Identified 11 bugs (5 critical, 6 medium), 6 test gaps, 4 code quality issues. Critical bugs: BUG-001 (enemy initialization missing), BUG-002 (upgrade choices lost), BUG-003 (server never sends level_up/player_died), BUG-004 (piercing=0 projectiles destroyed), BUG-005 (double PvP damage reduction). Updated IMPLEMENTATION_PLAN.md with detailed fixes for all issues. |
