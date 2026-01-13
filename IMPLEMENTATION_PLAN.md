@@ -1,11 +1,11 @@
 # SWARM.IO Implementation Plan
 
-## Current Status: Phase 5 Complete - Phase 6 In Progress (Audio & Visual Effects)
+## Current Status: Phase 5 Complete - Phase 6 In Progress (Performance Optimizations)
 
 **Last Updated:** 2026-01-13
-**Implementation Progress:** 91/85 tasks completed (107.1%)
+**Implementation Progress:** 92/85 tasks completed (108.2%)
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
-**Next Priority:** Phase 6 - Polish & Optimization (12/17 complete)
+**Next Priority:** Phase 6 - Polish & Optimization (13/17 complete)
 
 ---
 
@@ -14,8 +14,8 @@
 | Metric | Value | Notes |
 |--------|-------|-------|
 | Total Tasks | 85 | Across 6 phases |
-| Completed | 91 | 107.1% (Phase 6 progress) |
-| Remaining | 5 | Polish & optimization (5/17 Phase 6 tasks remain) |
+| Completed | 92 | 108.2% (Phase 6 progress) |
+| Remaining | 4 | Polish & optimization (4/17 Phase 6 tasks remain) |
 | Blocking Issues | 0 | All critical bugs resolved |
 | Critical Path | Phase 6 | Polish & Optimization |
 | Est. Time to MVP | Complete | MVP is complete |
@@ -101,9 +101,9 @@
 
 ## P4: PHASE 6 - POLISH & OPTIMIZATION (POST-MVP)
 
-**Status:** 12/17 tasks complete (70.6%)
+**Status:** 13/17 tasks complete (76.5%)
 **Priority:** LOW - After MVP is functional
-**Implementation:** Audio system complete (6/6), Visual effects complete (5/5), Performance optimizations started (1/6)
+**Implementation:** Audio system complete (6/6), Visual effects complete (5/5), Performance optimizations started (2/6)
 
 ### 6.1 Visual Effects (5/5 COMPLETE)
 
@@ -141,16 +141,23 @@
 **Files Modified:**
 - `src/client/src/game/Game.ts` - Added AudioManager integration
 
-### 6.3 Performance Optimizations (1/6 COMPLETE)
+### 6.3 Performance Optimizations (2/6 COMPLETE)
 
 | Task | Description | Impact | Est. LOC | Status |
 |------|-------------|--------|----------|--------|
 | Frustum culling | Distance-based culling for enemies, projectiles, and XP orbs - reduces draw calls for off-screen entities | High | ~50 | COMPLETE |
-| Interest management | Only sync entities within player's view radius | High | ~150 | Pending |
+| Interest management | Only sync entities within player's view radius using @filterChildren decorators | High | ~80 | COMPLETE |
 | Object pooling | Reuse projectile/enemy objects instead of GC | Medium | ~100 | Pending |
 | LOD for distant entities | Simpler geometry for far entities | Medium | ~80 | Pending |
 | State delta compression | Only send changed fields | Medium | ~100 | Pending |
 | Batch rendering | Reduce draw calls | Medium | ~60 | Pending |
+
+**Interest Management Implementation:**
+- Added `@filterChildren` decorators to `GameState.ts` for enemies, projectiles, and XP orbs
+- Uses `GAME_CONSTANTS.INTEREST_RADIUS` (50 units) for filtering
+- Enemies and XP orbs filtered at 50 unit radius; projectiles at 60 units (1.2x) to prevent pop-in
+- Dead players see all entities (spectator mode)
+- Filter re-evaluates when entity positions update (every tick for moving entities)
 
 ### 6.4 Quality of Life
 
@@ -422,6 +429,7 @@ npm run lint
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-01-13 | 2.11 | Performance Optimization - Interest Management COMPLETE - Added @filterChildren decorators to GameState.ts for enemies, projectiles, and XP orbs. Uses INTEREST_RADIUS (50 units) for distance filtering. Reduces network bandwidth by only syncing entities within player view radius. Phase 6 now 13/17 complete (76.5%) |
 | 2026-01-13 | 2.10 | Performance Optimization - Frustum Culling COMPLETE - Distance-based culling implemented for enemies, projectiles, and XP orbs to reduce draw calls for off-screen entities. Phase 6 now 12/17 complete (70.6%) |
 | 2026-01-13 | 2.9 | Phase 6 Visual Effects COMPLETE (5/5) - All visual effect systems implemented: weapon impact particles, death explosions, level up flash. Added Renderer.spawnWeaponImpact(), Renderer.spawnDeathExplosion(), Renderer.triggerLevelUpFlash(). Phase 6 now 11/17 complete (64.7%) |
 | 2026-01-13 | 2.8 | Phase 6 Progress - Audio System COMPLETE (6/6), Visual Effects partial (2/5) - damage numbers and XP sparkles implemented |
