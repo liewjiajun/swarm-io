@@ -64,7 +64,7 @@ app.get('/api/stats', (req, res) => {
 });
 
 // Error handling middleware
-app.use((error: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((error: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error('[Server] Error:', error);
   res.status(500).json({
     error: 'Internal server error',

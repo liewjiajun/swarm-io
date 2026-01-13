@@ -1,5 +1,5 @@
 import type { PlayerInput, PlayerState } from '@swarm-io/shared';
-import { TouchControls, TouchInput } from './TouchControls';
+import { TouchControls } from './TouchControls';
 
 export class InputManager {
   private keys = new Set<string>();

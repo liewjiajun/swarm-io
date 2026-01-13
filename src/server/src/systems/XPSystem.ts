@@ -1,7 +1,6 @@
 import { GameState, PlayerSchema, XPOrbSchema } from '../state/GameState.js';
 import { SpatialHash } from './SpatialHash.js';
 import { GAME_CONSTANTS, UPGRADE_POOL, getXPForLevel, WEAPON_CONFIGS } from '@swarm-io/shared';
-import { withinRadius } from '@swarm-io/shared';
 
 interface XPMetrics {
   totalXPCollected: number;
@@ -35,7 +34,7 @@ export class XPSystem {
     console.log('[XPSystem] Initialized with XP collection and leveling');
   }
 
-  update(gameState: GameState, spatialHash: SpatialHash, deltaTime: number): void {
+  update(gameState: GameState, spatialHash: SpatialHash, _deltaTime: number): void {
     // Process XP orb magnetization
     this.processOrbMagnetization(gameState, spatialHash);
 
@@ -49,7 +48,7 @@ export class XPSystem {
     this.cleanupCollectedOrbs(gameState);
   }
 
-  private processOrbMagnetization(gameState: GameState, spatialHash: SpatialHash): void {
+  private processOrbMagnetization(gameState: GameState, _spatialHash: SpatialHash): void {
     Object.values(gameState.xpOrbs).forEach(orb => {
       // Skip already magnetized orbs
       if (orb.magnetized || orb.collected) return;
@@ -157,8 +156,8 @@ export class XPSystem {
       player.level = newLevel;
       player.xpToNextLevel = getXPForLevel(newLevel + 1) - player.xp;
 
-      // Generate upgrade choices
-      const upgradeChoices = this.generateUpgradeChoices(player);
+      // Generate upgrade choices (stored in GameRoom for client requests)
+      this.generateUpgradeChoices(player);
 
       // Set pending upgrade state (this will be handled by GameRoom message system)
       player.pendingUpgrade = true;

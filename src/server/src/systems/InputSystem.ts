@@ -1,5 +1,4 @@
 import type { PlayerInput } from '@swarm-io/shared';
-import { GAME_CONSTANTS } from '@swarm-io/shared';
 import type { PlayerSchema } from '../state/PlayerSchema';
 
 interface PlayerInputRate {

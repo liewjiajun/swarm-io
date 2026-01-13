@@ -1,7 +1,6 @@
 import { GameState, PlayerSchema, EnemySchema, ProjectileSchema } from '../state/GameState.js';
-import { SpatialHash, SpatialEntity } from './SpatialHash.js';
+import { SpatialHash } from './SpatialHash.js';
 import { GAME_CONSTANTS, WEAPON_CONFIGS, ENEMY_CONFIGS, BOSS_ABILITY_CONFIGS } from '@swarm-io/shared';
-import { withinRadius } from '@swarm-io/shared';
 
 interface CombatMetrics {
   totalDamageDealt: number;

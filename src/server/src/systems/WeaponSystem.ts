@@ -1,6 +1,6 @@
 import { GameState, PlayerSchema, EnemySchema } from '../state/GameState.js';
 import { WEAPON_CONFIGS } from '@swarm-io/shared';
-import { SpatialHash, SpatialEntity } from './SpatialHash.js';
+import { SpatialHash } from './SpatialHash.js';
 
 interface WeaponMetrics {
   totalShots: number;

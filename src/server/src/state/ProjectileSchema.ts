@@ -1,4 +1,4 @@
-import { Schema, ArraySchema, type } from '@colyseus/schema';
+import { Schema, type } from '@colyseus/schema';
 
 export class ProjectileSchema extends Schema {
   @type('string') id: string = '';

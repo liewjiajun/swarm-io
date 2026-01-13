@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { GameState, PlayerState, EnemyState, ProjectileState, XPOrbState } from '@swarm-io/shared';
+import type { PlayerState, EnemyState, ProjectileState, XPOrbState } from '@swarm-io/shared';
 
 /**
  * DamageNumber - Floating damage text that animates upward and fades

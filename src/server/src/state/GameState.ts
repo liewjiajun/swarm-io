@@ -6,7 +6,7 @@ import { ProjectileSchema } from './ProjectileSchema';
 import { XPOrbSchema } from './XPOrbSchema';
 import { WorldSchema } from './WorldSchema';
 import { generateId } from '@swarm-io/shared';
-import { GAME_CONSTANTS, WEAPON_CONFIGS } from '@swarm-io/shared';
+import { GAME_CONSTANTS } from '@swarm-io/shared';
 import { ObjectPool, resetProjectile, resetEnemy, resetXPOrb } from '../systems/ObjectPool';
 
 // Pre-calculate squared interest radius for efficient distance checks

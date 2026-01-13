@@ -137,7 +137,7 @@ export class NetworkClient {
     let parsedUrl: URL;
     try {
       parsedUrl = new URL(url);
-    } catch (e) {
+    } catch {
       throw new URLValidationError(`Invalid WebSocket URL: ${url}`);
     }
 

@@ -1,6 +1,6 @@
 import { GameState } from '../state/GameState.js';
 import { GAME_CONSTANTS, WAVE_SCHEDULE, ENEMY_CONFIGS } from '@swarm-io/shared';
-import { randomPointOnCircle, randomRange } from '@swarm-io/shared';
+import { randomPointOnCircle } from '@swarm-io/shared';
 
 interface SpawnMetrics {
   totalSpawned: number;
@@ -109,7 +109,7 @@ export class SpawnSystem {
     }
   }
 
-  private handleEnemySpawning(gameState: GameState, deltaTime: number): void {
+  private handleEnemySpawning(gameState: GameState, _deltaTime: number): void {
     const currentTime = gameState.world.gameTime;
     const playerCount = gameState.world.playerCount;
 

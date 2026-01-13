@@ -297,7 +297,7 @@ export class GameRoom extends Room<GameState> {
     });
   }
 
-  onJoin(client: Client, options: any) {
+  onJoin(client: Client, _options: any) {
     console.log(`[GameRoom] Player ${client.sessionId} joining...`);
 
     try {
