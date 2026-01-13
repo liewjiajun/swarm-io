@@ -270,13 +270,4 @@ export class Renderer {
     this.renderer.setSize(canvas.clientWidth, canvas.clientHeight);
   }
 
-  showDeathScreen(finalScore: number) {
-    // Implementation: Show overlay with score and respawn button
-    console.log('Death screen:', finalScore);
-  }
-
-  showUpgradeUI(choices: any[], onSelect: (id: string) => void) {
-    // Implementation: Show upgrade selection UI
-    console.log('Upgrade choices:', choices);
-  }
 }

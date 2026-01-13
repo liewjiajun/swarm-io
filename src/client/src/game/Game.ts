@@ -2,6 +2,7 @@ import { Renderer } from './Renderer';
 import { InputManager } from './InputManager';
 import { Interpolator } from './Interpolator';
 import { NetworkClient, SerializedGameState } from '../network';
+import { HUD } from '../ui';
 import type { PlayerInput } from '@swarm-io/shared';
 
 export class Game {
@@ -9,6 +10,7 @@ export class Game {
   private input: InputManager;
   private interpolator: Interpolator;
   private network: NetworkClient;
+  private hud: HUD;
 
   private localPlayerId: string = '';
   private lastUpdateTime: number = 0;
@@ -21,6 +23,7 @@ export class Game {
     this.input = new InputManager();
     this.interpolator = new Interpolator();
     this.network = new NetworkClient();
+    this.hud = new HUD();
   }
 
   async start() {
@@ -62,7 +65,15 @@ export class Game {
     this.network.onPlayerDied((data) => {
       if (data.playerId === this.localPlayerId) {
         console.log('[Game] Local player died. Final score:', data.finalScore);
-        this.renderer.showDeathScreen(data.finalScore);
+        // Get player stats from the last known state
+        const state = this.interpolator.getInterpolatedState(performance.now() - 100);
+        const player = state.players.get(this.localPlayerId);
+        const stats = {
+          kills: player?.kills || 0,
+          timeAlive: player?.timeAlive || 0,
+          level: player?.level || 1
+        };
+        this.hud.showDeathScreen(stats, () => this.respawn());
       }
     });
 
@@ -71,7 +82,7 @@ export class Game {
       console.log('[Game] Level up! New level:', data.newLevel);
       // Store choices so we can look them up by ID when the user selects
       const choiceMap = new Map(data.choices.map(c => [c.id, c]));
-      this.renderer.showUpgradeUI(data.choices, (choiceId: string) => {
+      this.hud.showUpgradeUI(data.choices, (choiceId: string) => {
         const choice = choiceMap.get(choiceId);
         if (choice) {
           this.network.sendUpgradeChoice(choice);
@@ -266,6 +277,9 @@ export class Game {
 
     // Render all entities
     this.renderer.render(state, this.localPlayerId);
+
+    // Update HUD with current state
+    this.hud.update(localPlayer, state.world, state.players, this.localPlayerId);
   }
 
   stop() {
@@ -274,6 +288,7 @@ export class Game {
       this.network.disconnect();
       this.connected = false;
     }
+    this.hud.destroy();
     console.log('[Game] Stopped');
   }
 

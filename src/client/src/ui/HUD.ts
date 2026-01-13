@@ -1,0 +1,700 @@
+/**
+ * HUD (Heads-Up Display) Class
+ *
+ * Provides the in-game user interface including:
+ * - Health and XP bars
+ * - Level display
+ * - Weapon icons
+ * - Leaderboard
+ * - Game info (time, wave, players)
+ * - Minimap
+ * - Upgrade selection modal
+ * - Death screen
+ *
+ * Follows pixel-art aesthetic with "Press Start 2P" font.
+ */
+
+interface HUDElements {
+  healthBar: HTMLElement;
+  healthText: HTMLElement;
+  xpBar: HTMLElement;
+  levelText: HTMLElement;
+  weaponsContainer: HTMLElement;
+  leaderboard: HTMLElement;
+  gameInfo: HTMLElement;
+  minimap: HTMLCanvasElement;
+  upgradeModal: HTMLElement;
+  upgradeChoices: HTMLElement;
+  deathScreen: HTMLElement;
+  deathStats: HTMLElement;
+  respawnBtn: HTMLElement;
+}
+
+interface PlayerState {
+  id: string;
+  x: number;
+  y: number;
+  health: number;
+  maxHealth: number;
+  level: number;
+  xp: number;
+  xpToNextLevel: number;
+  weapons: { type: string; level: number }[];
+  kills: number;
+  timeAlive: number;
+  dead: boolean;
+}
+
+interface WorldState {
+  gameTime: number;
+  currentWave: number;
+  playerCount: number;
+  worldRadius: number;
+}
+
+interface UpgradeChoice {
+  id: string;
+  type: 'weapon' | 'stat';
+  weaponType?: string;
+  statType?: string;
+  description: string;
+}
+
+interface DeathStats {
+  kills: number;
+  timeAlive: number;
+  level: number;
+}
+
+// Weapon type to emoji mapping
+const WEAPON_ICONS: Record<string, string> = {
+  knife: '🗡️',
+  wand: '🔮',
+  bible: '📖',
+  garlic: '🧄',
+  lightning: '⚡',
+  axe: '🪓',
+  fireball: '🔥',
+  whip: '〰️'
+};
+
+export class HUD {
+  private container: HTMLElement;
+  private elements!: HUDElements;
+
+  constructor() {
+    const uiContainer = document.getElementById('ui');
+    if (!uiContainer) {
+      throw new Error('HUD: #ui container not found in DOM');
+    }
+    this.container = uiContainer;
+    this.createElements();
+    this.addStyles();
+    this.elements = this.getElements();
+  }
+
+  /**
+   * Creates all HUD HTML elements
+   */
+  private createElements(): void {
+    this.container.innerHTML = `
+      <div class="hud">
+        <!-- Top Left: Health, XP, Level -->
+        <div class="hud-topleft">
+          <div class="health-bar">
+            <div class="health-fill"></div>
+            <span class="health-text">100/100</span>
+          </div>
+          <div class="xp-bar">
+            <div class="xp-fill"></div>
+          </div>
+          <div class="level-text">Lv. 1</div>
+        </div>
+
+        <!-- Top Right: Leaderboard -->
+        <div class="hud-topright">
+          <div class="leaderboard">
+            <div class="leaderboard-title">TOP SURVIVORS</div>
+            <div class="leaderboard-entries"></div>
+          </div>
+        </div>
+
+        <!-- Bottom Left: Weapons -->
+        <div class="hud-bottomleft">
+          <div class="weapons-container"></div>
+        </div>
+
+        <!-- Bottom Right: Game Info -->
+        <div class="hud-bottomright">
+          <div class="game-info">
+            <div class="game-time">00:00</div>
+            <div class="game-wave">Wave 1</div>
+            <div class="game-players">1 Players</div>
+          </div>
+        </div>
+
+        <!-- Bottom Center: Minimap -->
+        <div class="hud-minimap">
+          <canvas class="minimap" width="150" height="150"></canvas>
+        </div>
+      </div>
+
+      <!-- Upgrade Modal -->
+      <div class="upgrade-modal hidden">
+        <div class="upgrade-title">LEVEL UP!</div>
+        <div class="upgrade-choices"></div>
+      </div>
+
+      <!-- Death Screen -->
+      <div class="death-screen hidden">
+        <div class="death-content">
+          <div class="death-title">YOU DIED</div>
+          <div class="death-stats"></div>
+          <button class="respawn-btn">RESPAWN</button>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * Injects CSS styles into the document
+   */
+  private addStyles(): void {
+    const style = document.createElement('style');
+    style.textContent = `
+      /* Import pixel font */
+      @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+      .hud {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        font-family: 'Press Start 2P', monospace;
+        color: white;
+        text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+        font-size: 12px;
+        z-index: 100;
+      }
+
+      .hud > div {
+        pointer-events: auto;
+      }
+
+      /* Top Left - Health/XP/Level */
+      .hud-topleft {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+      }
+
+      .health-bar, .xp-bar {
+        width: 200px;
+        height: 20px;
+        background: rgba(0, 0, 0, 0.5);
+        border: 2px solid white;
+        position: relative;
+        margin-bottom: 5px;
+      }
+
+      .health-fill {
+        height: 100%;
+        background: linear-gradient(180deg, #ff6b6b 0%, #c0392b 100%);
+        transition: width 0.3s ease;
+        width: 100%;
+      }
+
+      .xp-fill {
+        height: 100%;
+        background: linear-gradient(180deg, #4ecdc4 0%, #1abc9c 100%);
+        transition: width 0.3s ease;
+        width: 0%;
+      }
+
+      .health-text {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 10px;
+        white-space: nowrap;
+      }
+
+      .level-text {
+        font-size: 14px;
+        margin-top: 5px;
+      }
+
+      /* Top Right - Leaderboard */
+      .hud-topright {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+      }
+
+      .leaderboard {
+        background: rgba(0, 0, 0, 0.5);
+        padding: 10px;
+        border: 2px solid white;
+        min-width: 180px;
+      }
+
+      .leaderboard-title {
+        font-size: 10px;
+        text-align: center;
+        margin-bottom: 10px;
+        color: #ffd700;
+      }
+
+      .leaderboard-entry {
+        font-size: 8px;
+        margin: 5px 0;
+        display: flex;
+        justify-content: space-between;
+      }
+
+      .leaderboard-entry.you {
+        color: #4ecdc4;
+      }
+
+      /* Bottom Left - Weapons */
+      .hud-bottomleft {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+      }
+
+      .weapons-container {
+        display: flex;
+        gap: 10px;
+      }
+
+      .weapon-icon {
+        width: 50px;
+        height: 50px;
+        background: rgba(0, 0, 0, 0.5);
+        border: 2px solid white;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .weapon-emoji {
+        font-size: 20px;
+      }
+
+      .weapon-level {
+        font-size: 8px;
+        margin-top: 2px;
+      }
+
+      /* Bottom Right - Game Info */
+      .hud-bottomright {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+      }
+
+      .game-info {
+        background: rgba(0, 0, 0, 0.5);
+        padding: 10px;
+        text-align: right;
+        border: 2px solid white;
+      }
+
+      .game-info div {
+        font-size: 10px;
+        margin: 3px 0;
+      }
+
+      /* Minimap */
+      .hud-minimap {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+
+      .minimap {
+        background: rgba(0, 0, 0, 0.5);
+        border: 2px solid white;
+      }
+
+      /* Upgrade Modal */
+      .upgrade-modal {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.9);
+        padding: 30px;
+        border: 4px solid #ffd700;
+        z-index: 200;
+        font-family: 'Press Start 2P', monospace;
+        text-align: center;
+      }
+
+      .upgrade-modal.hidden {
+        display: none;
+      }
+
+      .upgrade-title {
+        font-size: 24px;
+        color: #ffd700;
+        margin-bottom: 20px;
+        text-shadow: 2px 2px 0 #000;
+      }
+
+      .upgrade-choices {
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+      }
+
+      .upgrade-choice {
+        width: 150px;
+        padding: 15px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 2px solid white;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .upgrade-choice:hover {
+        background: rgba(255, 255, 255, 0.2);
+        border-color: #ffd700;
+        transform: scale(1.05);
+      }
+
+      .upgrade-icon {
+        font-size: 32px;
+        margin-bottom: 10px;
+      }
+
+      .upgrade-name {
+        font-size: 12px;
+        color: white;
+        margin-bottom: 10px;
+        text-shadow: 2px 2px 0 #000;
+      }
+
+      .upgrade-desc {
+        font-size: 8px;
+        color: #aaa;
+        text-shadow: 1px 1px 0 #000;
+      }
+
+      /* Death Screen */
+      .death-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 300;
+        font-family: 'Press Start 2P', monospace;
+      }
+
+      .death-screen.hidden {
+        display: none;
+      }
+
+      .death-content {
+        text-align: center;
+      }
+
+      .death-title {
+        font-size: 48px;
+        color: #ff6b6b;
+        margin-bottom: 30px;
+        text-shadow: 4px 4px 0 #000;
+        animation: pulse 1s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+      }
+
+      .death-stats {
+        font-size: 14px;
+        color: white;
+        margin-bottom: 30px;
+        text-shadow: 2px 2px 0 #000;
+        line-height: 2;
+      }
+
+      .respawn-btn {
+        font-family: 'Press Start 2P', monospace;
+        font-size: 16px;
+        padding: 15px 30px;
+        background: #4ecdc4;
+        color: white;
+        border: none;
+        cursor: pointer;
+        text-shadow: 2px 2px 0 #000;
+        transition: background 0.2s ease;
+      }
+
+      .respawn-btn:hover {
+        background: #1abc9c;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  /**
+   * Caches references to DOM elements
+   */
+  private getElements(): HUDElements {
+    return {
+      healthBar: this.container.querySelector('.health-fill') as HTMLElement,
+      healthText: this.container.querySelector('.health-text') as HTMLElement,
+      xpBar: this.container.querySelector('.xp-fill') as HTMLElement,
+      levelText: this.container.querySelector('.level-text') as HTMLElement,
+      weaponsContainer: this.container.querySelector('.weapons-container') as HTMLElement,
+      leaderboard: this.container.querySelector('.leaderboard-entries') as HTMLElement,
+      gameInfo: this.container.querySelector('.game-info') as HTMLElement,
+      minimap: this.container.querySelector('.minimap') as HTMLCanvasElement,
+      upgradeModal: this.container.querySelector('.upgrade-modal') as HTMLElement,
+      upgradeChoices: this.container.querySelector('.upgrade-choices') as HTMLElement,
+      deathScreen: this.container.querySelector('.death-screen') as HTMLElement,
+      deathStats: this.container.querySelector('.death-stats') as HTMLElement,
+      respawnBtn: this.container.querySelector('.respawn-btn') as HTMLElement
+    };
+  }
+
+  /**
+   * Main update method - called every frame
+   */
+  update(
+    player: PlayerState | undefined,
+    world: WorldState | undefined,
+    allPlayers: Map<string, PlayerState>,
+    localPlayerId: string
+  ): void {
+    if (!player) return;
+
+    // Update health bar
+    const healthPercent = (player.health / player.maxHealth) * 100;
+    this.elements.healthBar.style.width = `${healthPercent}%`;
+    this.elements.healthText.textContent = `${Math.ceil(player.health)}/${player.maxHealth}`;
+
+    // Update XP bar
+    const xpPercent = (player.xp / player.xpToNextLevel) * 100;
+    this.elements.xpBar.style.width = `${xpPercent}%`;
+
+    // Update level
+    this.elements.levelText.textContent = `Lv. ${player.level}`;
+
+    // Update weapons
+    this.updateWeapons(player.weapons);
+
+    // Update leaderboard
+    this.updateLeaderboard(allPlayers, localPlayerId);
+
+    // Update game info
+    if (world) {
+      this.updateGameInfo(world);
+      this.updateMinimap(player, allPlayers, world);
+    }
+  }
+
+  /**
+   * Updates weapon display icons
+   */
+  private updateWeapons(weapons: { type: string; level: number }[]): void {
+    this.elements.weaponsContainer.innerHTML = weapons
+      .map(weapon => {
+        const icon = WEAPON_ICONS[weapon.type] || '❓';
+        return `
+          <div class="weapon-icon">
+            <span class="weapon-emoji">${icon}</span>
+            <span class="weapon-level">Lv.${weapon.level}</span>
+          </div>
+        `;
+      })
+      .join('');
+  }
+
+  /**
+   * Updates leaderboard with top 5 players by time alive
+   */
+  private updateLeaderboard(
+    players: Map<string, PlayerState>,
+    localPlayerId: string
+  ): void {
+    // Convert to array and filter out dead players
+    const playerList = Array.from(players.values())
+      .filter(p => !p.dead)
+      .sort((a, b) => b.timeAlive - a.timeAlive)
+      .slice(0, 5);
+
+    this.elements.leaderboard.innerHTML = playerList
+      .map((player, index) => {
+        const isLocal = player.id === localPlayerId;
+        const name = isLocal ? 'YOU' : `Player ${index + 1}`;
+        const time = this.formatTime(player.timeAlive);
+        return `
+          <div class="leaderboard-entry ${isLocal ? 'you' : ''}">
+            <span>${index + 1}. ${name}</span>
+            <span>${time}</span>
+          </div>
+        `;
+      })
+      .join('');
+  }
+
+  /**
+   * Updates game info display (time, wave, players)
+   */
+  private updateGameInfo(world: WorldState): void {
+    this.elements.gameInfo.innerHTML = `
+      <div class="game-time">${this.formatTime(world.gameTime)}</div>
+      <div class="game-wave">Wave ${world.currentWave}</div>
+      <div class="game-players">${world.playerCount} Player${world.playerCount !== 1 ? 's' : ''}</div>
+    `;
+  }
+
+  /**
+   * Updates minimap canvas
+   */
+  private updateMinimap(
+    player: PlayerState,
+    allPlayers: Map<string, PlayerState>,
+    world: WorldState
+  ): void {
+    const canvas = this.elements.minimap;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const size = 150;
+    const worldRadius = world.worldRadius || 500;
+    const scale = size / (worldRadius * 2.5);
+
+    // Clear canvas
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(0, 0, size, size);
+
+    // Draw world boundary circle
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2, worldRadius * scale, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Draw other players (blue dots)
+    ctx.fillStyle = '#4a90d9';
+    allPlayers.forEach(p => {
+      if (p.id !== player.id && !p.dead) {
+        const x = size / 2 + p.x * scale;
+        const y = size / 2 + p.y * scale;
+        ctx.beginPath();
+        ctx.arc(x, y, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    });
+
+    // Draw local player (green dot, larger)
+    ctx.fillStyle = '#4ecdc4';
+    const px = size / 2 + player.x * scale;
+    const py = size / 2 + player.y * scale;
+    ctx.beginPath();
+    ctx.arc(px, py, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  /**
+   * Formats seconds to MM:SS string
+   */
+  private formatTime(seconds: number): string {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }
+
+  /**
+   * Shows upgrade selection modal
+   */
+  showUpgradeUI(choices: UpgradeChoice[], onSelect: (id: string) => void): void {
+    this.elements.upgradeChoices.innerHTML = choices
+      .map(choice => {
+        const icon = choice.weaponType
+          ? WEAPON_ICONS[choice.weaponType] || '⬆️'
+          : '⬆️';
+        const name = choice.weaponType || choice.statType || 'Upgrade';
+        return `
+          <div class="upgrade-choice" data-id="${choice.id}">
+            <div class="upgrade-icon">${icon}</div>
+            <div class="upgrade-name">${name.toUpperCase()}</div>
+            <div class="upgrade-desc">${choice.description}</div>
+          </div>
+        `;
+      })
+      .join('');
+
+    // Attach click handlers
+    this.elements.upgradeChoices.querySelectorAll('.upgrade-choice').forEach(el => {
+      el.addEventListener('click', () => {
+        const id = el.getAttribute('data-id');
+        if (id) {
+          onSelect(id);
+          this.hideUpgradeUI();
+        }
+      });
+    });
+
+    this.elements.upgradeModal.classList.remove('hidden');
+  }
+
+  /**
+   * Hides upgrade modal
+   */
+  hideUpgradeUI(): void {
+    this.elements.upgradeModal.classList.add('hidden');
+  }
+
+  /**
+   * Shows death screen with stats and respawn button
+   */
+  showDeathScreen(stats: DeathStats, onRespawn: () => void): void {
+    this.elements.deathStats.innerHTML = `
+      <div>Time Survived: ${this.formatTime(stats.timeAlive)}</div>
+      <div>Enemies Killed: ${stats.kills}</div>
+      <div>Level Reached: ${stats.level}</div>
+    `;
+
+    // Remove previous listener and add new one
+    const newBtn = this.elements.respawnBtn.cloneNode(true) as HTMLElement;
+    this.elements.respawnBtn.parentNode?.replaceChild(newBtn, this.elements.respawnBtn);
+    this.elements.respawnBtn = newBtn;
+
+    this.elements.respawnBtn.addEventListener('click', () => {
+      onRespawn();
+      this.hideDeathScreen();
+    });
+
+    this.elements.deathScreen.classList.remove('hidden');
+  }
+
+  /**
+   * Hides death screen
+   */
+  hideDeathScreen(): void {
+    this.elements.deathScreen.classList.add('hidden');
+  }
+
+  /**
+   * Cleans up HUD resources
+   */
+  destroy(): void {
+    this.container.innerHTML = '';
+  }
+}

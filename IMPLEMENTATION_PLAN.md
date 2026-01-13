@@ -1,11 +1,11 @@
 # SWARM.IO Implementation Plan
 
-## Current Status: Phase 4 Complete - All Core Systems Operational
+## Current Status: Phase 5 Complete - UI/HUD System Fully Operational
 
 **Last Updated:** 2026-01-13
-**Implementation Progress:** 58/85 tasks completed (68.2%)
+**Implementation Progress:** 70/85 tasks completed (82.4%)
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
-**Next Priority:** Phase 5 UI/HUD, then remaining weapons
+**Next Priority:** Phase 2 Weapons (remaining 4 weapons)
 
 ---
 
@@ -14,95 +14,41 @@
 | Metric | Value | Notes |
 |--------|-------|-------|
 | Total Tasks | 85 | Across 6 phases |
-| Completed | 58 | 68.2% |
-| Remaining | 27 | P2-P5 priority |
+| Completed | 70 | 82.4% |
+| Remaining | 15 | P2 priority |
 | Blocking Issues | 0 | All critical bugs resolved |
-| Critical Path | Phase 5 | UI/HUD for user experience |
-| Est. Time to MVP | 4-6 hours | Phase 5 complete |
+| Critical Path | Phase 2 Weapons | Remaining 4 weapons |
+| Est. Time to MVP | 2-3 hours | 4 weapons remaining |
 
 ---
 
-## P1: PHASE 5 - UI/HUD SYSTEM (CRITICAL PATH)
+## PHASE 5 - UI/HUD SYSTEM (COMPLETE)
 
-**Status:** 0/12 tasks complete (0%)
-**Impact:** Poor user experience, no game feedback
+**Status:** 12/12 tasks complete (100%)
+**Impact:** Full user experience with game feedback
 **Spec Reference:** `specs/09-ui-hud.md` (536 lines, full implementation)
 
-### Current State
+### Completed State
 
-- **HUD.ts DOES NOT EXIST** - only empty placeholder at `src/client/src/ui/index.ts`
-- **Renderer.ts has 2 stub methods:**
-  - `showDeathScreen(finalScore)` at lines 273-276 - console.log only
-  - `showUpgradeUI(choices, onSelect)` at lines 278-281 - console.log only
+- **HUD.ts FULLY IMPLEMENTED** - Complete UI system at `src/client/src/ui/HUD.ts`
+- **Renderer.ts stub methods REMOVED** - UI methods moved to HUD class
 
 ### Task List
 
-| ID | Task | File | Spec Lines | Est. LOC |
-|----|------|------|------------|----------|
-| P1.1 | Create HUD class with styles | `src/client/src/ui/HUD.ts` | 30-340 | ~340 |
-| P1.2 | Health/XP bars | HUD.ts | 51-62, 355-366 | (incl.) |
-| P1.3 | Weapon display icons | HUD.ts | 73-76, 381-398 | (incl.) |
-| P1.4 | Leaderboard panel | HUD.ts | 66-71, 401-416 | (incl.) |
-| P1.5 | Minimap canvas | HUD.ts | 87-90, 427-461 | (incl.) |
-| P1.6 | Game info (time/wave/players) | HUD.ts | 79-85, 419-425 | (incl.) |
-| P1.7 | Upgrade modal | HUD.ts | 93-97, 469-495 | (incl.) |
-| P1.8 | Death screen | HUD.ts | 99-105, 497-519 | (incl.) |
-| P1.9 | Loading screen | HUD.ts | CSS overlay | ~30 |
-| P1.10 | Update UI barrel export | `src/client/src/ui/index.ts` | N/A | ~5 |
-| P1.11 | Implement Renderer.showDeathScreen() | `src/client/src/game/Renderer.ts:273-276` | N/A | ~20 |
-| P1.12 | Implement Renderer.showUpgradeUI() | `src/client/src/game/Renderer.ts:278-281` | N/A | ~20 |
-
-### Current Renderer Stubs
-
-```typescript
-// Renderer.ts:273-276 (CURRENT - STUB)
-showDeathScreen(finalScore: number) {
-  // Implementation: Show overlay with score and respawn button
-  console.log('Death screen:', finalScore);
-}
-
-// Renderer.ts:278-281 (CURRENT - STUB)
-showUpgradeUI(choices: any[], onSelect: (id: string) => void) {
-  // Implementation: Show upgrade selection UI
-  console.log('Upgrade choices:', choices);
-}
-```
-
-### HUD Implementation (from spec)
-
-The complete HUD implementation is at `specs/09-ui-hud.md:30-521`. Key components:
-
-**HTML Structure (lines 51-106):**
-```html
-<div class="hud">
-  <div class="hud-topleft"><!-- Health, XP, Level --></div>
-  <div class="hud-topright"><!-- Leaderboard --></div>
-  <div class="hud-bottomleft"><!-- Weapons --></div>
-  <div class="hud-bottomright"><!-- Game Info --></div>
-  <div class="hud-minimap"><!-- Canvas --></div>
-</div>
-<div class="upgrade-modal hidden"><!-- Level up choices --></div>
-<div class="death-screen hidden"><!-- Death stats --></div>
-```
-
-**CSS Styling (lines 112-338):**
-- Pixel-art font (Press Start 2P)
-- Semi-transparent backgrounds (rgba)
-- Health bar gradient (red)
-- XP bar gradient (teal)
-- Pointer-events: none for non-interactive areas
-
-**Update Method (lines 355-378):**
-```typescript
-update(player: any, world: any, allPlayers: Map<string, any>, localPlayerId: string) {
-  // Health
-  const healthPercent = (player.health / player.maxHealth) * 100;
-  this.elements.healthBar.style.width = `${healthPercent}%`;
-  this.elements.healthText.textContent = `${Math.ceil(player.health)}/${player.maxHealth}`;
-
-  // XP, Level, Weapons, Leaderboard, Game Info, Minimap...
-}
-```
+| ID | Task | File | Status |
+|----|------|------|--------|
+| P1.1 | Create HUD class with styles | `src/client/src/ui/HUD.ts` | COMPLETE |
+| P1.2 | Health/XP bars | HUD.ts | COMPLETE |
+| P1.3 | Weapon display icons | HUD.ts | COMPLETE |
+| P1.4 | Leaderboard panel | HUD.ts | COMPLETE |
+| P1.5 | Minimap canvas | HUD.ts | COMPLETE |
+| P1.6 | Game info (time/wave/players) | HUD.ts | COMPLETE |
+| P1.7 | Upgrade modal | HUD.ts | COMPLETE |
+| P1.8 | Death screen | HUD.ts | COMPLETE |
+| P1.9 | Loading screen | HUD.ts | COMPLETE (N/A - loading handled by existing flow) |
+| P1.10 | Update UI barrel export | `src/client/src/ui/index.ts` | COMPLETE |
+| P1.11 | Implement Renderer.showDeathScreen() | HUD.ts | COMPLETE (Moved to HUD class, removed from Renderer) |
+| P1.12 | Implement Renderer.showUpgradeUI() | HUD.ts | COMPLETE (Moved to HUD class, removed from Renderer) |
 
 ---
 
@@ -572,8 +518,6 @@ const nearestPlayer = spatialHash.queryNearestOfType(x, y, 'player', maxRange);
 | STUB-003 | Fireball weapon stub | `WeaponSystem.ts:290-293` | Medium | Open |
 | STUB-004 | Whip weapon stub | `WeaponSystem.ts:295-298` | Medium | Open |
 | SEC-001 | Player kick not enforced | `InputSystem.ts:167-173` | Low | Open |
-| UI-001 | showDeathScreen is stub | `Renderer.ts:273-276` | Medium | Open |
-| UI-002 | showUpgradeUI is stub | `Renderer.ts:278-281` | Medium | Open |
 | TEST-001 | No unit tests exist | N/A | Low | Open |
 | DESIGN-001 | Garlic creates unused explosion projectiles | `WeaponSystem.ts:259-274` | Info | Won't Fix |
 
@@ -615,8 +559,8 @@ const nearestPlayer = spatialHash.queryNearestOfType(x, y, 'player', maxRange);
 - [x] **Movement** - WASD movement with visual feedback
 - [x] **Combat** - Auto-attacking weapons (knife minimum)
 - [x] **Enemies** - Enemies spawn and chase player
-- [ ] **XP System** - XP collection works, level-up UI needs HUD implementation
-- [ ] **Death/Respawn** - Death screen needs HUD implementation
+- [x] **XP System** - XP collection works, level-up UI
+- [x] **Death/Respawn** - Death screen
 - [x] **Multiplayer** - See other players moving
 
 ### Post-MVP Enhancements
@@ -658,6 +602,7 @@ npm run lint
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-01-13 | 2.4 | Phase 5 UI/HUD COMPLETE (12/12 tasks) - Full HUD.ts implementation with health bars, XP, weapons, leaderboard, minimap, upgrade modal, death screen |
 | 2026-01-13 | 2.3 | Phase 4 Networking COMPLETE (8/8 tasks) - NetworkClient.ts created with full implementation |
 | 2026-01-13 | 2.3 | P0 Bug RESOLVED - PhysicsSystem constructor in GameRoom.ts:34 fixed |
 | 2026-01-13 | 2.3 | Type errors FIXED - GameRoom onMessage, CombatSystem projectileType, XPSystem upgrades, WeaponSystem nearestEnemy, MapSchema iteration issues |
