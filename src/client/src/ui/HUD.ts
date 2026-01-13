@@ -34,6 +34,7 @@ interface HUDElements {
   sfxVolumeSlider: HTMLInputElement;
   musicVolumeSlider: HTMLInputElement;
   muteCheckbox: HTMLInputElement;
+  tutorialOverlay: HTMLElement;
 }
 
 interface AudioSettings {
@@ -212,6 +213,38 @@ export class HUD {
             <input type="checkbox" class="settings-checkbox mute-checkbox">
           </div>
           <button class="settings-close-btn">CLOSE</button>
+        </div>
+      </div>
+
+      <!-- Tutorial Overlay -->
+      <div class="tutorial-overlay hidden">
+        <div class="tutorial-content">
+          <div class="tutorial-title">HOW TO PLAY</div>
+          <div class="tutorial-section">
+            <div class="tutorial-heading">MOVEMENT</div>
+            <div class="tutorial-keys">
+              <span class="key">W</span>
+              <span class="key">A</span>
+              <span class="key">S</span>
+              <span class="key">D</span>
+            </div>
+            <div class="tutorial-text">Use WASD or Arrow Keys to move</div>
+          </div>
+          <div class="tutorial-section">
+            <div class="tutorial-heading">COMBAT</div>
+            <div class="tutorial-text">Weapons auto-attack nearby enemies</div>
+          </div>
+          <div class="tutorial-section">
+            <div class="tutorial-heading">SURVIVE</div>
+            <div class="tutorial-text">Collect XP orbs to level up and choose upgrades</div>
+          </div>
+          <div class="tutorial-section">
+            <div class="tutorial-heading">TIPS</div>
+            <div class="tutorial-text">• ESC opens Settings</div>
+            <div class="tutorial-text">• Avoid the world edge</div>
+            <div class="tutorial-text">• Watch out for bosses!</div>
+          </div>
+          <button class="tutorial-start-btn">START GAME</button>
         </div>
       </div>
     `;
@@ -641,6 +674,95 @@ export class HUD {
       .settings-close-btn:hover {
         background: #1abc9c;
       }
+
+      /* Tutorial Overlay */
+      .tutorial-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 500;
+        font-family: 'Press Start 2P', monospace;
+      }
+
+      .tutorial-overlay.hidden {
+        display: none;
+      }
+
+      .tutorial-content {
+        background: rgba(0, 0, 0, 0.95);
+        padding: 40px;
+        border: 4px solid #ffd700;
+        max-width: 450px;
+        text-align: center;
+      }
+
+      .tutorial-title {
+        font-size: 28px;
+        color: #ffd700;
+        margin-bottom: 30px;
+        text-shadow: 2px 2px 0 #000;
+      }
+
+      .tutorial-section {
+        margin-bottom: 25px;
+      }
+
+      .tutorial-heading {
+        font-size: 12px;
+        color: #4ecdc4;
+        margin-bottom: 10px;
+        text-shadow: 1px 1px 0 #000;
+      }
+
+      .tutorial-keys {
+        display: flex;
+        justify-content: center;
+        gap: 5px;
+        margin-bottom: 10px;
+      }
+
+      .key {
+        width: 35px;
+        height: 35px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 2px solid white;
+        border-radius: 5px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        color: white;
+      }
+
+      .tutorial-text {
+        font-size: 10px;
+        color: #aaa;
+        line-height: 1.8;
+        text-shadow: 1px 1px 0 #000;
+      }
+
+      .tutorial-start-btn {
+        font-family: 'Press Start 2P', monospace;
+        font-size: 14px;
+        padding: 15px 30px;
+        background: #ffd700;
+        color: black;
+        border: none;
+        cursor: pointer;
+        margin-top: 20px;
+        transition: all 0.2s ease;
+      }
+
+      .tutorial-start-btn:hover {
+        background: #ffed4a;
+        transform: scale(1.05);
+      }
     `;
     document.head.appendChild(style);
   }
@@ -668,7 +790,8 @@ export class HUD {
       masterVolumeSlider: this.container.querySelector('.master-volume') as HTMLInputElement,
       sfxVolumeSlider: this.container.querySelector('.sfx-volume') as HTMLInputElement,
       musicVolumeSlider: this.container.querySelector('.music-volume') as HTMLInputElement,
-      muteCheckbox: this.container.querySelector('.mute-checkbox') as HTMLInputElement
+      muteCheckbox: this.container.querySelector('.mute-checkbox') as HTMLInputElement,
+      tutorialOverlay: this.container.querySelector('.tutorial-overlay') as HTMLElement
     };
   }
 
@@ -1012,6 +1135,47 @@ export class HUD {
     this.updateVolumeDisplay(this.elements.musicVolumeSlider, Math.round(settings.musicVolume * 100));
 
     this.elements.muteCheckbox.checked = settings.muted;
+  }
+
+  /**
+   * Shows the tutorial overlay if this is the player's first time
+   * Uses localStorage to track if tutorial has been shown
+   */
+  showTutorialIfFirstTime(onComplete: () => void): void {
+    const tutorialSeen = localStorage.getItem('swarm-io-tutorial-seen');
+
+    if (!tutorialSeen) {
+      this.showTutorial(onComplete);
+    } else {
+      // Tutorial already seen, start immediately
+      onComplete();
+    }
+  }
+
+  /**
+   * Shows the tutorial overlay
+   */
+  showTutorial(onComplete: () => void): void {
+    this.elements.tutorialOverlay.classList.remove('hidden');
+
+    // Setup start button handler
+    const startBtn = this.container.querySelector('.tutorial-start-btn');
+    if (startBtn) {
+      const handleStart = () => {
+        localStorage.setItem('swarm-io-tutorial-seen', 'true');
+        this.hideTutorial();
+        onComplete();
+        startBtn.removeEventListener('click', handleStart);
+      };
+      startBtn.addEventListener('click', handleStart);
+    }
+  }
+
+  /**
+   * Hides the tutorial overlay
+   */
+  hideTutorial(): void {
+    this.elements.tutorialOverlay.classList.add('hidden');
   }
 
   /**

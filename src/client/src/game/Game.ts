@@ -64,6 +64,16 @@ export class Game {
   async start() {
     console.log('[Game] Starting SWARM.IO client...');
 
+    // Show tutorial for first-time players
+    this.hud.showTutorialIfFirstTime(() => {
+      this.startGameConnection();
+    });
+  }
+
+  /**
+   * Initiates the network connection and starts the game loop
+   */
+  private async startGameConnection() {
     try {
       // Connect to server
       await this.network.connect();
