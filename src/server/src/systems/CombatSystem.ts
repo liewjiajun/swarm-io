@@ -82,7 +82,7 @@ export class CombatSystem {
         }
       });
 
-      // Check collisions with players (for PvP)
+      // Check collisions with players (for PvP and enemy projectiles)
       if (projectile.ownerId) {
         const nearbyPlayers = spatialHash.queryRadius(
           projectile.x,
@@ -94,7 +94,7 @@ export class CombatSystem {
         nearbyPlayers.forEach(spatialEntity => {
           const player = spatialEntity.entity as PlayerSchema;
 
-          // Skip self-damage
+          // Skip self-damage (for player-owned projectiles)
           if (player.id === projectile.ownerId) return;
 
           // Skip if player is dead or invulnerable
@@ -103,7 +103,15 @@ export class CombatSystem {
           // Check collision
           const distance = Math.sqrt((projectile.x - player.x) ** 2 + (projectile.y - player.y) ** 2);
           if (distance <= projectile.radius + GAME_CONSTANTS.PLAYER_HITBOX_RADIUS) {
-            this.processProjectilePlayerHit(gameState, projectile, player);
+            // Check if this is a player-owned projectile (PvP) or enemy-owned projectile
+            const sourcePlayer = gameState.players.get(projectile.ownerId);
+            if (sourcePlayer) {
+              // PvP projectile
+              this.processProjectilePlayerHit(gameState, projectile, player);
+            } else {
+              // Enemy projectile - full damage to player
+              this.processEnemyProjectilePlayerHit(gameState, projectile, player);
+            }
           }
         });
       }
@@ -188,6 +196,31 @@ export class CombatSystem {
     if (projectile.hitEnemies.size >= projectile.piercing) {
       projectile.lifetime = 0;
     }
+  }
+
+  private processEnemyProjectilePlayerHit(gameState: GameState, projectile: ProjectileSchema, player: PlayerSchema): void {
+    // Validate damage - enemy projectiles deal full damage
+    const validatedDamage = this.validateDamage(projectile.damage, 'projectile', projectile.type, 1);
+
+    // Apply damage to player (not PvP, so no hostility tracking)
+    player.takeDamage(validatedDamage, projectile.ownerId, false);
+    this.combatMetrics.totalDamageDealt += validatedDamage;
+    this.combatMetrics.projectileHits++;
+
+    // Record hit
+    projectile.recordHit(player.id);
+
+    // Log damage event
+    this.recordDamageEvent({
+      targetId: player.id,
+      damage: validatedDamage,
+      sourceId: projectile.ownerId,
+      damageType: 'projectile',
+      timestamp: Date.now()
+    });
+
+    // Destroy projectile on hit (single hit for enemy projectiles)
+    projectile.lifetime = 0;
   }
 
   private processContactDamage(gameState: GameState, spatialHash: SpatialHash, deltaTime: number): void {

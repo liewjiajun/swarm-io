@@ -3,7 +3,7 @@
 ## Current Status: Phase 6 Complete - All Core Features Done
 
 **Last Updated:** 2026-01-13
-**Implementation Progress:** 96/85 tasks completed (112.9%)
+**Implementation Progress:** 97/85 tasks completed (114.1%)
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
 **Next Priority:** Quality of Life features (Phase 6.4) - optional enhancements
 
@@ -14,7 +14,7 @@
 | Metric | Value | Notes |
 |--------|-------|-------|
 | Total Tasks | 85 | Across 6 phases |
-| Completed | 96 | 112.9% (all phases complete) |
+| Completed | 97 | 114.1% (all phases complete) |
 | Remaining | 0 | All core features complete |
 | Blocking Issues | 0 | All critical bugs resolved |
 | Critical Path | Complete | Full feature set implemented |
@@ -182,7 +182,7 @@
 
 | Task | Description | Complexity | Est. LOC |
 |------|-------------|------------|----------|
-| Demon ranged attack | Demons fire projectiles at range | Medium | ~60 |
+| Demon ranged attack | Demons fire projectiles at range | Medium | ~60 | COMPLETE |
 | Boss unique abilities | Special boss mechanics (charge, AOE) | Medium | ~150 |
 | Mobile touch controls | Virtual joystick for mobile play | Medium | ~200 |
 | Settings menu | Sound, controls, graphics options | Low | ~100 |
@@ -448,6 +448,7 @@ npm run lint
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-01-13 | 2.14 | Demon Ranged Attack COMPLETE - Added ENEMY_ATTACK_CONFIGS to constants.ts for demon and boss_demon. Added attackCooldown field to EnemySchema. Implemented ranged attack AI in PhysicsSystem - demons stop at range and fire projectiles. Updated CombatSystem to handle enemy projectiles hitting players. Demon attacks deal 15 damage every 2.5s at 15 unit range; Boss demon deals 25 damage every 1.5s at 20 unit range. |
 | 2026-01-13 | 2.13 | Performance Optimization - LOD COMPLETE - Added distance-based Level of Detail for projectiles and XP orbs. Creates low-detail InstancedMesh (4-segment) for entities beyond 15 units from camera center. Reduces triangle count by 75% for distant entities. PHASE 6 NOW 100% COMPLETE (17/17 tasks). All core features implemented. |
 | 2026-01-13 | 2.12 | Performance Optimization - Object Pooling, State Delta Compression, Batch Rendering COMPLETE - Created ObjectPool.ts for server-side entity reuse (projectiles, enemies, XP orbs). Added removeEnemy/Projectile/XPOrb methods to GameState. Fixed bug: expired projectiles now cleaned up in PhysicsSystem. Confirmed Colyseus handles delta compression automatically. Confirmed InstancedMesh handles batch rendering. Phase 6 now 16/17 complete (94.1%) |
 | 2026-01-13 | 2.11 | Performance Optimization - Interest Management COMPLETE - Added @filterChildren decorators to GameState.ts for enemies, projectiles, and XP orbs. Uses INTEREST_RADIUS (50 units) for distance filtering. Reduces network bandwidth by only syncing entities within player view radius. Phase 6 now 13/17 complete (76.5%) |

@@ -164,6 +164,41 @@ export const WEAPON_CONFIGS: Record<string, WeaponConfig> = {
 // ENEMY CONFIGURATIONS
 // =============================================================================
 
+// =============================================================================
+// ENEMY ATTACK CONFIGURATIONS (for ranged enemies)
+// =============================================================================
+
+export interface EnemyAttackConfig {
+  damage: number;
+  cooldown: number;
+  range: number;
+  projectileSpeed: number;
+  projectileRadius: number;
+  projectileLifetime: number;
+  projectileType: string;
+}
+
+export const ENEMY_ATTACK_CONFIGS: Record<string, EnemyAttackConfig> = {
+  demon: {
+    damage: 15,
+    cooldown: 2.5,
+    range: 15,
+    projectileSpeed: 8,
+    projectileRadius: 0.4,
+    projectileLifetime: 3,
+    projectileType: 'demon_fireball',
+  },
+  boss_demon: {
+    damage: 25,
+    cooldown: 1.5,
+    range: 20,
+    projectileSpeed: 10,
+    projectileRadius: 0.6,
+    projectileLifetime: 4,
+    projectileType: 'demon_fireball',
+  },
+};
+
 export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
   bat: {
     type: 'bat',

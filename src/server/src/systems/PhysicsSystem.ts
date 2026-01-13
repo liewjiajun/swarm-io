@@ -1,6 +1,6 @@
 import type { GameState } from '../state/GameState';
 import type { SpatialHash } from './SpatialHash';
-import { GAME_CONSTANTS } from '@swarm-io/shared';
+import { GAME_CONSTANTS, ENEMY_ATTACK_CONFIGS } from '@swarm-io/shared';
 import { direction, distance } from '@swarm-io/shared';
 
 export class PhysicsSystem {
@@ -70,17 +70,64 @@ export class PhysicsSystem {
       enemy.x, enemy.y, 'player', 100
     );
 
+    // Check if this enemy has ranged attack capability
+    const attackConfig = ENEMY_ATTACK_CONFIGS[enemy.type];
+
     if (nearestPlayer) {
       enemy.targetPlayerId = nearestPlayer.id;
 
-      // Move toward player
-      const dir = direction(
+      const dist = distance(
         { x: enemy.x, y: enemy.y },
         { x: nearestPlayer.x, y: nearestPlayer.y }
       );
 
-      enemy.velocityX = dir.x * enemy.speed;
-      enemy.velocityY = dir.y * enemy.speed;
+      // Handle ranged attack behavior for demons
+      if (attackConfig) {
+        // Decrement attack cooldown
+        if (enemy.attackCooldown > 0) {
+          enemy.attackCooldown -= dt;
+        }
+
+        // If within range, fire projectile and maintain distance
+        if (dist <= attackConfig.range) {
+          // Fire projectile when cooldown is ready
+          if (enemy.attackCooldown <= 0) {
+            this.fireEnemyProjectile(state, enemy, nearestPlayer, attackConfig);
+            enemy.attackCooldown = attackConfig.cooldown;
+          }
+
+          // Ranged enemies try to maintain distance (stop moving if close enough)
+          if (dist < attackConfig.range * 0.5) {
+            // Move away from player to maintain distance
+            const dir = direction(
+              { x: nearestPlayer.x, y: nearestPlayer.y },
+              { x: enemy.x, y: enemy.y }
+            );
+            enemy.velocityX = dir.x * enemy.speed * 0.5;
+            enemy.velocityY = dir.y * enemy.speed * 0.5;
+          } else {
+            // Stay in place while attacking
+            enemy.velocityX = 0;
+            enemy.velocityY = 0;
+          }
+        } else {
+          // Move toward player to get in range
+          const dir = direction(
+            { x: enemy.x, y: enemy.y },
+            { x: nearestPlayer.x, y: nearestPlayer.y }
+          );
+          enemy.velocityX = dir.x * enemy.speed;
+          enemy.velocityY = dir.y * enemy.speed;
+        }
+      } else {
+        // Standard melee AI - move toward player
+        const dir = direction(
+          { x: enemy.x, y: enemy.y },
+          { x: nearestPlayer.x, y: nearestPlayer.y }
+        );
+        enemy.velocityX = dir.x * enemy.speed;
+        enemy.velocityY = dir.y * enemy.speed;
+      }
     } else {
       // Wander toward center
       const dir = direction({ x: enemy.x, y: enemy.y }, { x: 0, y: 0 });
@@ -90,5 +137,37 @@ export class PhysicsSystem {
 
     enemy.x += enemy.velocityX * dt;
     enemy.y += enemy.velocityY * dt;
+  }
+
+  private fireEnemyProjectile(
+    state: GameState,
+    enemy: any,
+    target: { x: number; y: number; id: string },
+    attackConfig: typeof ENEMY_ATTACK_CONFIGS[string]
+  ): void {
+    // Calculate direction to target
+    const dx = target.x - enemy.x;
+    const dy = target.y - enemy.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist === 0) return;
+
+    // Normalize and apply projectile speed
+    const velocityX = (dx / dist) * attackConfig.projectileSpeed;
+    const velocityY = (dy / dist) * attackConfig.projectileSpeed;
+
+    // Create enemy projectile
+    state.addProjectile(
+      attackConfig.projectileType,
+      enemy.id,  // Owner is the enemy
+      enemy.x,
+      enemy.y,
+      velocityX,
+      velocityY,
+      attackConfig.damage,
+      attackConfig.projectileLifetime,
+      attackConfig.projectileRadius,
+      1  // Single hit, no piercing
+    );
   }
 }

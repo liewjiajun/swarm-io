@@ -18,6 +18,9 @@ export class EnemySchema extends Schema {
   private _xpValue: number = 0;
   private _size: number = 0;
 
+  // Attack cooldown tracking (not synced, server-only)
+  attackCooldown: number = 0;
+
   initialize(type: string, difficulty: number = 1) {
     const config = ENEMY_CONFIGS[type];
     if (!config) return;
