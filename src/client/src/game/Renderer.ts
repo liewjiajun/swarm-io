@@ -64,6 +64,9 @@ export class Renderer {
   // Delta time tracking
   private lastRenderTime: number = 0;
 
+  // Screen effects
+  private screenFlash: HTMLDivElement | null = null;
+
   constructor(canvas: HTMLCanvasElement) {
     // Scene
     this.scene = new THREE.Scene();
@@ -115,6 +118,23 @@ export class Renderer {
       z-index: 100;
     `;
     document.body.appendChild(this.damageContainer);
+
+    // Create screen flash overlay for level up effect
+    this.screenFlash = document.createElement('div');
+    this.screenFlash.id = 'screen-flash';
+    this.screenFlash.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      background: radial-gradient(circle, rgba(255,215,0,0.6) 0%, rgba(255,215,0,0) 70%);
+      opacity: 0;
+      z-index: 99;
+      transition: opacity 0.15s ease-out;
+    `;
+    document.body.appendChild(this.screenFlash);
   }
 
   private createGround() {
@@ -588,12 +608,103 @@ export class Renderer {
   }
 
   /**
+   * Spawn weapon impact particles at hit location
+   * Creates a small burst of colored particles when weapons hit enemies
+   */
+  spawnWeaponImpact(x: number, z: number, weaponColor: number = 0xffff00): void {
+    const particleCount = 5;
+
+    for (let i = 0; i < particleCount; i++) {
+      const angle = (i / particleCount) * Math.PI * 2;
+      const speed = 1.5 + Math.random() * 1.5;
+
+      this.particles.push({
+        x,
+        y: 0.5,
+        z,
+        vx: Math.cos(angle) * speed,
+        vy: 1 + Math.random() * 2,
+        vz: Math.sin(angle) * speed,
+        life: 0.2 + Math.random() * 0.15,
+        maxLife: 0.2 + Math.random() * 0.15,
+        scale: 0.3 + Math.random() * 0.2,
+        color: weaponColor,
+      });
+    }
+  }
+
+  /**
+   * Spawn death explosion particles when enemy dies
+   * Creates a larger burst with more particles
+   */
+  spawnDeathExplosion(x: number, z: number, enemyType: string): void {
+    // Color based on enemy type
+    const colors: Record<string, number> = {
+      bat: 0xff6b6b,
+      skeleton: 0xcccccc,
+      zombie: 0x4ecdc4,
+      ghost: 0xaaaaff,
+      slime: 0x95e1d3,
+      demon: 0xff4444,
+      boss_slime: 0x00ff88,
+      boss_skeleton: 0xffffff,
+      boss_demon: 0xff0000,
+    };
+
+    const color = colors[enemyType] || 0xff0000;
+    const isBoss = enemyType.startsWith('boss_');
+    const particleCount = isBoss ? 30 : 12;
+
+    for (let i = 0; i < particleCount; i++) {
+      // Random direction in a sphere
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      const speed = (isBoss ? 4 : 2) + Math.random() * 3;
+
+      this.particles.push({
+        x,
+        y: 0.4 + Math.random() * 0.3,
+        z,
+        vx: Math.sin(phi) * Math.cos(theta) * speed,
+        vy: Math.abs(Math.cos(phi)) * speed + 1,
+        vz: Math.sin(phi) * Math.sin(theta) * speed,
+        life: 0.4 + Math.random() * 0.3,
+        maxLife: 0.4 + Math.random() * 0.3,
+        scale: (isBoss ? 0.6 : 0.4) + Math.random() * 0.3,
+        color,
+      });
+    }
+  }
+
+  /**
+   * Trigger screen flash effect for level up
+   * Creates a golden radial flash that fades quickly
+   */
+  triggerLevelUpFlash(): void {
+    if (!this.screenFlash) return;
+
+    // Flash in
+    this.screenFlash.style.opacity = '1';
+
+    // Fade out after delay
+    setTimeout(() => {
+      if (this.screenFlash) {
+        this.screenFlash.style.opacity = '0';
+      }
+    }, 150);
+  }
+
+  /**
    * Clean up DOM elements on destroy
    */
   destroy(): void {
     if (this.damageContainer) {
       this.damageContainer.remove();
       this.damageContainer = null;
+    }
+    if (this.screenFlash) {
+      this.screenFlash.remove();
+      this.screenFlash = null;
     }
     this.damageNumbers = [];
     this.lastEnemyHealth.clear();

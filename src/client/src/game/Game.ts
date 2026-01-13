@@ -20,12 +20,13 @@ export class Game {
   private connected: boolean = false;
   private inputSequence: number = 0;
 
-  // Track state for audio event detection
+  // Track state for audio/visual event detection
   private lastPlayerHealth: number = 100;
   private lastProjectileCount: number = 0;
   private lastXpOrbIds: Set<string> = new Set();
   private lastEnemyIds: Set<string> = new Set();
   private knownProjectileIds: Set<string> = new Set();
+  private lastEnemyPositions: Map<string, { x: number; y: number; type: string }> = new Map();
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new Renderer(canvas);
@@ -92,8 +93,9 @@ export class Game {
     // Handle level up with upgrade choices
     this.network.onLevelUp((data) => {
       console.log('[Game] Level up! New level:', data.newLevel);
-      // Play level up sound
+      // Play level up sound and flash
       this.audio.playLevelUpSound();
+      this.renderer.triggerLevelUpFlash();
       // Store choices so we can look them up by ID when the user selects
       const choiceMap = new Map(data.choices.map(c => [c.id, c]));
       this.hud.showUpgradeUI(data.choices, (choiceId: string) => {
@@ -347,10 +349,12 @@ export class Game {
     });
     this.lastXpOrbIds = currentXpOrbIds;
 
-    // Detect enemy deaths
+    // Detect enemy deaths and spawn explosions
     const currentEnemyIds = new Set<string>();
-    state.enemies.forEach((_enemy: any, id: string) => {
+    state.enemies.forEach((enemy: any, id: string) => {
       currentEnemyIds.add(id);
+      // Track position for death explosion
+      this.lastEnemyPositions.set(id, { x: enemy.x, y: enemy.y, type: enemy.type });
     });
 
     // Check for removed enemies (killed)
@@ -358,6 +362,12 @@ export class Game {
     this.lastEnemyIds.forEach(id => {
       if (!currentEnemyIds.has(id)) {
         enemiesKilled++;
+        // Spawn death explosion at last known position
+        const lastPos = this.lastEnemyPositions.get(id);
+        if (lastPos) {
+          this.renderer.spawnDeathExplosion(lastPos.x, lastPos.y, lastPos.type);
+          this.lastEnemyPositions.delete(id);
+        }
       }
     });
 
@@ -366,6 +376,13 @@ export class Game {
       this.audio.playEnemyDeathSound();
     }
     this.lastEnemyIds = currentEnemyIds;
+
+    // Clean up position tracking for removed enemies
+    this.lastEnemyPositions.forEach((_, id) => {
+      if (!currentEnemyIds.has(id)) {
+        this.lastEnemyPositions.delete(id);
+      }
+    });
   }
 
   /**
