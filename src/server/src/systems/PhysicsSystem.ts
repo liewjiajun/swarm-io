@@ -15,8 +15,36 @@ export class PhysicsSystem {
     // Update projectile movement
     const expiredProjectiles: string[] = [];
     state.projectiles.forEach((projectile, id) => {
-      projectile.x += projectile.velocityX * dt;
-      projectile.y += projectile.velocityY * dt;
+      // Special handling for Bible orb projectiles - they orbit their owner
+      if (projectile.type === 'orb') {
+        const owner = state.players.get(projectile.ownerId);
+        if (owner && !owner.dead) {
+          // Calculate current angle from owner
+          const dx = projectile.x - owner.x;
+          const dy = projectile.y - owner.y;
+          const currentDist = Math.sqrt(dx * dx + dy * dy);
+          const currentAngle = Math.atan2(dy, dx);
+
+          // Rotate at ~1 revolution per 2 seconds (π radians/sec)
+          const orbitSpeed = Math.PI;
+          const newAngle = currentAngle + orbitSpeed * dt;
+
+          // Maintain orbit radius (use current distance or default to 3 units)
+          const orbitRadius = currentDist > 0.5 ? currentDist : 3;
+
+          // Update position to orbit around owner
+          projectile.x = owner.x + Math.cos(newAngle) * orbitRadius;
+          projectile.y = owner.y + Math.sin(newAngle) * orbitRadius;
+        } else {
+          // Owner died or disconnected, mark for cleanup
+          expiredProjectiles.push(id);
+        }
+      } else {
+        // Standard projectile movement
+        projectile.x += projectile.velocityX * dt;
+        projectile.y += projectile.velocityY * dt;
+      }
+
       projectile.lifetime -= dt;
 
       // Mark for cleanup if expired

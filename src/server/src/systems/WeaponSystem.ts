@@ -230,9 +230,11 @@ export class WeaponSystem {
     toRemove.forEach(id => gameState.removeProjectile(id));
 
     // Create new orbs in circle formation
+    // Orbit radius scales with level (base range * (1 + (level-1) * 0.1))
+    const orbitRadius = config.range * (1 + (weapon.level - 1) * 0.1);
+
     for (let i = 0; i < orbCount; i++) {
       const angle = (i / orbCount) * Math.PI * 2;
-      const orbitRadius = 50; // Fixed orbit radius
 
       const orbX = player.x + Math.cos(angle) * orbitRadius;
       const orbY = player.y + Math.sin(angle) * orbitRadius;
