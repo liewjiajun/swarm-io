@@ -1,6 +1,6 @@
 import { GameState, PlayerSchema, EnemySchema, ProjectileSchema } from '../state/GameState.js';
 import { SpatialHash, SpatialEntity } from './SpatialHash.js';
-import { GAME_CONSTANTS, WEAPON_CONFIGS, ENEMY_CONFIGS } from '@swarm-io/shared';
+import { GAME_CONSTANTS, WEAPON_CONFIGS, ENEMY_CONFIGS, BOSS_ABILITY_CONFIGS } from '@swarm-io/shared';
 import { withinRadius } from '@swarm-io/shared';
 
 interface CombatMetrics {
@@ -362,6 +362,9 @@ export class CombatSystem {
     Object.keys(gameState.enemies).forEach(enemyId => {
       const enemy = gameState.enemies.get(enemyId);
       if (enemy && enemy.health <= 0) {
+        // Check for boss ability on death (e.g., slime split)
+        this.handleBossDeathAbility(gameState, enemy);
+
         // Spawn XP orb at enemy position
         gameState.addXPOrb(enemy.x, enemy.y, enemy.xpValue);
 
@@ -384,6 +387,32 @@ export class CombatSystem {
     // Keep only last 100 damage events for monitoring
     if (this.recentDamageEvents.length > 100) {
       this.recentDamageEvents = this.recentDamageEvents.slice(-100);
+    }
+  }
+
+  /**
+   * Handle boss-specific abilities on death (e.g., slime splitting into smaller slimes)
+   */
+  private handleBossDeathAbility(gameState: GameState, enemy: EnemySchema): void {
+    const abilityConfig = BOSS_ABILITY_CONFIGS[enemy.type];
+    if (!abilityConfig) return;
+
+    // Handle split ability (boss_slime)
+    if (abilityConfig.type === 'split' && abilityConfig.splitCount && abilityConfig.splitType) {
+      const angleStep = (Math.PI * 2) / abilityConfig.splitCount;
+      const spawnRadius = enemy.size * 0.5;
+
+      for (let i = 0; i < abilityConfig.splitCount; i++) {
+        const angle = angleStep * i;
+        const spawnX = enemy.x + Math.cos(angle) * spawnRadius;
+        const spawnY = enemy.y + Math.sin(angle) * spawnRadius;
+
+        // Spawn split enemy with difficulty 1 (no scaling for splits)
+        const splitEnemy = gameState.addEnemy(abilityConfig.splitType, spawnX, spawnY);
+        splitEnemy.initialize(abilityConfig.splitType, 1);
+      }
+
+      console.log(`[CombatSystem] Boss ${enemy.type} split into ${abilityConfig.splitCount} ${abilityConfig.splitType}s`);
     }
   }
 

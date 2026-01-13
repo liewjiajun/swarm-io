@@ -1,6 +1,6 @@
 import type { GameState } from '../state/GameState';
 import type { SpatialHash } from './SpatialHash';
-import { GAME_CONSTANTS, ENEMY_ATTACK_CONFIGS } from '@swarm-io/shared';
+import { GAME_CONSTANTS, ENEMY_ATTACK_CONFIGS, BOSS_ABILITY_CONFIGS } from '@swarm-io/shared';
 import { direction, distance } from '@swarm-io/shared';
 
 export class PhysicsSystem {
@@ -72,6 +72,19 @@ export class PhysicsSystem {
 
     // Check if this enemy has ranged attack capability
     const attackConfig = ENEMY_ATTACK_CONFIGS[enemy.type];
+    // Check for boss abilities
+    const bossAbility = BOSS_ABILITY_CONFIGS[enemy.type];
+
+    // Decrement ability cooldown for bosses
+    if (bossAbility && enemy.abilityCooldown > 0) {
+      enemy.abilityCooldown -= dt;
+    }
+
+    // Handle boss charging state
+    if (enemy.isCharging && bossAbility?.type === 'charge') {
+      this.updateChargingBoss(state, enemy, dt, bossAbility);
+      return;
+    }
 
     if (nearestPlayer) {
       enemy.targetPlayerId = nearestPlayer.id;
@@ -80,6 +93,11 @@ export class PhysicsSystem {
         { x: enemy.x, y: enemy.y },
         { x: nearestPlayer.x, y: nearestPlayer.y }
       );
+
+      // Handle boss abilities
+      if (bossAbility) {
+        this.handleBossAbility(state, enemy, nearestPlayer, dist, bossAbility);
+      }
 
       // Handle ranged attack behavior for demons
       if (attackConfig) {
@@ -135,6 +153,91 @@ export class PhysicsSystem {
       enemy.velocityY = dir.y * enemy.speed * 0.5;
     }
 
+    enemy.x += enemy.velocityX * dt;
+    enemy.y += enemy.velocityY * dt;
+  }
+
+  /**
+   * Handle boss-specific abilities during combat
+   */
+  private handleBossAbility(
+    state: GameState,
+    enemy: any,
+    target: { x: number; y: number; id: string },
+    dist: number,
+    ability: typeof BOSS_ABILITY_CONFIGS[string]
+  ): void {
+    if (enemy.abilityCooldown > 0) return;
+
+    // Summon ability (boss_skeleton)
+    if (ability.type === 'summon' && ability.summonCount && ability.summonType && ability.summonRange) {
+      const angleStep = (Math.PI * 2) / ability.summonCount;
+      for (let i = 0; i < ability.summonCount; i++) {
+        const angle = angleStep * i + Math.random() * 0.5;
+        const spawnX = enemy.x + Math.cos(angle) * ability.summonRange;
+        const spawnY = enemy.y + Math.sin(angle) * ability.summonRange;
+
+        const minion = state.addEnemy(ability.summonType, spawnX, spawnY);
+        minion.initialize(ability.summonType, 1);
+      }
+      enemy.abilityCooldown = ability.summonCooldown || 8;
+      console.log(`[PhysicsSystem] Boss ${enemy.type} summoned ${ability.summonCount} ${ability.summonType}s`);
+    }
+
+    // Charge ability (boss_demon)
+    if (ability.type === 'charge' && ability.chargeRange && dist <= ability.chargeRange) {
+      // Start charging at the player's position
+      enemy.isCharging = true;
+      enemy.chargeTargetX = target.x;
+      enemy.chargeTargetY = target.y;
+      enemy.abilityCooldown = ability.chargeCooldown || 5;
+      console.log(`[PhysicsSystem] Boss ${enemy.type} started charge attack`);
+    }
+  }
+
+  /**
+   * Update boss during charge attack
+   */
+  private updateChargingBoss(
+    state: GameState,
+    enemy: any,
+    dt: number,
+    ability: typeof BOSS_ABILITY_CONFIGS[string]
+  ): void {
+    const chargeSpeed = ability.chargeSpeed || 15;
+    const chargeDamage = ability.chargeDamage || 40;
+
+    // Move toward charge target
+    const dx = enemy.chargeTargetX - enemy.x;
+    const dy = enemy.chargeTargetY - enemy.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist < 0.5) {
+      // Reached target, end charge
+      enemy.isCharging = false;
+      enemy.velocityX = 0;
+      enemy.velocityY = 0;
+
+      // Create impact damage AOE at charge endpoint
+      state.addProjectile(
+        'charge_impact',
+        enemy.id,
+        enemy.x,
+        enemy.y,
+        0,
+        0,
+        chargeDamage,
+        0.2,  // Short lifetime for AOE effect
+        3,    // 3 unit radius damage
+        999   // Hits all in radius
+      );
+      console.log(`[PhysicsSystem] Boss ${enemy.type} charge impact at (${enemy.x.toFixed(1)}, ${enemy.y.toFixed(1)})`);
+      return;
+    }
+
+    // Apply charge velocity
+    enemy.velocityX = (dx / dist) * chargeSpeed;
+    enemy.velocityY = (dy / dist) * chargeSpeed;
     enemy.x += enemy.velocityX * dt;
     enemy.y += enemy.velocityY * dt;
   }

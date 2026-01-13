@@ -199,6 +199,49 @@ export const ENEMY_ATTACK_CONFIGS: Record<string, EnemyAttackConfig> = {
   },
 };
 
+// =============================================================================
+// BOSS ABILITY CONFIGURATIONS
+// =============================================================================
+
+export interface BossAbilityConfig {
+  type: 'split' | 'summon' | 'charge';
+  // Split ability (boss_slime): spawns smaller enemies on death
+  splitCount?: number;
+  splitType?: string;
+  // Summon ability (boss_skeleton): spawns minions periodically
+  summonCount?: number;
+  summonType?: string;
+  summonCooldown?: number;
+  summonRange?: number;
+  // Charge ability (boss_demon): charges toward player when close
+  chargeSpeed?: number;
+  chargeDamage?: number;
+  chargeRange?: number;
+  chargeCooldown?: number;
+}
+
+export const BOSS_ABILITY_CONFIGS: Record<string, BossAbilityConfig> = {
+  boss_slime: {
+    type: 'split',
+    splitCount: 4,
+    splitType: 'slime',
+  },
+  boss_skeleton: {
+    type: 'summon',
+    summonCount: 3,
+    summonType: 'skeleton',
+    summonCooldown: 8,
+    summonRange: 5,
+  },
+  boss_demon: {
+    type: 'charge',
+    chargeSpeed: 15,
+    chargeDamage: 40,
+    chargeRange: 8,
+    chargeCooldown: 5,
+  },
+};
+
 export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
   bat: {
     type: 'bat',

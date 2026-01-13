@@ -21,6 +21,12 @@ export class EnemySchema extends Schema {
   // Attack cooldown tracking (not synced, server-only)
   attackCooldown: number = 0;
 
+  // Boss ability cooldown and state tracking (not synced, server-only)
+  abilityCooldown: number = 0;
+  isCharging: boolean = false;
+  chargeTargetX: number = 0;
+  chargeTargetY: number = 0;
+
   initialize(type: string, difficulty: number = 1) {
     const config = ENEMY_CONFIGS[type];
     if (!config) return;
