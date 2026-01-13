@@ -145,7 +145,7 @@ export class InputSystem {
         count: 0,
         resetTime: now + this.RATE_LIMIT_WINDOW,
         violations: 0,
-        lastInputTime: now
+        lastInputTime: 0  // Set to 0 so first input doesn't trigger spam detection
       };
       this.inputCounts.set(playerId, playerRate);
     }
