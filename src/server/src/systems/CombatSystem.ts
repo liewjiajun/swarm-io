@@ -189,8 +189,9 @@ export class CombatSystem {
       timestamp: Date.now()
     });
 
-    // Increase source player hostility
-    sourcePlayer.hostility = Math.min(sourcePlayer.hostility + 10, 100);
+    // BUG-010 FIX: Hostility increase now scales with damage dealt instead of fixed +10
+    // This makes high-damage attacks more punishing for PvP than weak attacks
+    sourcePlayer.hostility = Math.min(sourcePlayer.hostility + validatedDamage * 0.1, 100);
 
     // Check if projectile piercing exceeded (BUG-004 fix: 0 means unlimited)
     if (projectile.piercing > 0 && projectile.hitEnemies.size >= projectile.piercing) {
@@ -271,6 +272,10 @@ export class CombatSystem {
   }
 
   private processExplosion(gameState: GameState, x: number, y: number, damage: number, ownerId: string): void {
+    // BUG-009 FIX: Use configured explosion radius from WEAPON_CONFIGS instead of hardcoded 100
+    // Fireball area config is 3, so explosions are now properly sized instead of 33x too large
+    const explosionRadius = WEAPON_CONFIGS.fireball.area || 3;
+
     // Create explosion effect projectile
     gameState.addProjectile(
       'explosion',       // type
@@ -281,7 +286,7 @@ export class CombatSystem {
       0,                 // velocityY
       damage,            // damage
       0.2,              // lifetime (visual effect)
-      100,              // radius
+      explosionRadius,  // radius (BUG-009 FIX)
       999               // piercing (hits all in radius)
     );
 
@@ -290,7 +295,7 @@ export class CombatSystem {
       if (enemy.health <= 0) return;
 
       const distance = Math.sqrt((x - enemy.x) ** 2 + (y - enemy.y) ** 2);
-      if (distance <= 100) {
+      if (distance <= explosionRadius) {  // BUG-009 FIX: use config value
         const validatedDamage = this.validateDamage(damage, 'explosion', 'fireball', 1);
         enemy.health -= validatedDamage;
         this.combatMetrics.totalDamageDealt += validatedDamage;

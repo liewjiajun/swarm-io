@@ -21,6 +21,11 @@ export class Game {
   private inputSequence: number = 0;
   private paused: boolean = false;
 
+  // BUG-011 FIX: Throttle input sending to match server rate limit (30Hz)
+  // Previously game sent 60Hz inputs but NetworkClient dropped 50% due to rate limiting
+  private lastInputSendTime: number = 0;
+  private readonly INPUT_SEND_INTERVAL: number = 1000 / 30; // 30Hz = ~33.33ms
+
   // Track state for audio/visual event detection
   private lastPlayerHealth: number = 100;
   private lastProjectileCount: number = 0;
@@ -345,20 +350,25 @@ export class Game {
     // Process input
     const rawInput = this.input.getInput();
 
-    // Only send input if there's movement or if connected
+    // BUG-011 FIX: Throttle input sending to 30Hz to match server rate limit
+    // This prevents creating inputs that NetworkClient will immediately drop
+    const now = performance.now();
     if ((rawInput.dx !== 0 || rawInput.dy !== 0) && this.connected) {
-      this.inputSequence++;
-      const input: PlayerInput = {
-        dx: rawInput.dx,
-        dy: rawInput.dy,
-        sequence: this.inputSequence
-      };
+      if (now - this.lastInputSendTime >= this.INPUT_SEND_INTERVAL) {
+        this.inputSequence++;
+        const input: PlayerInput = {
+          dx: rawInput.dx,
+          dy: rawInput.dy,
+          sequence: this.inputSequence
+        };
 
-      // Send input to server
-      this.network.sendInput(input);
+        // Send input to server
+        this.network.sendInput(input);
+        this.lastInputSendTime = now;
+      }
     }
 
-    // Apply client-side prediction for local player
+    // Apply client-side prediction for local player (runs every frame for smooth movement)
     const localPlayer = this.interpolator.getLocalPlayer(this.localPlayerId);
     if (localPlayer) {
       this.input.applyPrediction(localPlayer, rawInput, dt);

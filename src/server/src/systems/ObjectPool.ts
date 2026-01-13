@@ -129,6 +129,8 @@ export function resetProjectile(p: {
 /**
  * Reset function for EnemySchema objects.
  * Clears all state to defaults for clean reuse.
+ * BUG-007 FIX: Added missing fields (attackCooldown, abilityCooldown, isCharging,
+ * chargeTargetX, chargeTargetY) to prevent state leak from boss enemies.
  */
 export function resetEnemy(e: {
   id: string;
@@ -140,6 +142,12 @@ export function resetEnemy(e: {
   velocityX: number;
   velocityY: number;
   targetPlayerId: string;
+  // Server-only fields that must be reset to prevent state leak
+  attackCooldown: number;
+  abilityCooldown: number;
+  isCharging: boolean;
+  chargeTargetX: number;
+  chargeTargetY: number;
 }): void {
   e.id = '';
   e.type = '';
@@ -150,6 +158,12 @@ export function resetEnemy(e: {
   e.velocityX = 0;
   e.velocityY = 0;
   e.targetPlayerId = '';
+  // BUG-007 FIX: Reset server-only fields to prevent boss state leaking to regular enemies
+  e.attackCooldown = 0;
+  e.abilityCooldown = 0;
+  e.isCharging = false;
+  e.chargeTargetX = 0;
+  e.chargeTargetY = 0;
 }
 
 /**

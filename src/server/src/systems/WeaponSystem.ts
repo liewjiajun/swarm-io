@@ -309,7 +309,9 @@ export class WeaponSystem {
     const targets = shuffled.slice(0, strikeCount);
 
     for (const entity of targets) {
-      // Create visual lightning bolt projectile
+      // Create lightning bolt projectile - CombatSystem will handle damage validation
+      // BUG-006 FIX: Removed direct damage application; projectile goes through CombatSystem
+      // like all other weapons for proper validation, metrics tracking, and consistency
       gameState.addProjectile(
         'lightning_bolt',  // type
         player.id,         // ownerId
@@ -317,14 +319,11 @@ export class WeaponSystem {
         entity.y,          // y
         0,                 // velocityX (stationary)
         0,                 // velocityY
-        damage,            // damage
+        damage,            // damage (will be validated by CombatSystem)
         0.15,              // lifetime (very short for visual)
         0.5,               // radius
         1                  // piercing (single hit)
       );
-
-      // Apply direct damage to target
-      entity.entity.health -= damage;
 
       this.weaponMetrics.projectilesCreated++;
     }

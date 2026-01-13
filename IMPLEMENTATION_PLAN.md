@@ -1,12 +1,12 @@
 # SWARM.IO Implementation Plan
 
-## Current Status: Phase 6 Complete - Critical Bugs Resolved
+## Current Status: Phase 6 Complete - All Bugs Resolved
 
 **Last Updated:** 2026-01-13
 **Implementation Progress:** 101/85 tasks completed (118.8%)
 **Test Count:** 209 tests (136 server + 73 shared)
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
-**Next Priority:** Medium bug fixes (BUG-006, BUG-007, BUG-009, BUG-010, BUG-011) and test coverage
+**Next Priority:** Test coverage improvements and code quality cleanup
 
 ---
 
@@ -17,151 +17,13 @@
 | Total Tasks | 85 | Across 6 phases |
 | Completed | 101 | 118.8% (all phases complete) |
 | Critical Bugs | 0 | All critical bugs resolved |
-| Medium Bugs | 5 | Balance/behavior issues |
+| Medium Bugs | 0 | All medium bugs resolved |
 | Test Gaps | 6 systems | Core gameplay systems need tests |
 | Code Quality | 4 issues | Type safety and constant cleanup |
 
 ---
 
-## PRIORITY 1: MEDIUM BUGS (Balance/Behavior)
-
-### BUG-006: Lightning Bypasses CombatSystem Validation
-
-**Location:** `src/server/src/systems/WeaponSystem.ts:327`
-**Severity:** MEDIUM - Bypasses armor, damage caps
-**Impact:** Lightning damage is unvalidated, potential exploits
-
-**Problem:**
-```typescript
-// Direct damage bypass all validation
-entity.entity.health -= damage;
-```
-
-**Fix:**
-```typescript
-// Use CombatSystem for proper damage application
-// Option 1: Pass combatSystem reference to WeaponSystem
-this.combatSystem.applyDamageToEnemy(entity.entity, damage, player.id);
-
-// Option 2: Create enemy damage event for CombatSystem to process
-```
-
----
-
-### BUG-007: ObjectPool State Leak
-
-**Location:** `src/server/src/systems/ObjectPool.ts:133-153`
-**Severity:** MEDIUM - Reused enemies may have stale state
-**Impact:** Boss mechanics may persist on regular enemies
-
-**Problem:**
-```typescript
-// resetEnemy() missing fields
-private resetEnemy(e: EnemySchema): void {
-  // Missing:
-  // e.attackCooldown = 0;
-  // e.abilityCooldown = 0;
-  // e.isCharging = false;
-  // e.chargeTargetX = 0;
-  // e.chargeTargetY = 0;
-}
-```
-
-**Fix:**
-```typescript
-private resetEnemy(e: EnemySchema): void {
-  e.id = '';
-  e.type = '';
-  e.x = 0;
-  e.y = 0;
-  e.health = 0;
-  e.maxHealth = 0;
-  e.velocityX = 0;
-  e.velocityY = 0;
-  e.targetPlayerId = '';
-  // Add missing fields:
-  e.attackCooldown = 0;
-  e.abilityCooldown = 0;
-  e.isCharging = false;
-  e.chargeTargetX = 0;
-  e.chargeTargetY = 0;
-}
-```
-
----
-
-### BUG-009: Explosion Radius 33x Too Large
-
-**Location:** `src/server/src/systems/CombatSystem.ts:283,292`
-**Severity:** MEDIUM - Fireball explosions are massive
-**Impact:** Fireball AOE damage covers huge area
-
-**Problem:**
-```typescript
-// Lines 283 and 292 - Hardcoded 100 instead of config value
-radius: 100,  // Should be ~3 per fireball config.area
-if (distance <= 100) {  // Should match radius
-```
-
-**Fix:**
-```typescript
-const explosionRadius = WEAPON_CONFIGS.fireball.area || 3;
-// Line 283
-radius: explosionRadius,
-// Line 292
-if (distance <= explosionRadius) {
-```
-
----
-
-### BUG-010: Fixed Hostility Increase (Not Damage-Based)
-
-**Location:** `src/server/src/systems/CombatSystem.ts:192`
-**Severity:** LOW - Minor balance issue
-**Impact:** All PvP attacks increase hostility equally
-
-**Problem:**
-```typescript
-// Fixed +10 regardless of damage
-sourcePlayer.hostility = Math.min(sourcePlayer.hostility + 10, 100);
-```
-
-**Fix:**
-```typescript
-// Proportional to damage dealt
-sourcePlayer.hostility = Math.min(sourcePlayer.hostility + validatedDamage * 0.1, 100);
-```
-
----
-
-### BUG-011: Client Input Rate Inefficiency
-
-**Location:** `src/client/src/game/Game.ts:358`
-**Severity:** LOW - Performance waste
-**Impact:** 50% of created inputs are dropped by rate limiter
-
-**Problem:**
-- Game loop runs at 60 FPS
-- Sends input every frame with movement (60Hz)
-- NetworkClient rate limits to 30Hz
-- Half the inputs are created then immediately dropped
-
-**Fix:**
-```typescript
-// Add input send throttle
-private lastInputSendTime = 0;
-private readonly INPUT_SEND_INTERVAL = 1000 / 30; // 30Hz
-
-// In update loop
-if (performance.now() - this.lastInputSendTime >= this.INPUT_SEND_INTERVAL) {
-  this.network.sendInput(input);
-  this.lastInputSendTime = performance.now();
-}
-```
-
----
-
-## PRIORITY 2: TEST GAPS
+## PRIORITY 1: TEST GAPS
 
 | System | File | Current Tests | Priority | Description |
 |--------|------|---------------|----------|-------------|
@@ -183,7 +45,7 @@ if (performance.now() - this.lastInputSendTime >= this.INPUT_SEND_INTERVAL) {
 
 ---
 
-## PRIORITY 3: CODE QUALITY
+## PRIORITY 2: CODE QUALITY
 
 ### QUALITY-001: Duplicate Constants Pattern
 
@@ -321,6 +183,7 @@ npm run test
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-01-13 | 2.27 | MEDIUM BUG FIXES - Fixed 5 medium bugs: BUG-006 (Lightning bypasses CombatSystem - now creates projectiles through CombatSystem), BUG-007 (ObjectPool state leak - resetEnemy now clears boss fields: attackCooldown, abilityCooldown, isCharging, chargeTargetX, chargeTargetY), BUG-009 (Explosion radius 33x too large - changed hardcoded 100 to WEAPON_CONFIGS.fireball.area), BUG-010 (Fixed hostility increase - changed from +10 fixed to damage-based validatedDamage * 0.1), BUG-011 (Client input rate inefficiency - added throttling in Game.ts to match server 30Hz rate). All medium bugs are now resolved. |
 | 2026-01-13 | 2.26 | CRITICAL BUG FIXES - Fixed 6 bugs: BUG-001 (enemy initialization missing), BUG-002 (upgrade choices never sent to client), BUG-003 (server never sends player_died message), BUG-004 (unlimited piercing projectiles destroyed on first hit), BUG-005 (double PvP damage reduction), BUG-008 (hostility decay rate 20x too fast). All critical game-breaking bugs are now resolved. |
 | 2026-01-13 | 2.25 | COMPREHENSIVE CODEBASE AUDIT - Identified 11 bugs (5 critical, 6 medium), 6 test gaps, 4 code quality issues. Critical bugs: BUG-001 (enemy initialization missing), BUG-002 (upgrade choices lost), BUG-003 (server never sends level_up/player_died), BUG-004 (piercing=0 projectiles destroyed), BUG-005 (double PvP damage reduction). Updated IMPLEMENTATION_PLAN.md with detailed fixes for all issues. |
 | 2026-01-13 | 2.24 | Fixed magnet range boost bug in XPSystem - was incorrectly adding +20 per upgrade instead of +1 as specified in UPGRADE_POOL. Added comprehensive schema unit tests (33 PlayerSchema + 27 GameState tests). Total test count now 209. |

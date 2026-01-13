@@ -202,7 +202,7 @@ describe('resetProjectile', () => {
 });
 
 describe('resetEnemy', () => {
-  it('should reset all enemy fields', () => {
+  it('should reset all enemy fields including boss state', () => {
     const enemy = {
       id: 'enemy-123',
       type: 'zombie',
@@ -213,6 +213,12 @@ describe('resetEnemy', () => {
       velocityX: 2,
       velocityY: -1,
       targetPlayerId: 'player-1',
+      // Boss state fields (BUG-007 fix)
+      attackCooldown: 2.5,
+      abilityCooldown: 5.0,
+      isCharging: true,
+      chargeTargetX: 100,
+      chargeTargetY: 200,
     };
 
     resetEnemy(enemy);
@@ -226,6 +232,12 @@ describe('resetEnemy', () => {
     expect(enemy.velocityX).toBe(0);
     expect(enemy.velocityY).toBe(0);
     expect(enemy.targetPlayerId).toBe('');
+    // Verify boss state is properly reset (BUG-007 fix)
+    expect(enemy.attackCooldown).toBe(0);
+    expect(enemy.abilityCooldown).toBe(0);
+    expect(enemy.isCharging).toBe(false);
+    expect(enemy.chargeTargetX).toBe(0);
+    expect(enemy.chargeTargetY).toBe(0);
   });
 });
 
