@@ -3,7 +3,7 @@
 ## Current Status: Phase 6 Complete - All Core Features Done
 
 **Last Updated:** 2026-01-13
-**Implementation Progress:** 98/85 tasks completed (115.3%)
+**Implementation Progress:** 99/85 tasks completed (116.5%)
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
 **Next Priority:** Quality of Life features (Phase 6.4) - optional enhancements
 
@@ -14,7 +14,7 @@
 | Metric | Value | Notes |
 |--------|-------|-------|
 | Total Tasks | 85 | Across 6 phases |
-| Completed | 98 | 115.3% (all phases complete) |
+| Completed | 99 | 116.5% (all phases complete) |
 | Remaining | 0 | All core features complete |
 | Blocking Issues | 0 | All critical bugs resolved |
 | Critical Path | Complete | Full feature set implemented |
@@ -185,7 +185,7 @@
 | Demon ranged attack | Demons fire projectiles at range | Medium | ~60 | COMPLETE |
 | Boss unique abilities | Special boss mechanics (charge, AOE) | Medium | ~150 | COMPLETE |
 | Mobile touch controls | Virtual joystick for mobile play | Medium | ~200 |
-| Settings menu | Sound, controls, graphics options | Low | ~100 |
+| Settings menu | Sound, controls, graphics options | Low | ~100 | COMPLETE |
 | Tutorial overlay | First-time player guidance | Low | ~80 |
 | Pause menu | In-game pause with options | Low | ~60 |
 
@@ -448,6 +448,7 @@ npm run lint
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-01-13 | 2.16 | Settings Menu COMPLETE - Added settings button (gear icon) in top-right corner of HUD. Added settings modal with master/SFX/music volume sliders. Added mute all checkbox. ESC key toggles settings menu. Click outside modal to close. Connected HUD settings to AudioManager in Game.ts for volume control. |
 | 2026-01-13 | 2.15 | Boss Unique Abilities COMPLETE - Added BOSS_ABILITY_CONFIGS to constants.ts for all three boss types. Added ability cooldown and charge state fields to EnemySchema. boss_slime: Splits into 4 smaller slimes on death. boss_skeleton: Summons 3 skeleton minions every 8 seconds. boss_demon: Charges at player when within 8 units, deals 40 AOE damage on impact (5s cooldown). |
 | 2026-01-13 | 2.14 | Demon Ranged Attack COMPLETE - Added ENEMY_ATTACK_CONFIGS to constants.ts for demon and boss_demon. Added attackCooldown field to EnemySchema. Implemented ranged attack AI in PhysicsSystem - demons stop at range and fire projectiles. Updated CombatSystem to handle enemy projectiles hitting players. Demon attacks deal 15 damage every 2.5s at 15 unit range; Boss demon deals 25 damage every 1.5s at 20 unit range. |
 | 2026-01-13 | 2.13 | Performance Optimization - LOD COMPLETE - Added distance-based Level of Detail for projectiles and XP orbs. Creates low-detail InstancedMesh (4-segment) for entities beyond 15 units from camera center. Reduces triangle count by 75% for distant entities. PHASE 6 NOW 100% COMPLETE (17/17 tasks). All core features implemented. |

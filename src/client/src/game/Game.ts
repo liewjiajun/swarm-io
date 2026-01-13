@@ -35,6 +35,30 @@ export class Game {
     this.network = new NetworkClient();
     this.hud = new HUD();
     this.audio = new AudioManager();
+
+    // Connect HUD settings to AudioManager
+    this.setupAudioSettings();
+  }
+
+  /**
+   * Sets up the audio settings callback between HUD and AudioManager
+   */
+  private setupAudioSettings(): void {
+    // Set initial audio settings in HUD
+    this.hud.updateAudioSettings({
+      masterVolume: this.audio.getMasterVolume(),
+      sfxVolume: this.audio.getSfxVolume(),
+      musicVolume: this.audio.getMusicVolume(),
+      muted: false
+    });
+
+    // Set callback to update AudioManager when settings change
+    this.hud.setAudioSettingsCallback((settings) => {
+      this.audio.setMasterVolume(settings.masterVolume);
+      this.audio.setSfxVolume(settings.sfxVolume);
+      this.audio.setMusicVolume(settings.musicVolume);
+      this.audio.setMuted(settings.muted);
+    });
   }
 
   async start() {

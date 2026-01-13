@@ -28,7 +28,22 @@ interface HUDElements {
   deathScreen: HTMLElement;
   deathStats: HTMLElement;
   respawnBtn: HTMLElement;
+  settingsBtn: HTMLElement;
+  settingsModal: HTMLElement;
+  masterVolumeSlider: HTMLInputElement;
+  sfxVolumeSlider: HTMLInputElement;
+  musicVolumeSlider: HTMLInputElement;
+  muteCheckbox: HTMLInputElement;
 }
+
+interface AudioSettings {
+  masterVolume: number;
+  sfxVolume: number;
+  musicVolume: number;
+  muted: boolean;
+}
+
+type AudioSettingsCallback = (settings: AudioSettings) => void;
 
 interface PlayerState {
   id: string;
@@ -81,6 +96,13 @@ const WEAPON_ICONS: Record<string, string> = {
 export class HUD {
   private container: HTMLElement;
   private elements!: HUDElements;
+  private onAudioSettingsChange: AudioSettingsCallback | null = null;
+  private currentSettings: AudioSettings = {
+    masterVolume: 0.7,
+    sfxVolume: 0.8,
+    musicVolume: 0.5,
+    muted: false
+  };
 
   constructor() {
     const uiContainer = document.getElementById('ui');
@@ -91,6 +113,15 @@ export class HUD {
     this.createElements();
     this.addStyles();
     this.elements = this.getElements();
+    this.setupSettingsListeners();
+    this.setupKeyboardShortcuts();
+  }
+
+  /**
+   * Sets the callback for audio settings changes
+   */
+  setAudioSettingsCallback(callback: AudioSettingsCallback): void {
+    this.onAudioSettingsChange = callback;
   }
 
   /**
@@ -151,6 +182,36 @@ export class HUD {
           <div class="death-title">YOU DIED</div>
           <div class="death-stats"></div>
           <button class="respawn-btn">RESPAWN</button>
+        </div>
+      </div>
+
+      <!-- Settings Button -->
+      <button class="settings-btn" title="Settings (ESC)">⚙️</button>
+
+      <!-- Settings Modal -->
+      <div class="settings-modal hidden">
+        <div class="settings-content">
+          <div class="settings-title">SETTINGS</div>
+          <div class="settings-group">
+            <label class="settings-label">Master Volume</label>
+            <input type="range" class="settings-slider master-volume" min="0" max="100" value="70">
+            <span class="volume-value">70%</span>
+          </div>
+          <div class="settings-group">
+            <label class="settings-label">SFX Volume</label>
+            <input type="range" class="settings-slider sfx-volume" min="0" max="100" value="80">
+            <span class="volume-value">80%</span>
+          </div>
+          <div class="settings-group">
+            <label class="settings-label">Music Volume</label>
+            <input type="range" class="settings-slider music-volume" min="0" max="100" value="50">
+            <span class="volume-value">50%</span>
+          </div>
+          <div class="settings-group mute-group">
+            <label class="settings-label">Mute All</label>
+            <input type="checkbox" class="settings-checkbox mute-checkbox">
+          </div>
+          <button class="settings-close-btn">CLOSE</button>
         </div>
       </div>
     `;
@@ -446,6 +507,140 @@ export class HUD {
       .respawn-btn:hover {
         background: #1abc9c;
       }
+
+      /* Settings Button */
+      .settings-btn {
+        position: fixed;
+        top: 20px;
+        right: 220px;
+        width: 40px;
+        height: 40px;
+        background: rgba(0, 0, 0, 0.5);
+        border: 2px solid white;
+        border-radius: 5px;
+        font-size: 20px;
+        cursor: pointer;
+        z-index: 150;
+        transition: all 0.2s ease;
+      }
+
+      .settings-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        border-color: #ffd700;
+      }
+
+      /* Settings Modal */
+      .settings-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 400;
+        font-family: 'Press Start 2P', monospace;
+      }
+
+      .settings-modal.hidden {
+        display: none;
+      }
+
+      .settings-content {
+        background: rgba(0, 0, 0, 0.9);
+        padding: 30px;
+        border: 4px solid #4ecdc4;
+        min-width: 350px;
+      }
+
+      .settings-title {
+        font-size: 20px;
+        color: #4ecdc4;
+        text-align: center;
+        margin-bottom: 25px;
+        text-shadow: 2px 2px 0 #000;
+      }
+
+      .settings-group {
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+      }
+
+      .settings-label {
+        font-size: 10px;
+        color: white;
+        min-width: 100px;
+        text-shadow: 1px 1px 0 #000;
+      }
+
+      .settings-slider {
+        flex: 1;
+        height: 8px;
+        -webkit-appearance: none;
+        appearance: none;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 4px;
+        cursor: pointer;
+      }
+
+      .settings-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        background: #4ecdc4;
+        border-radius: 50%;
+        cursor: pointer;
+      }
+
+      .settings-slider::-moz-range-thumb {
+        width: 16px;
+        height: 16px;
+        background: #4ecdc4;
+        border-radius: 50%;
+        cursor: pointer;
+        border: none;
+      }
+
+      .volume-value {
+        font-size: 10px;
+        color: #4ecdc4;
+        min-width: 40px;
+        text-align: right;
+      }
+
+      .mute-group {
+        justify-content: flex-start;
+      }
+
+      .settings-checkbox {
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+        accent-color: #4ecdc4;
+      }
+
+      .settings-close-btn {
+        font-family: 'Press Start 2P', monospace;
+        font-size: 12px;
+        padding: 12px 24px;
+        background: #4ecdc4;
+        color: white;
+        border: none;
+        cursor: pointer;
+        width: 100%;
+        margin-top: 20px;
+        text-shadow: 1px 1px 0 #000;
+        transition: background 0.2s ease;
+      }
+
+      .settings-close-btn:hover {
+        background: #1abc9c;
+      }
     `;
     document.head.appendChild(style);
   }
@@ -467,7 +662,13 @@ export class HUD {
       upgradeChoices: this.container.querySelector('.upgrade-choices') as HTMLElement,
       deathScreen: this.container.querySelector('.death-screen') as HTMLElement,
       deathStats: this.container.querySelector('.death-stats') as HTMLElement,
-      respawnBtn: this.container.querySelector('.respawn-btn') as HTMLElement
+      respawnBtn: this.container.querySelector('.respawn-btn') as HTMLElement,
+      settingsBtn: this.container.querySelector('.settings-btn') as HTMLElement,
+      settingsModal: this.container.querySelector('.settings-modal') as HTMLElement,
+      masterVolumeSlider: this.container.querySelector('.master-volume') as HTMLInputElement,
+      sfxVolumeSlider: this.container.querySelector('.sfx-volume') as HTMLInputElement,
+      musicVolumeSlider: this.container.querySelector('.music-volume') as HTMLInputElement,
+      muteCheckbox: this.container.querySelector('.mute-checkbox') as HTMLInputElement
     };
   }
 
@@ -689,6 +890,128 @@ export class HUD {
    */
   hideDeathScreen(): void {
     this.elements.deathScreen.classList.add('hidden');
+  }
+
+  /**
+   * Sets up event listeners for settings controls
+   */
+  private setupSettingsListeners(): void {
+    // Settings button opens modal
+    this.elements.settingsBtn.addEventListener('click', () => this.showSettings());
+
+    // Close button closes modal
+    const closeBtn = this.container.querySelector('.settings-close-btn');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => this.hideSettings());
+    }
+
+    // Click outside modal to close
+    this.elements.settingsModal.addEventListener('click', (e) => {
+      if (e.target === this.elements.settingsModal) {
+        this.hideSettings();
+      }
+    });
+
+    // Master volume slider
+    this.elements.masterVolumeSlider.addEventListener('input', (e) => {
+      const value = parseInt((e.target as HTMLInputElement).value);
+      this.currentSettings.masterVolume = value / 100;
+      this.updateVolumeDisplay(this.elements.masterVolumeSlider, value);
+      this.notifySettingsChange();
+    });
+
+    // SFX volume slider
+    this.elements.sfxVolumeSlider.addEventListener('input', (e) => {
+      const value = parseInt((e.target as HTMLInputElement).value);
+      this.currentSettings.sfxVolume = value / 100;
+      this.updateVolumeDisplay(this.elements.sfxVolumeSlider, value);
+      this.notifySettingsChange();
+    });
+
+    // Music volume slider
+    this.elements.musicVolumeSlider.addEventListener('input', (e) => {
+      const value = parseInt((e.target as HTMLInputElement).value);
+      this.currentSettings.musicVolume = value / 100;
+      this.updateVolumeDisplay(this.elements.musicVolumeSlider, value);
+      this.notifySettingsChange();
+    });
+
+    // Mute checkbox
+    this.elements.muteCheckbox.addEventListener('change', (e) => {
+      this.currentSettings.muted = (e.target as HTMLInputElement).checked;
+      this.notifySettingsChange();
+    });
+  }
+
+  /**
+   * Sets up keyboard shortcuts (ESC to toggle settings)
+   */
+  private setupKeyboardShortcuts(): void {
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        // Don't toggle settings if upgrade modal is open
+        if (!this.elements.upgradeModal.classList.contains('hidden')) {
+          return;
+        }
+        // Toggle settings
+        if (this.elements.settingsModal.classList.contains('hidden')) {
+          this.showSettings();
+        } else {
+          this.hideSettings();
+        }
+      }
+    });
+  }
+
+  /**
+   * Updates the volume percentage display next to a slider
+   */
+  private updateVolumeDisplay(slider: HTMLInputElement, value: number): void {
+    const valueDisplay = slider.parentElement?.querySelector('.volume-value');
+    if (valueDisplay) {
+      valueDisplay.textContent = `${value}%`;
+    }
+  }
+
+  /**
+   * Notifies the callback about settings changes
+   */
+  private notifySettingsChange(): void {
+    if (this.onAudioSettingsChange) {
+      this.onAudioSettingsChange({ ...this.currentSettings });
+    }
+  }
+
+  /**
+   * Shows the settings modal
+   */
+  showSettings(): void {
+    this.elements.settingsModal.classList.remove('hidden');
+  }
+
+  /**
+   * Hides the settings modal
+   */
+  hideSettings(): void {
+    this.elements.settingsModal.classList.add('hidden');
+  }
+
+  /**
+   * Updates settings UI with current audio values
+   */
+  updateAudioSettings(settings: AudioSettings): void {
+    this.currentSettings = { ...settings };
+
+    this.elements.masterVolumeSlider.value = String(Math.round(settings.masterVolume * 100));
+    this.updateVolumeDisplay(this.elements.masterVolumeSlider, Math.round(settings.masterVolume * 100));
+
+    this.elements.sfxVolumeSlider.value = String(Math.round(settings.sfxVolume * 100));
+    this.updateVolumeDisplay(this.elements.sfxVolumeSlider, Math.round(settings.sfxVolume * 100));
+
+    this.elements.musicVolumeSlider.value = String(Math.round(settings.musicVolume * 100));
+    this.updateVolumeDisplay(this.elements.musicVolumeSlider, Math.round(settings.musicVolume * 100));
+
+    this.elements.muteCheckbox.checked = settings.muted;
   }
 
   /**
