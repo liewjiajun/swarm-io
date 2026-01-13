@@ -86,7 +86,8 @@ export type ProjectileType =
   | 'lightning_bolt'
   | 'axe_spin'
   | 'fireball'
-  | 'explosion';
+  | 'explosion'
+  | 'demon_fireball';
 
 export interface ProjectileState extends Entity {
   type: ProjectileType;
