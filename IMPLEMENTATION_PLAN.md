@@ -364,7 +364,7 @@ const nearestPlayer = spatialHash.queryNearestOfType(x, y, 'player', maxRange);
 
 | ID | Issue | Location | Severity | Status |
 |----|-------|----------|----------|--------|
-| TEST-001 | No unit tests exist | N/A | Low | Open |
+| TEST-001 | No unit tests exist | N/A | Low | Resolved |
 | DESIGN-001 | Garlic creates unused explosion projectiles | `WeaponSystem.ts:259-274` | Info | Won't Fix |
 
 ### Verified Constants
@@ -448,6 +448,7 @@ npm run lint
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-01-13 | 2.20 | Unit Testing Infrastructure COMPLETE - Set up Vitest testing framework in shared and server packages. Created 108 unit tests total (73 shared + 35 server). Tests cover: utils.ts functions (vector math, distance, interpolation, random), constants validation (WEAPON_CONFIGS, ENEMY_CONFIGS, GAME_CONSTANTS), SpatialHash (insertion, queries, removal), ObjectPool (acquire, release, expansion). All tests passing. Resolved TEST-001. |
 | 2026-01-13 | 2.19 | Mobile Touch Controls COMPLETE - Added virtual joystick for mobile play. TouchControls class handles touch events with joystick zone on left half of screen. Joystick appears where user touches, with smooth analog input and dead zone. Integrated with InputManager for seamless keyboard/touch input switching. Mobile device auto-detection (touch + mobile UA/screen size). HUD responsive layout for mobile screens. Tutorial shows joystick controls on mobile vs WASD on desktop. |
 | 2026-01-13 | 2.18 | Pause Menu COMPLETE - Added pause overlay with PAUSED title. RESUME button to continue gameplay. SETTINGS button opens settings from pause menu. P key toggles pause state. Game loop skips updates when paused. Resume resets delta time to prevent time jump. |
 | 2026-01-13 | 2.17 | Tutorial Overlay COMPLETE - Added tutorial overlay for first-time players. Shows WASD movement controls with key icons. Explains auto-attack combat and XP collection mechanics. Provides tips (ESC for settings, avoid edges, watch for bosses). Uses localStorage to track if tutorial has been shown. START GAME button dismisses tutorial and starts game. |
