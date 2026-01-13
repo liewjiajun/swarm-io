@@ -19,6 +19,7 @@ export class Game {
   private running: boolean = false;
   private connected: boolean = false;
   private inputSequence: number = 0;
+  private paused: boolean = false;
 
   // Track state for audio/visual event detection
   private lastPlayerHealth: number = 100;
@@ -38,6 +39,50 @@ export class Game {
 
     // Connect HUD settings to AudioManager
     this.setupAudioSettings();
+
+    // Setup pause key handler
+    this.setupPauseHandler();
+  }
+
+  /**
+   * Sets up the P key handler for pausing the game
+   */
+  private setupPauseHandler(): void {
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'p' || e.key === 'P') {
+        if (this.running && !this.paused) {
+          this.pause();
+        } else if (this.paused) {
+          this.resume();
+        }
+      }
+    });
+  }
+
+  /**
+   * Pauses the game
+   */
+  private pause(): void {
+    if (!this.running || this.paused) return;
+
+    this.paused = true;
+    this.hud.showPause(
+      () => this.resume(),
+      () => {} // Settings callback is handled by HUD
+    );
+    console.log('[Game] Paused');
+  }
+
+  /**
+   * Resumes the game from pause
+   */
+  private resume(): void {
+    if (!this.paused) return;
+
+    this.paused = false;
+    this.hud.hidePause();
+    this.lastUpdateTime = performance.now(); // Reset delta time to prevent time jump
+    console.log('[Game] Resumed');
   }
 
   /**
@@ -281,12 +326,15 @@ export class Game {
   private gameLoop() {
     if (!this.running) return;
 
-    const now = performance.now();
-    const dt = (now - this.lastUpdateTime) / 1000;
-    this.lastUpdateTime = now;
+    // Continue the loop but skip updates when paused
+    if (!this.paused) {
+      const now = performance.now();
+      const dt = (now - this.lastUpdateTime) / 1000;
+      this.lastUpdateTime = now;
 
-    this.update(dt);
-    this.render();
+      this.update(dt);
+      this.render();
+    }
 
     requestAnimationFrame(() => this.gameLoop());
   }

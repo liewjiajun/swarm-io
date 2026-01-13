@@ -35,6 +35,7 @@ interface HUDElements {
   musicVolumeSlider: HTMLInputElement;
   muteCheckbox: HTMLInputElement;
   tutorialOverlay: HTMLElement;
+  pauseOverlay: HTMLElement;
 }
 
 interface AudioSettings {
@@ -245,6 +246,15 @@ export class HUD {
             <div class="tutorial-text">• Watch out for bosses!</div>
           </div>
           <button class="tutorial-start-btn">START GAME</button>
+        </div>
+      </div>
+
+      <!-- Pause Overlay -->
+      <div class="pause-overlay hidden">
+        <div class="pause-content">
+          <div class="pause-title">PAUSED</div>
+          <button class="pause-resume-btn">RESUME</button>
+          <button class="pause-settings-btn">SETTINGS</button>
         </div>
       </div>
     `;
@@ -763,6 +773,74 @@ export class HUD {
         background: #ffed4a;
         transform: scale(1.05);
       }
+
+      /* Pause Overlay */
+      .pause-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 450;
+        font-family: 'Press Start 2P', monospace;
+      }
+
+      .pause-overlay.hidden {
+        display: none;
+      }
+
+      .pause-content {
+        text-align: center;
+      }
+
+      .pause-title {
+        font-size: 36px;
+        color: white;
+        margin-bottom: 40px;
+        text-shadow: 3px 3px 0 #000;
+        animation: pulse 1s ease-in-out infinite;
+      }
+
+      .pause-resume-btn, .pause-settings-btn {
+        font-family: 'Press Start 2P', monospace;
+        font-size: 14px;
+        padding: 15px 40px;
+        margin: 10px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: block;
+        width: 200px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .pause-resume-btn {
+        background: #4ecdc4;
+        color: white;
+        text-shadow: 1px 1px 0 #000;
+      }
+
+      .pause-resume-btn:hover {
+        background: #1abc9c;
+        transform: scale(1.05);
+      }
+
+      .pause-settings-btn {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        border: 2px solid white;
+        text-shadow: 1px 1px 0 #000;
+      }
+
+      .pause-settings-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        border-color: #ffd700;
+      }
     `;
     document.head.appendChild(style);
   }
@@ -791,7 +869,8 @@ export class HUD {
       sfxVolumeSlider: this.container.querySelector('.sfx-volume') as HTMLInputElement,
       musicVolumeSlider: this.container.querySelector('.music-volume') as HTMLInputElement,
       muteCheckbox: this.container.querySelector('.mute-checkbox') as HTMLInputElement,
-      tutorialOverlay: this.container.querySelector('.tutorial-overlay') as HTMLElement
+      tutorialOverlay: this.container.querySelector('.tutorial-overlay') as HTMLElement,
+      pauseOverlay: this.container.querySelector('.pause-overlay') as HTMLElement
     };
   }
 
@@ -1176,6 +1255,50 @@ export class HUD {
    */
   hideTutorial(): void {
     this.elements.tutorialOverlay.classList.add('hidden');
+  }
+
+  /**
+   * Shows the pause overlay
+   */
+  showPause(onResume: () => void, onSettings: () => void): void {
+    this.elements.pauseOverlay.classList.remove('hidden');
+
+    // Setup resume button handler
+    const resumeBtn = this.container.querySelector('.pause-resume-btn');
+    const settingsBtn = this.container.querySelector('.pause-settings-btn');
+
+    if (resumeBtn) {
+      const newResumeBtn = resumeBtn.cloneNode(true) as HTMLElement;
+      resumeBtn.parentNode?.replaceChild(newResumeBtn, resumeBtn);
+      newResumeBtn.addEventListener('click', () => {
+        this.hidePause();
+        onResume();
+      });
+    }
+
+    if (settingsBtn) {
+      const newSettingsBtn = settingsBtn.cloneNode(true) as HTMLElement;
+      settingsBtn.parentNode?.replaceChild(newSettingsBtn, settingsBtn);
+      newSettingsBtn.addEventListener('click', () => {
+        this.hidePause();
+        onSettings();
+        this.showSettings();
+      });
+    }
+  }
+
+  /**
+   * Hides the pause overlay
+   */
+  hidePause(): void {
+    this.elements.pauseOverlay.classList.add('hidden');
+  }
+
+  /**
+   * Check if pause overlay is visible
+   */
+  isPaused(): boolean {
+    return !this.elements.pauseOverlay.classList.contains('hidden');
   }
 
   /**
