@@ -451,7 +451,8 @@ describe('XPSystem', () => {
         id: 'test-upgrade',
         type: 'weapon' as const,
         weaponType: 'wand',
-        description: 'Test'
+        description: 'Test',
+        weight: 10
       };
 
       const result = xpSystem.applyUpgrade(gameState, player.id, upgradeChoice);
@@ -477,7 +478,8 @@ describe('XPSystem', () => {
         id: 'test-upgrade',
         type: 'weapon' as const,
         weaponType: 'wand',
-        description: 'Test'
+        description: 'Test',
+        weight: 10
       };
 
       const result = xpSystem.applyUpgrade(gameState, player.id, upgradeChoice);
@@ -501,7 +503,8 @@ describe('XPSystem', () => {
         id: 'test-upgrade',
         type: 'weapon' as const,
         weaponType: 'wand',
-        description: 'Test'
+        description: 'Test',
+        weight: 10
       };
 
       const result = xpSystem.applyUpgrade(gameState, player.id, upgradeChoice);
@@ -522,7 +525,8 @@ describe('XPSystem', () => {
         id: 'test-upgrade',
         type: 'stat' as const,
         statType: 'health',
-        description: 'Test'
+        description: 'Test',
+        weight: 10
       };
 
       const result = xpSystem.applyUpgrade(gameState, player.id, upgradeChoice);
@@ -553,7 +557,8 @@ describe('XPSystem', () => {
         id: 'test-upgrade',
         type: 'stat' as const,
         statType: 'health',
-        description: 'Test'
+        description: 'Test',
+        weight: 10
       };
 
       xpSystem.applyUpgrade(gameState, player.id, upgradeChoice);
@@ -577,7 +582,8 @@ describe('XPSystem', () => {
         id: 'test-upgrade',
         type: 'stat' as const,
         statType: 'health',
-        description: 'Test'
+        description: 'Test',
+        weight: 10
       };
 
       xpSystem.applyUpgrade(gameState, player.id, upgradeChoice);
@@ -599,7 +605,8 @@ describe('XPSystem', () => {
         id: 'test-upgrade',
         type: 'stat' as const,
         statType: 'health',
-        description: 'Test'
+        description: 'Test',
+        weight: 10
       };
 
       xpSystem.applyUpgrade(gameState, player.id, upgradeChoice);
@@ -620,7 +627,8 @@ describe('XPSystem', () => {
         id: 'test-upgrade',
         type: 'stat' as const,
         statType: 'speed',
-        description: 'Test'
+        description: 'Test',
+        weight: 10
       };
 
       xpSystem.applyUpgrade(gameState, player.id, upgradeChoice);
@@ -640,7 +648,8 @@ describe('XPSystem', () => {
         id: 'test-upgrade',
         type: 'stat' as const,
         statType: 'magnet',
-        description: 'Test'
+        description: 'Test',
+        weight: 10
       };
 
       xpSystem.applyUpgrade(gameState, player.id, upgradeChoice);
@@ -660,7 +669,8 @@ describe('XPSystem', () => {
         id: 'test-upgrade',
         type: 'stat' as const,
         statType: 'armor',
-        description: 'Test'
+        description: 'Test',
+        weight: 10
       };
 
       xpSystem.applyUpgrade(gameState, player.id, upgradeChoice);
@@ -679,7 +689,8 @@ describe('XPSystem', () => {
         id: 'test-upgrade',
         type: 'stat' as const,
         statType: 'invalid_stat',
-        description: 'Test'
+        description: 'Test',
+        weight: 10
       };
 
       const result = xpSystem.applyUpgrade(gameState, player.id, upgradeChoice);
