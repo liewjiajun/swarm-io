@@ -391,12 +391,13 @@ export class XPSystem {
   }
 
   private cleanupCollectedOrbs(gameState: GameState): void {
-    Object.keys(gameState.xpOrbs).forEach(orbId => {
-      const orb = gameState.xpOrbs.get(orbId);
-      if (orb && orb.collected) {
-        gameState.xpOrbs.delete(orbId);
+    const toRemove: string[] = [];
+    gameState.xpOrbs.forEach((orb, orbId) => {
+      if (orb.collected) {
+        toRemove.push(orbId);
       }
     });
+    toRemove.forEach(orbId => gameState.removeXPOrb(orbId));
   }
 
   private logSecurityViolation(reason: string, data: any): void {

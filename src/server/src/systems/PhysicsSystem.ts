@@ -13,11 +13,20 @@ export class PhysicsSystem {
     });
 
     // Update projectile movement
-    state.projectiles.forEach((projectile) => {
+    const expiredProjectiles: string[] = [];
+    state.projectiles.forEach((projectile, id) => {
       projectile.x += projectile.velocityX * dt;
       projectile.y += projectile.velocityY * dt;
       projectile.lifetime -= dt;
+
+      // Mark for cleanup if expired
+      if (projectile.lifetime <= 0) {
+        expiredProjectiles.push(id);
+      }
     });
+
+    // Clean up expired projectiles and return to pool
+    expiredProjectiles.forEach(id => state.removeProjectile(id));
 
     // Update XP orb magnetization
     state.xpOrbs.forEach((orb) => {

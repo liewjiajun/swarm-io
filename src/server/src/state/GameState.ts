@@ -7,6 +7,7 @@ import { XPOrbSchema } from './XPOrbSchema';
 import { WorldSchema } from './WorldSchema';
 import { generateId } from '@swarm-io/shared';
 import { GAME_CONSTANTS, WEAPON_CONFIGS } from '@swarm-io/shared';
+import { ObjectPool, resetProjectile, resetEnemy, resetXPOrb } from '../systems/ObjectPool';
 
 // Pre-calculate squared interest radius for efficient distance checks
 const INTEREST_RADIUS_SQ = GAME_CONSTANTS.INTEREST_RADIUS * GAME_CONSTANTS.INTEREST_RADIUS;
@@ -101,6 +102,29 @@ export class GameState extends Schema {
   @type(WorldSchema)
   world = new WorldSchema();
 
+  // Object pools for reducing GC pressure (not synced)
+  // Pre-allocate commonly created/destroyed entities
+  private projectilePool = new ObjectPool<ProjectileSchema>(
+    () => new ProjectileSchema(),
+    500,   // Initial size: pre-allocate 500 projectiles
+    2000,  // Max size: cap at 2000 to prevent memory bloat
+    resetProjectile as (obj: ProjectileSchema) => void
+  );
+
+  private enemyPool = new ObjectPool<EnemySchema>(
+    () => new EnemySchema(),
+    200,   // Initial size: pre-allocate 200 enemies
+    1000,  // Max size: cap at 1000 to prevent memory bloat
+    resetEnemy as (obj: EnemySchema) => void
+  );
+
+  private xpOrbPool = new ObjectPool<XPOrbSchema>(
+    () => new XPOrbSchema(),
+    500,   // Initial size: pre-allocate 500 XP orbs
+    3000,  // Max size: cap at 3000 (enemies drop many orbs)
+    resetXPOrb as (obj: XPOrbSchema) => void
+  );
+
   addPlayer(id: string, x: number, y: number): PlayerSchema {
     const player = new PlayerSchema();
     player.id = id;
@@ -124,7 +148,7 @@ export class GameState extends Schema {
 
   addEnemy(type: string, x: number, y: number): EnemySchema {
     const id = generateId();
-    const enemy = new EnemySchema();
+    const enemy = this.enemyPool.acquire();
     enemy.id = id;
     enemy.type = type;
     enemy.x = x;
@@ -132,6 +156,17 @@ export class GameState extends Schema {
 
     this.enemies.set(id, enemy);
     return enemy;
+  }
+
+  /**
+   * Remove an enemy and return it to the pool for reuse.
+   */
+  removeEnemy(id: string): void {
+    const enemy = this.enemies.get(id);
+    if (enemy) {
+      this.enemies.delete(id);
+      this.enemyPool.release(enemy);
+    }
   }
 
   addProjectile(
@@ -147,7 +182,7 @@ export class GameState extends Schema {
     piercing: number = 0
   ): ProjectileSchema {
     const id = generateId();
-    const projectile = new ProjectileSchema();
+    const projectile = this.projectilePool.acquire();
     projectile.id = id;
     projectile.type = type;
     projectile.ownerId = ownerId;
@@ -164,9 +199,20 @@ export class GameState extends Schema {
     return projectile;
   }
 
+  /**
+   * Remove a projectile and return it to the pool for reuse.
+   */
+  removeProjectile(id: string): void {
+    const projectile = this.projectiles.get(id);
+    if (projectile) {
+      this.projectiles.delete(id);
+      this.projectilePool.release(projectile);
+    }
+  }
+
   addXPOrb(x: number, y: number, value: number): XPOrbSchema {
     const id = generateId();
-    const orb = new XPOrbSchema();
+    const orb = this.xpOrbPool.acquire();
     orb.id = id;
     orb.x = x;
     orb.y = y;
@@ -183,6 +229,28 @@ export class GameState extends Schema {
 
     this.xpOrbs.set(id, orb);
     return orb;
+  }
+
+  /**
+   * Remove an XP orb and return it to the pool for reuse.
+   */
+  removeXPOrb(id: string): void {
+    const orb = this.xpOrbs.get(id);
+    if (orb) {
+      this.xpOrbs.delete(id);
+      this.xpOrbPool.release(orb);
+    }
+  }
+
+  /**
+   * Get pool statistics for debugging/monitoring.
+   */
+  getPoolStats(): { projectiles: number; enemies: number; xpOrbs: number } {
+    return {
+      projectiles: this.projectilePool.available,
+      enemies: this.enemyPool.available,
+      xpOrbs: this.xpOrbPool.available
+    };
   }
 }
 

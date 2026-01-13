@@ -221,12 +221,13 @@ export class WeaponSystem {
     const orbCount = Math.min(2 + weapon.level - 1, 8);
 
     // Remove existing bible projectiles for this player
-    Object.keys(gameState.projectiles).forEach(id => {
-      const proj = gameState.projectiles.get(id);
-      if (proj && proj.ownerId === player.id && proj.type === 'orb') {
-        gameState.projectiles.delete(id);
+    const toRemove: string[] = [];
+    gameState.projectiles.forEach((proj, id) => {
+      if (proj.ownerId === player.id && proj.type === 'orb') {
+        toRemove.push(id);
       }
     });
+    toRemove.forEach(id => gameState.removeProjectile(id));
 
     // Create new orbs in circle formation
     for (let i = 0; i < orbCount; i++) {

@@ -332,8 +332,8 @@ export class CombatSystem {
         // Spawn XP orb at enemy position
         gameState.addXPOrb(enemy.x, enemy.y, enemy.xpValue);
 
-        // Remove from state
-        gameState.enemies.delete(enemyId);
+        // Remove from state and return to pool
+        gameState.removeEnemy(enemyId);
         this.combatMetrics.enemiesKilled++;
       }
     });
