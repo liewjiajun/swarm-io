@@ -72,6 +72,13 @@ export class Renderer {
   private projScreenMatrix = new THREE.Matrix4();
   private cullMargin = 5; // Extra margin to prevent pop-in
 
+  // LOD (Level of Detail) - lower poly meshes for distant entities
+  // Entities beyond this distance use low-detail geometry
+  private lodDistanceThreshold = 15; // Units from camera center
+  private projectileMeshLOD!: THREE.InstancedMesh;
+  private xpOrbMeshLOD!: THREE.InstancedMesh;
+  private enemyMeshesLOD: Map<string, THREE.InstancedMesh> = new Map();
+
   constructor(canvas: HTMLCanvasElement) {
     // Scene
     this.scene = new THREE.Scene();
@@ -168,19 +175,31 @@ export class Renderer {
     this.createEnemyPool('slime', 0x95e1d3, 100);
     this.createEnemyPool('demon', 0xff0000, 50);
 
-    // Projectile pool
+    // Projectile pool - High detail (8x8 segments = 128 triangles per sphere)
     const projGeometry = new THREE.SphereGeometry(0.2, 8, 8);
     const projMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
     this.projectileMesh = new THREE.InstancedMesh(projGeometry, projMaterial, 1000);
     this.projectileMesh.count = 0;
     this.scene.add(this.projectileMesh);
 
-    // XP orb pool
+    // Projectile pool - LOD (4x4 segments = 32 triangles per sphere, 75% reduction)
+    const projGeometryLOD = new THREE.SphereGeometry(0.2, 4, 4);
+    this.projectileMeshLOD = new THREE.InstancedMesh(projGeometryLOD, projMaterial, 1000);
+    this.projectileMeshLOD.count = 0;
+    this.scene.add(this.projectileMeshLOD);
+
+    // XP orb pool - High detail
     const xpGeometry = new THREE.SphereGeometry(0.15, 8, 8);
     const xpMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff88 });
     this.xpOrbMesh = new THREE.InstancedMesh(xpGeometry, xpMaterial, 2000);
     this.xpOrbMesh.count = 0;
     this.scene.add(this.xpOrbMesh);
+
+    // XP orb pool - LOD
+    const xpGeometryLOD = new THREE.SphereGeometry(0.15, 4, 4);
+    this.xpOrbMeshLOD = new THREE.InstancedMesh(xpGeometryLOD, xpMaterial, 2000);
+    this.xpOrbMeshLOD.count = 0;
+    this.scene.add(this.xpOrbMeshLOD);
 
     // Particle pool for sparkle effects
     const particleGeometry = new THREE.SphereGeometry(0.08, 4, 4);
@@ -236,6 +255,25 @@ export class Renderer {
     // Cull entities beyond visible range (based on frustum size + margin)
     const viewRange = this.frustumSize + margin;
     return distSq <= viewRange * viewRange;
+  }
+
+  /**
+   * Get squared distance from entity to camera target (center of view)
+   * Used for LOD selection - entities further from center use lower detail
+   */
+  private getDistanceSqFromCamera(x: number, z: number): number {
+    const dx = x - this.cameraTarget.x;
+    const dz = z - this.cameraTarget.y; // Note: cameraTarget.y maps to world z
+    return dx * dx + dz * dz;
+  }
+
+  /**
+   * Determine if an entity should use LOD (lower detail) geometry
+   * Returns true if entity is beyond the LOD threshold distance
+   */
+  private shouldUseLOD(x: number, z: number): boolean {
+    const distSq = this.getDistanceSqFromCamera(x, z);
+    return distSq > this.lodDistanceThreshold * this.lodDistanceThreshold;
   }
 
   render(state: any, localPlayerId: string) {
@@ -370,8 +408,10 @@ export class Renderer {
   }
 
   private updateProjectiles(projectiles: Map<string, ProjectileState>) {
-    // Filter projectiles with frustum culling
-    let index = 0;
+    // Filter and sort projectiles with frustum culling and LOD
+    let indexHi = 0;  // High detail (close to camera)
+    let indexLo = 0;  // Low detail (far from camera)
+
     projectiles.forEach(projectile => {
       // Skip projectiles outside view
       if (!this.isInView(projectile.x, projectile.y, projectile.radius)) return;
@@ -379,17 +419,28 @@ export class Renderer {
       this.dummy.position.set(projectile.x, 0.5, projectile.y);
       this.dummy.scale.setScalar(projectile.radius * 2);
       this.dummy.updateMatrix();
-      this.projectileMesh.setMatrixAt(index, this.dummy.matrix);
-      index++;
+
+      // Use LOD based on distance from camera center
+      if (this.shouldUseLOD(projectile.x, projectile.y)) {
+        this.projectileMeshLOD.setMatrixAt(indexLo, this.dummy.matrix);
+        indexLo++;
+      } else {
+        this.projectileMesh.setMatrixAt(indexHi, this.dummy.matrix);
+        indexHi++;
+      }
     });
 
-    this.projectileMesh.count = index;
+    this.projectileMesh.count = indexHi;
     this.projectileMesh.instanceMatrix.needsUpdate = true;
+    this.projectileMeshLOD.count = indexLo;
+    this.projectileMeshLOD.instanceMatrix.needsUpdate = true;
   }
 
   private updateXPOrbs(orbs: Map<string, XPOrbState>) {
-    // Filter XP orbs with frustum culling
-    let index = 0;
+    // Filter and sort XP orbs with frustum culling and LOD
+    let indexHi = 0;  // High detail
+    let indexLo = 0;  // Low detail
+
     orbs.forEach(orb => {
       // Skip orbs outside view
       if (!this.isInView(orb.x, orb.y, 0.5)) return;
@@ -402,12 +453,21 @@ export class Renderer {
       this.dummy.position.set(orb.x, 0.3 + bobOffset, orb.y);
       this.dummy.scale.setScalar(scale);
       this.dummy.updateMatrix();
-      this.xpOrbMesh.setMatrixAt(index, this.dummy.matrix);
-      index++;
+
+      // Use LOD based on distance from camera center
+      if (this.shouldUseLOD(orb.x, orb.y)) {
+        this.xpOrbMeshLOD.setMatrixAt(indexLo, this.dummy.matrix);
+        indexLo++;
+      } else {
+        this.xpOrbMesh.setMatrixAt(indexHi, this.dummy.matrix);
+        indexHi++;
+      }
     });
 
-    this.xpOrbMesh.count = index;
+    this.xpOrbMesh.count = indexHi;
     this.xpOrbMesh.instanceMatrix.needsUpdate = true;
+    this.xpOrbMeshLOD.count = indexLo;
+    this.xpOrbMeshLOD.instanceMatrix.needsUpdate = true;
   }
 
   private onResize(canvas: HTMLCanvasElement) {
