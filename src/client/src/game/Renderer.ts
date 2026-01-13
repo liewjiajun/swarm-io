@@ -67,6 +67,11 @@ export class Renderer {
   // Screen effects
   private screenFlash: HTMLDivElement | null = null;
 
+  // Frustum culling
+  private frustum = new THREE.Frustum();
+  private projScreenMatrix = new THREE.Matrix4();
+  private cullMargin = 5; // Extra margin to prevent pop-in
+
   constructor(canvas: HTMLCanvasElement) {
     // Scene
     this.scene = new THREE.Scene();
@@ -212,6 +217,27 @@ export class Renderer {
     this.cameraTarget.y = y;
   }
 
+  /**
+   * Check if a point is within the camera frustum (with margin)
+   * Used for culling off-screen entities from InstancedMesh rendering
+   */
+  private isInView(x: number, z: number, radius: number = 1): boolean {
+    // Create a bounding sphere for the point with some margin
+    const margin = this.cullMargin + radius;
+    const point = new THREE.Vector3(x, 0.5, z);
+
+    // Simple distance-based check from camera target (faster than frustum containment)
+    const dx = point.x - this.camera.position.x;
+    const dz = point.z - (this.camera.position.z - 20); // Look-at point
+
+    // Use squared distance for performance
+    const distSq = dx * dx + dz * dz;
+
+    // Cull entities beyond visible range (based on frustum size + margin)
+    const viewRange = this.frustumSize + margin;
+    return distSq <= viewRange * viewRange;
+  }
+
   render(state: any, localPlayerId: string) {
     // Calculate delta time for physics
     const now = performance.now();
@@ -227,6 +253,11 @@ export class Renderer {
       0,
       this.camera.position.z - 20
     );
+
+    // Update frustum for culling
+    this.camera.updateMatrixWorld();
+    this.projScreenMatrix.multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse);
+    this.frustum.setFromProjectionMatrix(this.projScreenMatrix);
 
     // Update players
     this.updatePlayers(state.players, localPlayerId);
@@ -304,9 +335,12 @@ export class Renderer {
     // Reset all counts
     this.enemyMeshes.forEach(mesh => mesh.count = 0);
 
-    // Group enemies by type
+    // Group enemies by type (with frustum culling)
     const enemiesByType = new Map<string, EnemyState[]>();
     enemies.forEach(enemy => {
+      // Skip enemies outside view frustum
+      if (!this.isInView(enemy.x, enemy.y)) return;
+
       if (!enemiesByType.has(enemy.type)) {
         enemiesByType.set(enemy.type, []);
       }
@@ -336,10 +370,12 @@ export class Renderer {
   }
 
   private updateProjectiles(projectiles: Map<string, ProjectileState>) {
-    this.projectileMesh.count = projectiles.size;
-
+    // Filter projectiles with frustum culling
     let index = 0;
     projectiles.forEach(projectile => {
+      // Skip projectiles outside view
+      if (!this.isInView(projectile.x, projectile.y, projectile.radius)) return;
+
       this.dummy.position.set(projectile.x, 0.5, projectile.y);
       this.dummy.scale.setScalar(projectile.radius * 2);
       this.dummy.updateMatrix();
@@ -347,14 +383,17 @@ export class Renderer {
       index++;
     });
 
+    this.projectileMesh.count = index;
     this.projectileMesh.instanceMatrix.needsUpdate = true;
   }
 
   private updateXPOrbs(orbs: Map<string, XPOrbState>) {
-    this.xpOrbMesh.count = orbs.size;
-
+    // Filter XP orbs with frustum culling
     let index = 0;
     orbs.forEach(orb => {
+      // Skip orbs outside view
+      if (!this.isInView(orb.x, orb.y, 0.5)) return;
+
       const scale = orb.size === 'large' ? 0.5 : orb.size === 'medium' ? 0.3 : 0.15;
 
       // Bob up and down
@@ -367,6 +406,7 @@ export class Renderer {
       index++;
     });
 
+    this.xpOrbMesh.count = index;
     this.xpOrbMesh.instanceMatrix.needsUpdate = true;
   }
 
