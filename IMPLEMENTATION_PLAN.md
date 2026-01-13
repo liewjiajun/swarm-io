@@ -87,6 +87,42 @@
 
 ---
 
+## KNOWN SPEC VARIANCES (Intentional)
+
+The following differences between `specs/*` and implementation are intentional design decisions:
+
+### Weapons (Balance Adjustments)
+
+| Weapon | Spec | Implementation | Reason |
+|--------|------|----------------|--------|
+| Knife projectiles | `1 + floor(level/3)` max 4 | `1 + floor(level/2)` max 5 | Better early-game feel |
+| Wand projectiles | `1 + floor(level/4)` | `1 + floor((level-1)/2)` max 4 | Faster scaling |
+| Wand piercing | 1 (single hit) | Level-based | Reward leveling |
+| Garlic | Direct damage to enemies | Creates explosion projectiles | Unified damage via CombatSystem |
+| Lightning direct damage | Creates projectile + direct damage | Projectile only | BUG-006 fix (all damage via CombatSystem) |
+| Lightning lifetime | 0.1s | 0.15s | Better visual feedback |
+
+### Renderer (Performance Optimizations)
+
+| Feature | Spec | Implementation | Reason |
+|---------|------|----------------|--------|
+| Enemy pools | 500 each | bat:500, skeleton:200, zombie:200, ghost:100, slime:100, demon:50 | Memory optimization based on spawn frequency |
+| Player sprite | scale(1,1,1) | scale(2,2,1) | Better visibility |
+| Death/Upgrade UI | In Renderer.ts | Delegated to HUD.ts | Separation of concerns (Three.js vs DOM) |
+
+### UI/HUD (Cosmetic)
+
+| Feature | Spec | Implementation | Reason |
+|---------|------|----------------|--------|
+| Minimap local player | #00ff00 (green) | #4ecdc4 (teal) | Matches UI accent color |
+| Minimap other players | #0088ff (blue) | #4a90d9 (blue) | Softer contrast |
+| Wave display | 1-indexed (currentWave + 1) | 0-indexed (currentWave) | Matches internal wave tracking |
+
+### Already Documented
+- **QUALITY-003:** UpgradeChoice types simplified to `'weapon' | 'stat'` for client handling
+
+---
+
 ## COMPLETED PHASES (Reference)
 
 ### Phase 1: Foundation - COMPLETE (14/14 tasks)
@@ -184,6 +220,7 @@ npm run test
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-01-13 | 2.33 | SPEC COMPLIANCE AUDIT - Comprehensive verification of all 9 spec files. Spawning system: perfect match. Weapons: documented balance adjustments. UI/HUD: all 9 components verified. Added "Known Spec Variances" section documenting intentional differences and reasons. |
 | 2026-01-13 | 2.32 | LINT CLEANUP - Removed unused imports (ENEMY_CONFIGS, WEAPON_CONFIGS) from SpawnSystem.test.ts and XPSystem.test.ts. Prefixed unused variables with underscore. All 440 tests passing. Git tag 0.4.1 created. |
 | 2026-01-13 | 2.31 | CODE QUALITY CLEANUP - Fixed QUALITY-001: Removed duplicate nested constants (PLAYER, XP_ORB) from constants.ts, standardized on flat pattern used throughout codebase. Fixed QUALITY-004: Extracted 12 magic numbers from PhysicsSystem to GAME_CONSTANTS (orb orbit, enemy detection, charge impact, etc.). Updated XPSystem to use XP_COLLECTION_RADIUS. All code quality issues now resolved. |
 | 2026-01-13 | 2.30 | CLIENT TESTING + TYPE FIX - Set up client test infrastructure with Vitest and jsdom. Added NetworkClient test suite (10 tests) covering constructor, disconnected state behavior, and callback registration. Fixed QUALITY-002: Added `demon_fireball` to ProjectileType union in types.ts. Documented QUALITY-003 as intentional design decision (simplified upgrade types). Test count increased from 357+73 to 357+73+10 = 440 total. |
