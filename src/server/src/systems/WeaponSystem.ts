@@ -171,7 +171,8 @@ export class WeaponSystem {
 
     // Target nearest enemy if found
     if (nearestEnemy) {
-      targetAngle = Math.atan2(nearestEnemy.y - player.y, nearestEnemy.x - player.x);
+      const target = nearestEnemy as EnemySchema;
+      targetAngle = Math.atan2(target.y - player.y, target.x - player.x);
     }
 
     // Calculate number of projectiles based on level

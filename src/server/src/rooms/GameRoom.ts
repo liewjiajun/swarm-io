@@ -31,7 +31,7 @@ export class GameRoom extends Room<GameState> {
   // Game systems
   private spatialHash = new SpatialHash(50);
   private inputSystem = new InputSystem();
-  private physicsSystem = new PhysicsSystem();
+  private physicsSystem = new PhysicsSystem(this.spatialHash);
   private spawnSystem = new SpawnSystem();
   private weaponSystem = new WeaponSystem();
   private combatSystem = new CombatSystem();
@@ -49,10 +49,27 @@ export class GameRoom extends Room<GameState> {
     // Initialize game state
     this.setState(new GameState());
 
+    // Register message handlers
+    this.setupMessageHandlers();
+
     // Start the game loop at 60Hz
     this.startGameLoop();
 
     console.log('[GameRoom] Game loop started at 60Hz');
+  }
+
+  private setupMessageHandlers() {
+    this.onMessage('input', (client, message) => {
+      this.handleInputMessage(client, message as InputMessage);
+    });
+
+    this.onMessage('choose_upgrade', (client, message) => {
+      this.handleUpgradeMessage(client, message as UpgradeMessage);
+    });
+
+    this.onMessage('respawn', (client) => {
+      this.handleRespawnMessage(client);
+    });
   }
 
   onJoin(client: Client, options: any) {
@@ -114,30 +131,6 @@ export class GameRoom extends Room<GameState> {
     }
   }
 
-  onMessage(client: Client, message: any) {
-    try {
-      const type = message.type;
-
-      switch (type) {
-        case 'input':
-          this.handleInputMessage(client, message as InputMessage);
-          break;
-
-        case 'choose_upgrade':
-          this.handleUpgradeMessage(client, message as UpgradeMessage);
-          break;
-
-        case 'respawn':
-          this.handleRespawnMessage(client);
-          break;
-
-        default:
-          console.warn(`[GameRoom] Unknown message type: ${type} from ${client.sessionId}`);
-      }
-    } catch (error) {
-      console.error(`[GameRoom] Error handling message:`, error);
-    }
-  }
 
   onDispose() {
     console.log('[GameRoom] Room disposing...');
@@ -368,7 +361,7 @@ export class GameRoom extends Room<GameState> {
   }
 
   // Public methods for monitoring and debugging
-  getRoomStats() {
+  getRoomStats(): Record<string, unknown> {
     return {
       playerCount: this.state.world.playerCount,
       enemyCount: Object.keys(this.state.enemies).length,

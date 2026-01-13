@@ -1,33 +1,32 @@
 #!/bin/bash
-set -euo pipefail
-
-# SWARM.IO - Ralph Wiggum Loop Script
-# Usage:
+# Usage: ./loop.sh [plan] [max_iterations]
+# Examples:
 #   ./loop.sh              # Build mode, unlimited iterations
 #   ./loop.sh 20           # Build mode, max 20 iterations
 #   ./loop.sh plan         # Plan mode, unlimited iterations
 #   ./loop.sh plan 5       # Plan mode, max 5 iterations
 
 # Parse arguments
-if [ "${1:-}" = "plan" ]; then
+if [ "$1" = "plan" ]; then
+    # Plan mode
     MODE="plan"
     PROMPT_FILE="PROMPT_plan.md"
     MAX_ITERATIONS=${2:-0}
-elif [[ "${1:-}" =~ ^[0-9]+$ ]]; then
+elif [[ "$1" =~ ^[0-9]+$ ]]; then
+    # Build mode with max iterations
     MODE="build"
     PROMPT_FILE="PROMPT_build.md"
     MAX_ITERATIONS=$1
 else
+    # Build mode, unlimited (no arguments or invalid input)
     MODE="build"
     PROMPT_FILE="PROMPT_build.md"
     MAX_ITERATIONS=0
 fi
 
 ITERATION=0
-CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || echo "main")
+CURRENT_BRANCH=$(git branch --show-current)
 
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "🎮 SWARM.IO - Ralph Wiggum Loop"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "Mode:   $MODE"
 echo "Prompt: $PROMPT_FILE"
@@ -41,45 +40,31 @@ if [ ! -f "$PROMPT_FILE" ]; then
     exit 1
 fi
 
-# Initialize git if needed
-if [ ! -d ".git" ]; then
-    echo "Initializing git repository..."
-    git init
-    git add -A
-    git commit -m "Initial commit - Ralph setup"
-fi
-
 while true; do
     if [ $MAX_ITERATIONS -gt 0 ] && [ $ITERATION -ge $MAX_ITERATIONS ]; then
-        echo ""
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo "✅ Reached max iterations: $MAX_ITERATIONS"
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "Reached max iterations: $MAX_ITERATIONS"
         break
     fi
 
-    ITERATION=$((ITERATION + 1))
-    echo ""
-    echo "══════════════════════════════════════════════════════════════"
-    echo "  LOOP $ITERATION $([ $MAX_ITERATIONS -gt 0 ] && echo "/ $MAX_ITERATIONS")"
-    echo "══════════════════════════════════════════════════════════════"
-    echo ""
-
-    # Run Claude Code with the prompt
+    # Run Ralph iteration with selected prompt
     # -p: Headless mode (non-interactive, reads from stdin)
-    # --dangerously-skip-permissions: Auto-approve all tool calls (required for autonomous operation)
-    # --model: Use claude-sonnet-4-20250514 as primary (opus for complex tasks spawned as subagents)
+    # --dangerously-skip-permissions: Auto-approve all tool calls (YOLO mode)
+    # --output-format=stream-json: Structured output for logging/monitoring
+    # --model opus: Primary agent uses Opus for complex reasoning (task selection, prioritization)
+    #               Can use 'sonnet' in build mode for speed if plan is clear and tasks well-defined
     # --verbose: Detailed execution logging
     cat "$PROMPT_FILE" | claude -p \
         --dangerously-skip-permissions \
-        --model claude-sonnet-4-20250514 \
+        --output-format=stream-json \
+        --model opus \
         --verbose
 
-    # Try to push changes (may fail if no remote configured)
-    if git remote get-url origin &>/dev/null; then
-        git push origin "$CURRENT_BRANCH" 2>/dev/null || git push -u origin "$CURRENT_BRANCH" 2>/dev/null || true
-    fi
-done
+    # Push changes after each iteration
+    git push origin "$CURRENT_BRANCH" || {
+        echo "Failed to push. Creating remote branch..."
+        git push -u origin "$CURRENT_BRANCH"
+    }
 
-echo ""
-echo "🎮 Ralph loop complete!"
+    ITERATION=$((ITERATION + 1))
+    echo -e "\n\n======================== LOOP $ITERATION ========================\n"
+done

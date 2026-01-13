@@ -1,2 +1,3 @@
-// NetworkClient will be added in Phase 4
-// export { NetworkClient } from './NetworkClient';
+// Phase 4: Client Networking
+export { NetworkClient } from './NetworkClient';
+export type { SerializedGameState } from './NetworkClient';

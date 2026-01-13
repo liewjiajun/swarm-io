@@ -70,8 +70,9 @@ export class XPSystem {
 
       // Magnetize to nearest player
       if (nearestPlayer) {
+        const target = nearestPlayer as PlayerSchema;
         orb.magnetized = true;
-        orb.targetPlayerId = nearestPlayer.id;
+        orb.targetPlayerId = target.id;
         this.xpMetrics.magnetizationEvents++;
       }
     });
@@ -190,8 +191,8 @@ export class XPSystem {
         choices.push(upgrade);
 
         // Remove selected upgrade to prevent duplicates
+        // Compare by weaponType/statType since UpgradeChoice.type differs from UpgradeDefinition.type
         const index = availableUpgrades.findIndex(u =>
-          u.type === upgrade.type &&
           u.weaponType === upgrade.weaponType &&
           u.statType === upgrade.statType
         );

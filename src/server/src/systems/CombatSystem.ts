@@ -294,11 +294,10 @@ export class CombatSystem {
     let maxDamage = 1000; // Default maximum
 
     if (damageType === 'projectile') {
-      // For projectiles, base on weapon config if available
-      const weaponConfig = Object.values(WEAPON_CONFIGS).find(w => w.projectileType === sourceType);
-      if (weaponConfig) {
-        maxDamage = weaponConfig.damage * (1 + (level - 1) * 0.2) * 5; // 5x safety margin
-      }
+      // For projectiles, use a reasonable cap based on highest weapon damage
+      // sourceType is the projectile type like 'slash', 'bullet', etc.
+      const highestWeaponDamage = Math.max(...Object.values(WEAPON_CONFIGS).map(w => w.baseDamage));
+      maxDamage = highestWeaponDamage * (1 + (level - 1) * 0.2) * 5; // 5x safety margin
     } else if (damageType === 'contact') {
       // For contact damage, base on enemy config
       const enemyConfig = ENEMY_CONFIGS[sourceType];

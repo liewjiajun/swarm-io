@@ -1,32 +1,182 @@
 import { Renderer } from './Renderer';
 import { InputManager } from './InputManager';
 import { Interpolator } from './Interpolator';
-// Note: NetworkClient will be added in Phase 4
-// import { NetworkClient } from '../network/NetworkClient';
-import type { PlayerState, EnemyState, ProjectileState, XPOrbState } from '@swarm-io/shared';
+import { NetworkClient, SerializedGameState } from '../network';
+import type { PlayerInput } from '@swarm-io/shared';
 
 export class Game {
   private renderer: Renderer;
   private input: InputManager;
   private interpolator: Interpolator;
-  // private network: NetworkClient; // Will be added in Phase 4
+  private network: NetworkClient;
 
-  private localPlayerId: string = 'test-player';
+  private localPlayerId: string = '';
   private lastUpdateTime: number = 0;
   private running: boolean = false;
+  private connected: boolean = false;
+  private inputSequence: number = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new Renderer(canvas);
     this.input = new InputManager();
     this.interpolator = new Interpolator();
-    // this.network = new NetworkClient(); // Will be added in Phase 4
+    this.network = new NetworkClient();
+  }
 
-    // For Phase 3 testing, create a mock state
-    this.setupMockState();
+  async start() {
+    console.log('[Game] Starting SWARM.IO client...');
+
+    try {
+      // Connect to server
+      await this.network.connect();
+      this.localPlayerId = this.network.sessionId;
+      this.connected = true;
+
+      console.log('[Game] Connected with player ID:', this.localPlayerId);
+
+      // Setup network event handlers
+      this.setupNetworkHandlers();
+
+      // Start game loop
+      this.running = true;
+      this.lastUpdateTime = performance.now();
+      this.gameLoop();
+
+    } catch (error) {
+      console.error('[Game] Failed to connect to server:', error);
+      // Fall back to mock state for testing
+      this.setupMockState();
+      this.running = true;
+      this.lastUpdateTime = performance.now();
+      this.gameLoop();
+    }
+  }
+
+  private setupNetworkHandlers() {
+    // Handle state updates from server
+    this.network.onStateChange((state: SerializedGameState) => {
+      this.interpolator.pushState(this.convertToRenderState(state), performance.now());
+    });
+
+    // Handle player death
+    this.network.onPlayerDied((data) => {
+      if (data.playerId === this.localPlayerId) {
+        console.log('[Game] Local player died. Final score:', data.finalScore);
+        this.renderer.showDeathScreen(data.finalScore);
+      }
+    });
+
+    // Handle level up with upgrade choices
+    this.network.onLevelUp((data) => {
+      console.log('[Game] Level up! New level:', data.newLevel);
+      // Store choices so we can look them up by ID when the user selects
+      const choiceMap = new Map(data.choices.map(c => [c.id, c]));
+      this.renderer.showUpgradeUI(data.choices, (choiceId: string) => {
+        const choice = choiceMap.get(choiceId);
+        if (choice) {
+          this.network.sendUpgradeChoice(choice);
+        }
+      });
+    });
+
+    console.log('[Game] Network handlers setup complete');
+  }
+
+  private convertToRenderState(state: SerializedGameState): any {
+    // Convert SerializedGameState to the format expected by Interpolator/Renderer
+    // The Renderer expects PlayerState interface but we have SerializedPlayer
+    const players = new Map();
+    state.players.forEach((player, id) => {
+      players.set(id, {
+        id: player.id,
+        x: player.x,
+        y: player.y,
+        health: player.health,
+        maxHealth: player.maxHealth,
+        level: player.level,
+        xp: player.xp,
+        xpToNextLevel: player.xpToNextLevel,
+        speed: player.speed,
+        invulnerable: player.invulnerableTime > 0,
+        invulnerableTime: player.invulnerableTime,
+        timeAlive: player.timeAlive,
+        hostility: 0,
+        facing: { x: player.facingX, y: player.facingY },
+        facingX: player.facingX,
+        facingY: player.facingY,
+        weapons: player.weapons,
+        kills: player.kills,
+        dead: player.dead,
+        pendingUpgrade: player.pendingUpgrade
+      });
+    });
+
+    const enemies = new Map();
+    state.enemies.forEach((enemy, id) => {
+      enemies.set(id, {
+        id: enemy.id,
+        type: enemy.type,
+        x: enemy.x,
+        y: enemy.y,
+        health: enemy.health,
+        maxHealth: enemy.maxHealth,
+        targetPlayerId: null,
+        velocityX: 0,
+        velocityY: 0
+      });
+    });
+
+    const projectiles = new Map();
+    state.projectiles.forEach((proj, id) => {
+      projectiles.set(id, {
+        id: proj.id,
+        type: proj.type,
+        x: proj.x,
+        y: proj.y,
+        radius: proj.radius,
+        ownerId: '',
+        damage: 0,
+        velocityX: 0,
+        velocityY: 0,
+        lifetime: 1,
+        piercing: 0,
+        hitEnemies: []
+      });
+    });
+
+    const xpOrbs = new Map();
+    state.xpOrbs.forEach((orb, id) => {
+      xpOrbs.set(id, {
+        id: orb.id,
+        x: orb.x,
+        y: orb.y,
+        size: orb.size,
+        value: orb.value,
+        magnetized: orb.magnetized,
+        targetPlayerId: null
+      });
+    });
+
+    return {
+      players,
+      enemies,
+      projectiles,
+      xpOrbs,
+      world: {
+        worldRadius: state.world.worldRadius,
+        playerCount: state.world.playerCount,
+        gameTime: state.world.gameTime,
+        currentWave: state.world.currentWave,
+        difficulty: state.world.difficulty
+      }
+    };
   }
 
   private setupMockState() {
-    // Create a simple mock state for testing the renderer
+    // Create a simple mock state for testing the renderer without network
+    console.log('[Game] Using mock state (offline mode)');
+    this.localPlayerId = 'test-player';
+
     const mockState = {
       players: new Map([
         [this.localPlayerId, {
@@ -40,12 +190,17 @@ export class Game {
           xpToNextLevel: 100,
           speed: 5,
           invulnerable: false,
+          invulnerableTime: 0,
           timeAlive: 0,
           hostility: 0,
           facing: { x: 1, y: 0 },
-          weapons: [],
-          kills: 0
-        } as PlayerState]
+          facingX: 1,
+          facingY: 0,
+          weapons: [{ type: 'knife', level: 1 }],
+          kills: 0,
+          dead: false,
+          pendingUpgrade: false
+        }]
       ]),
       enemies: new Map(),
       projectiles: new Map(),
@@ -54,46 +209,12 @@ export class Game {
         worldRadius: 500,
         playerCount: 1,
         gameTime: 0,
-        difficulty: 1,
-        wave: 1
+        currentWave: 1,
+        difficulty: 1
       }
     };
 
     this.interpolator.pushState(mockState, performance.now());
-  }
-
-  async start() {
-    console.log('Starting SWARM.IO client (Phase 3 - Testing mode)');
-
-    // In Phase 4, we'll add:
-    // await this.network.connect();
-    // this.localPlayerId = this.network.sessionId;
-    // this.setupNetworkHandlers();
-
-    this.running = true;
-    this.lastUpdateTime = performance.now();
-    this.gameLoop();
-  }
-
-  private setupNetworkHandlers() {
-    // Will be implemented in Phase 4 when NetworkClient is ready
-    /*
-    this.network.onStateChange((state) => {
-      this.interpolator.pushState(state, performance.now());
-    });
-
-    this.network.onPlayerDied((data) => {
-      if (data.playerId === this.localPlayerId) {
-        this.renderer.showDeathScreen(data.finalScore);
-      }
-    });
-
-    this.network.onLevelUp((data) => {
-      this.renderer.showUpgradeUI(data.choices, (choiceId) => {
-        this.network.sendUpgradeChoice(choiceId);
-      });
-    });
-    */
   }
 
   private gameLoop() {
@@ -111,20 +232,25 @@ export class Game {
 
   private update(dt: number) {
     // Process input
-    const input = this.input.getInput();
+    const rawInput = this.input.getInput();
 
-    // For Phase 3 testing, log input when moving
-    if (input.dx !== 0 || input.dy !== 0) {
-      console.log('Input captured:', input);
+    // Only send input if there's movement or if connected
+    if ((rawInput.dx !== 0 || rawInput.dy !== 0) && this.connected) {
+      this.inputSequence++;
+      const input: PlayerInput = {
+        dx: rawInput.dx,
+        dy: rawInput.dy,
+        sequence: this.inputSequence
+      };
 
-      // For Phase 4, we'll add:
-      // this.network.sendInput(input);
+      // Send input to server
+      this.network.sendInput(input);
     }
 
     // Apply client-side prediction for local player
     const localPlayer = this.interpolator.getLocalPlayer(this.localPlayerId);
     if (localPlayer) {
-      this.input.applyPrediction(localPlayer, input, dt);
+      this.input.applyPrediction(localPlayer, rawInput, dt);
     }
   }
 
@@ -144,7 +270,17 @@ export class Game {
 
   stop() {
     this.running = false;
-    // In Phase 4, we'll add:
-    // this.network.disconnect();
+    if (this.connected) {
+      this.network.disconnect();
+      this.connected = false;
+    }
+    console.log('[Game] Stopped');
+  }
+
+  // Public method to handle respawn
+  respawn() {
+    if (this.connected) {
+      this.network.sendRespawn();
+    }
   }
 }
