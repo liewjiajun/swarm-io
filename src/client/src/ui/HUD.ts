@@ -713,6 +713,7 @@ export class HUD {
         justify-content: center;
         z-index: 500;
         font-family: 'Press Start 2P', monospace;
+        pointer-events: auto; /* Override parent #ui pointer-events: none */
       }
 
       .tutorial-overlay.hidden {
@@ -1320,16 +1321,17 @@ export class HUD {
   showTutorial(onComplete: () => void): void {
     this.elements.tutorialOverlay.classList.remove('hidden');
 
-    // Setup start button handler
-    const startBtn = this.container.querySelector('.tutorial-start-btn');
+    // Clone button to remove any existing listeners (prevents duplicate handlers)
+    const startBtn = this.container.querySelector('.tutorial-start-btn') as HTMLElement;
     if (startBtn) {
-      const handleStart = () => {
+      const newBtn = startBtn.cloneNode(true) as HTMLElement;
+      startBtn.parentNode?.replaceChild(newBtn, startBtn);
+
+      newBtn.addEventListener('click', () => {
         localStorage.setItem('swarm-io-tutorial-seen', 'true');
         this.hideTutorial();
         onComplete();
-        startBtn.removeEventListener('click', handleStart);
-      };
-      startBtn.addEventListener('click', handleStart);
+      });
     }
   }
 

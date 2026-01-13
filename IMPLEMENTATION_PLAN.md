@@ -1,12 +1,12 @@
 # SWARM.IO Implementation Plan
 
-## Current Status: Phase 6 Complete - All Core Features Done
+## Current Status: Phase 6 Complete - Critical Bugs Resolved
 
 **Last Updated:** 2026-01-13
 **Implementation Progress:** 101/85 tasks completed (118.8%)
 **Test Count:** 209 tests (136 server + 73 shared)
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
-**Next Priority:** Quality of Life features (Phase 6.4) - optional enhancements
+**Next Priority:** Medium bug fixes (BUG-006, BUG-007, BUG-009, BUG-010, BUG-011) and test coverage
 
 ---
 
@@ -15,238 +15,225 @@
 | Metric | Value | Notes |
 |--------|-------|-------|
 | Total Tasks | 85 | Across 6 phases |
-| Completed | 100 | 117.6% (all phases complete) |
-| Remaining | 0 | All core features complete |
-| Blocking Issues | 0 | All critical bugs resolved |
-| Critical Path | Complete | Full feature set implemented |
-| Est. Time to MVP | Complete | MVP is complete |
+| Completed | 101 | 118.8% (all phases complete) |
+| Critical Bugs | 0 | All critical bugs resolved |
+| Medium Bugs | 5 | Balance/behavior issues |
+| Test Gaps | 6 systems | Core gameplay systems need tests |
+| Code Quality | 4 issues | Type safety and constant cleanup |
 
 ---
 
-## PHASE 5 - UI/HUD SYSTEM (COMPLETE)
+## PRIORITY 1: MEDIUM BUGS (Balance/Behavior)
 
-**Status:** 12/12 tasks complete (100%)
-**Impact:** Full user experience with game feedback
-**Spec Reference:** `specs/09-ui-hud.md` (536 lines, full implementation)
+### BUG-006: Lightning Bypasses CombatSystem Validation
 
-### Completed State
+**Location:** `src/server/src/systems/WeaponSystem.ts:327`
+**Severity:** MEDIUM - Bypasses armor, damage caps
+**Impact:** Lightning damage is unvalidated, potential exploits
 
-- **HUD.ts FULLY IMPLEMENTED** - Complete UI system at `src/client/src/ui/HUD.ts`
-- **Renderer.ts stub methods REMOVED** - UI methods moved to HUD class
+**Problem:**
+```typescript
+// Direct damage bypass all validation
+entity.entity.health -= damage;
+```
 
-### Task List
+**Fix:**
+```typescript
+// Use CombatSystem for proper damage application
+// Option 1: Pass combatSystem reference to WeaponSystem
+this.combatSystem.applyDamageToEnemy(entity.entity, damage, player.id);
 
-| ID | Task | File | Status |
-|----|------|------|--------|
-| P1.1 | Create HUD class with styles | `src/client/src/ui/HUD.ts` | COMPLETE |
-| P1.2 | Health/XP bars | HUD.ts | COMPLETE |
-| P1.3 | Weapon display icons | HUD.ts | COMPLETE |
-| P1.4 | Leaderboard panel | HUD.ts | COMPLETE |
-| P1.5 | Minimap canvas | HUD.ts | COMPLETE |
-| P1.6 | Game info (time/wave/players) | HUD.ts | COMPLETE |
-| P1.7 | Upgrade modal | HUD.ts | COMPLETE |
-| P1.8 | Death screen | HUD.ts | COMPLETE |
-| P1.9 | Loading screen | HUD.ts | COMPLETE (N/A - loading handled by existing flow) |
-| P1.10 | Update UI barrel export | `src/client/src/ui/index.ts` | COMPLETE |
-| P1.11 | Implement Renderer.showDeathScreen() | HUD.ts | COMPLETE (Moved to HUD class, removed from Renderer) |
-| P1.12 | Implement Renderer.showUpgradeUI() | HUD.ts | COMPLETE (Moved to HUD class, removed from Renderer) |
+// Option 2: Create enemy damage event for CombatSystem to process
+```
 
 ---
 
-## P2: WEAPONS (8/8 Weapons Complete)
+### BUG-007: ObjectPool State Leak
 
-**Status:** All 8 weapons fully implemented - 100% Complete
-**Impact:** All weapons fully functional
-**Spec Reference:** `specs/05-weapon-combat.md:201-324` (full implementations)
+**Location:** `src/server/src/systems/ObjectPool.ts:133-153`
+**Severity:** MEDIUM - Reused enemies may have stale state
+**Impact:** Boss mechanics may persist on regular enemies
 
-### All Weapons (Full Functionality)
+**Problem:**
+```typescript
+// resetEnemy() missing fields
+private resetEnemy(e: EnemySchema): void {
+  // Missing:
+  // e.attackCooldown = 0;
+  // e.abilityCooldown = 0;
+  // e.isCharging = false;
+  // e.chargeTargetX = 0;
+  // e.chargeTargetY = 0;
+}
+```
 
-| Weapon | Location | Status |
-|--------|----------|--------|
-| Knife | `WeaponSystem.ts` | COMPLETE |
-| Wand | `WeaponSystem.ts` | COMPLETE |
-| Bible | `WeaponSystem.ts` | COMPLETE |
-| Garlic | `WeaponSystem.ts` | COMPLETE |
-| Lightning | `WeaponSystem.ts` | COMPLETE |
-| Axe | `WeaponSystem.ts` | COMPLETE |
-| Fireball | `WeaponSystem.ts` | COMPLETE |
-| Whip | `WeaponSystem.ts` | COMPLETE |
-
-### Task List
-
-| ID | Task | Spec Lines | Est. LOC | Complexity | Status |
-|----|------|------------|----------|------------|--------|
-| P2.0 | Add spatialHash access to WeaponSystem | N/A | ~10 | Low | COMPLETE |
-| P2.1 | Implement `fireLightning()` | 201-231 | ~30 | Medium | COMPLETE |
-| P2.2 | Implement `fireAxe()` | 233-259 | ~30 | Low | COMPLETE |
-| P2.3 | Implement `fireFireball()` | 261-292 | ~35 | Medium | COMPLETE |
-| P2.4 | Implement `fireWhip()` | 294-324 | ~25 | Low | COMPLETE |
-
----
-
-## P3: SECURITY HARDENING
-
-**Status:** 4/4 tasks complete (100%)
-**Impact:** Full security hardening with kick mechanism, ban persistence, and rate limiting
-
-### Task List
-
-| ID | Task | File | Description | Est. LOC | Status |
-|----|------|------|-------------|----------|--------|
-| P3.1 | Implement player kick mechanism | `InputSystem.ts:167` | Kick after 5+ violations | ~25 | COMPLETE |
-| P3.2 | Add ban persistence | GameRoom.ts | Store banned IPs/sessionIds | ~40 | COMPLETE |
-| P3.3 | WebSocket URL validation | NetworkClient.ts | Prevent arbitrary connections | ~15 | COMPLETE |
-| P3.4 | Client-side rate limiting | NetworkClient.ts | Max 60 inputs/sec | ~20 | COMPLETE |
+**Fix:**
+```typescript
+private resetEnemy(e: EnemySchema): void {
+  e.id = '';
+  e.type = '';
+  e.x = 0;
+  e.y = 0;
+  e.health = 0;
+  e.maxHealth = 0;
+  e.velocityX = 0;
+  e.velocityY = 0;
+  e.targetPlayerId = '';
+  // Add missing fields:
+  e.attackCooldown = 0;
+  e.abilityCooldown = 0;
+  e.isCharging = false;
+  e.chargeTargetX = 0;
+  e.chargeTargetY = 0;
+}
+```
 
 ---
 
-## P4: PHASE 6 - POLISH & OPTIMIZATION (COMPLETE)
+### BUG-009: Explosion Radius 33x Too Large
 
-**Status:** 17/17 tasks complete (100%)
-**Priority:** LOW - After MVP is functional
-**Implementation:** Audio system complete (6/6), Visual effects complete (5/5), Performance optimizations complete (6/6)
+**Location:** `src/server/src/systems/CombatSystem.ts:283,292`
+**Severity:** MEDIUM - Fireball explosions are massive
+**Impact:** Fireball AOE damage covers huge area
 
-### 6.1 Visual Effects (5/5 COMPLETE)
+**Problem:**
+```typescript
+// Lines 283 and 292 - Hardcoded 100 instead of config value
+radius: 100,  // Should be ~3 per fireball config.area
+if (distance <= 100) {  // Should match radius
+```
 
-| Task | Description | Complexity | Est. LOC | Status |
-|------|-------------|------------|----------|--------|
-| Damage numbers | Floating text popups with fade/scale animation | Medium | ~100 | COMPLETE |
-| XP collection sparkle | Particle burst effect on pickup | Low | ~40 | COMPLETE |
-| Weapon impact particles | Small burst particles on hits | Medium | ~80 | COMPLETE |
-| Death explosion | Enemy death particle explosions (larger for bosses) | Low | ~50 | COMPLETE |
-| Level up flash | Golden radial screen flash | Low | ~20 | COMPLETE |
-
-**Methods Added:**
-- `Renderer.spawnWeaponImpact()` - Weapon hit particle bursts
-- `Renderer.spawnDeathExplosion()` - Enemy death particle explosions (scaled for boss type)
-- `Renderer.triggerLevelUpFlash()` - Golden radial screen flash effect
-
-**Files Modified:**
-- `src/client/src/game/Renderer.ts` - Added all visual effects methods (damage numbers, XP sparkles, weapon impacts, death explosions, level up flash)
-
-### 6.2 Audio System (6/6 COMPLETE)
-
-| Task | Description | Complexity | Est. LOC | Status |
-|------|-------------|------------|----------|--------|
-| Audio system setup | Web Audio API context, volume control, synthesized sounds | Low | ~60 | COMPLETE |
-| Weapon sounds | Per-weapon attack sounds (all 8 weapons) | Low | ~40 | COMPLETE |
-| Pickup sounds | XP collection sounds | Low | ~20 | COMPLETE |
-| Level up jingle | Ascending note celebration jingle | Low | ~10 | COMPLETE |
-| Death sound | Descending ominous death audio | Low | ~10 | COMPLETE |
-| Player damage sound | Damage feedback sound | Low | ~10 | COMPLETE |
-
-**Files Created:**
-- `src/client/src/audio/AudioManager.ts` - Full audio system with Web Audio API
-- `src/client/src/audio/index.ts` - Barrel export
-
-**Files Modified:**
-- `src/client/src/game/Game.ts` - Added AudioManager integration
-
-### 6.3 Performance Optimizations (6/6 COMPLETE)
-
-| Task | Description | Impact | Est. LOC | Status |
-|------|-------------|--------|----------|--------|
-| Frustum culling | Distance-based culling for enemies, projectiles, and XP orbs - reduces draw calls for off-screen entities | High | ~50 | COMPLETE |
-| Interest management | Only sync entities within player's view radius using @filterChildren decorators | High | ~80 | COMPLETE |
-| Object pooling | Reuse projectile/enemy/XP orb objects instead of GC via ObjectPool class | Medium | ~150 | COMPLETE |
-| LOD for distant entities | Distance-based geometry switching (8-segment spheres near, 4-segment far) | Medium | ~70 | COMPLETE |
-| State delta compression | Automatic via Colyseus @type schema decorators - only changed fields sent | Medium | N/A | COMPLETE |
-| Batch rendering | InstancedMesh batching for enemies, projectiles, XP orbs (~12 draw calls total) | Medium | N/A | COMPLETE |
-
-**Interest Management Implementation:**
-- Added `@filterChildren` decorators to `GameState.ts` for enemies, projectiles, and XP orbs
-- Uses `GAME_CONSTANTS.INTEREST_RADIUS` (50 units) for filtering
-- Enemies and XP orbs filtered at 50 unit radius; projectiles at 60 units (1.2x) to prevent pop-in
-- Dead players see all entities (spectator mode)
-- Filter re-evaluates when entity positions update (every tick for moving entities)
-
-**Object Pooling Implementation:**
-- Created `ObjectPool.ts` generic pooling system with acquire/release pattern
-- Pre-allocates: 500 projectiles, 200 enemies, 500 XP orbs
-- Max pool sizes: 2000 projectiles, 1000 enemies, 3000 XP orbs
-- Added `removeEnemy()`, `removeProjectile()`, `removeXPOrb()` methods to GameState
-- Updated CombatSystem, WeaponSystem, XPSystem, PhysicsSystem to use pooled removal
-- Fixed bug: expired projectiles now cleaned up in PhysicsSystem (was accumulating forever)
-
-**State Delta Compression:** Built-in to Colyseus Schema system - automatic binary encoding of changed fields only.
-
-**Batch Rendering:** Client uses Three.js InstancedMesh for all dynamic entities (enemies by type, projectiles, XP orbs, particles) - results in ~12 total draw calls regardless of entity count.
-
-**LOD (Level of Detail) Implementation:**
-- Added low-detail InstancedMesh for projectiles and XP orbs (4-segment spheres vs 8-segment)
-- Distance threshold of 15 units from camera center for LOD switching
-- Reduces triangle count by 75% for distant entities (32 triangles vs 128 per sphere)
-- Uses `shouldUseLOD()` helper to determine LOD level per entity
-- Seamless switching with no visual popping due to small entity size
-
-### 6.4 Quality of Life
-
-| Task | Description | Complexity | Est. LOC |
-|------|-------------|------------|----------|
-| Demon ranged attack | Demons fire projectiles at range | Medium | ~60 | COMPLETE |
-| Boss unique abilities | Special boss mechanics (charge, AOE) | Medium | ~150 | COMPLETE |
-| Mobile touch controls | Virtual joystick for mobile play | Medium | ~200 | COMPLETE |
-| Settings menu | Sound, controls, graphics options | Low | ~100 | COMPLETE |
-| Tutorial overlay | First-time player guidance | Low | ~80 | COMPLETE |
-| Pause menu | In-game pause with options | Low | ~60 | COMPLETE |
+**Fix:**
+```typescript
+const explosionRadius = WEAPON_CONFIGS.fireball.area || 3;
+// Line 283
+radius: explosionRadius,
+// Line 292
+if (distance <= explosionRadius) {
+```
 
 ---
 
-## COMPLETED PHASES
+### BUG-010: Fixed Hostility Increase (Not Damage-Based)
 
-### Phase 1: Foundation (COMPLETE - 2026-01-12)
+**Location:** `src/server/src/systems/CombatSystem.ts:192`
+**Severity:** LOW - Minor balance issue
+**Impact:** All PvP attacks increase hostility equally
 
-**14/14 tasks complete (100%)**
+**Problem:**
+```typescript
+// Fixed +10 regardless of damage
+sourcePlayer.hostility = Math.min(sourcePlayer.hostility + 10, 100);
+```
 
-| Component | Files | Status |
-|-----------|-------|--------|
-| Package structure | 3 package.json files | COMPLETE |
-| TypeScript config | 3 tsconfig.json files | COMPLETE |
-| Shared types | `src/shared/src/types.ts` (30+ types) | COMPLETE |
-| Constants | `src/shared/src/constants.ts` (8 weapons, 9 enemies) | COMPLETE |
-| Utilities | `src/shared/src/utils.ts` (vector math, interpolation) | COMPLETE |
-| Vite config | `vite.config.ts` | COMPLETE |
-| HTML entry | `index.html` | COMPLETE |
+**Fix:**
+```typescript
+// Proportional to damage dealt
+sourcePlayer.hostility = Math.min(sourcePlayer.hostility + validatedDamage * 0.1, 100);
+```
 
-### Phase 2: Server Core (COMPLETE - 2026-01-13)
+---
 
-**24/24 tasks complete (100%)** - Note: 4 weapon stubs require implementation, type errors fixed
+### BUG-011: Client Input Rate Inefficiency
 
-| Component | Files | Status |
-|-----------|-------|--------|
-| Colyseus Schemas | 8 schema files (GameState, Player, Enemy, Weapon, Projectile, XPOrb, World) | COMPLETE |
-| SpatialHash | `src/server/src/systems/SpatialHash.ts` | COMPLETE |
-| InputSystem | `src/server/src/systems/InputSystem.ts` (with rate limiting) | 95% Complete (kick not enforced) |
-| PhysicsSystem | `src/server/src/systems/PhysicsSystem.ts` | COMPLETE (constructor fixed) |
-| SpawnSystem | `src/server/src/systems/SpawnSystem.ts` | COMPLETE |
-| WeaponSystem | `src/server/src/systems/WeaponSystem.ts` | 50% Complete (4/8 weapons work, 4 stubs; type errors fixed) |
-| CombatSystem | `src/server/src/systems/CombatSystem.ts` | COMPLETE (type errors fixed) |
-| XPSystem | `src/server/src/systems/XPSystem.ts` | COMPLETE (type errors fixed) |
-| GameRoom | `src/server/src/rooms/GameRoom.ts` | COMPLETE (type errors fixed) |
-| Server Entry | `src/server/src/index.ts` | COMPLETE |
+**Location:** `src/client/src/game/Game.ts:358`
+**Severity:** LOW - Performance waste
+**Impact:** 50% of created inputs are dropped by rate limiter
 
-### Phase 3: Client Core (COMPLETE - 2026-01-13)
+**Problem:**
+- Game loop runs at 60 FPS
+- Sends input every frame with movement (60Hz)
+- NetworkClient rate limits to 30Hz
+- Half the inputs are created then immediately dropped
 
-**12/12 tasks complete (100%)** - Note: Renderer has 2 UI method stubs
+**Fix:**
+```typescript
+// Add input send throttle
+private lastInputSendTime = 0;
+private readonly INPUT_SEND_INTERVAL = 1000 / 30; // 30Hz
 
-| Component | Files | Status |
-|-----------|-------|--------|
-| Renderer | `src/client/src/game/Renderer.ts` (Three.js, InstancedMesh) | 95% Complete (UI stubs at lines 273-281) |
-| InputManager | `src/client/src/game/InputManager.ts` (WASD, prediction) | COMPLETE |
-| Interpolator | `src/client/src/game/Interpolator.ts` | COMPLETE |
-| Game Loop | `src/client/src/game/Game.ts` | COMPLETE (NetworkClient integrated) |
-| UI stub | `src/client/src/ui/index.ts` | Placeholder only - HUD.ts does NOT exist |
+// In update loop
+if (performance.now() - this.lastInputSendTime >= this.INPUT_SEND_INTERVAL) {
+  this.network.sendInput(input);
+  this.lastInputSendTime = performance.now();
+}
+```
 
-### Phase 4: Networking (COMPLETE - 2026-01-13)
+---
 
-**8/8 tasks complete (100%)**
+## PRIORITY 2: TEST GAPS
 
-| Component | Files | Status |
-|-----------|-------|--------|
-| NetworkClient | `src/client/src/network/NetworkClient.ts` | COMPLETE (connection, reconnection, state serialization) |
-| Network barrel export | `src/client/src/network/index.ts` | COMPLETE |
-| Game integration | `src/client/src/game/Game.ts` | COMPLETE (state handlers, death/levelup events, input sending) |
-| vite-env.d.ts | `src/client/vite-env.d.ts` | COMPLETE (import.meta.env types) |
+| System | File | Current Tests | Priority | Description |
+|--------|------|---------------|----------|-------------|
+| CombatSystem | `CombatSystem.test.ts` | 0 | HIGH | Projectile collisions, damage validation, death handling |
+| WeaponSystem | `WeaponSystem.test.ts` | 0 | HIGH | All 8 weapon firing, cooldowns, targeting |
+| SpawnSystem | `SpawnSystem.test.ts` | 0 | HIGH | Wave progression, boss spawning, difficulty scaling |
+| XPSystem | `XPSystem.test.ts` | 0 | HIGH | Orb collection, level-up, upgrade generation |
+| PhysicsSystem | `PhysicsSystem.test.ts` | 0 | MEDIUM | Enemy AI, projectile movement, boundaries |
+| NetworkClient | `NetworkClient.test.ts` | 0 | MEDIUM | Client-server sync, reconnection |
+
+**Existing Tests (209 total):**
+- `src/shared/src/utils.test.ts` - Vector math, distance, interpolation
+- `src/shared/src/constants.test.ts` - Config validation
+- `src/server/src/systems/SpatialHash.test.ts` - Spatial queries
+- `src/server/src/systems/ObjectPool.test.ts` - Pool acquire/release
+- `src/server/src/systems/InputSystem.test.ts` - Input validation, rate limiting
+- `src/server/src/state/PlayerSchema.test.ts` - Player state management
+- `src/server/src/state/GameState.test.ts` - Entity CRUD operations
+
+---
+
+## PRIORITY 3: CODE QUALITY
+
+### QUALITY-001: Duplicate Constants Pattern
+
+**Location:** `src/shared/src/constants.ts:7-51`
+**Issue:** Both nested (`GAME_CONSTANTS.PLAYER.START_HEALTH`) and flat (`GAME_CONSTANTS.PLAYER_START_HEALTH`) patterns exist
+**Recommendation:** Deprecate flat pattern, use only nested access
+
+### QUALITY-002: Missing ProjectileType
+
+**Location:** `src/shared/src/types.ts`
+**Issue:** `demon_fireball` not in ProjectileType union
+**Fix:**
+```typescript
+export type ProjectileType =
+  | 'bullet'
+  | 'slash'
+  | 'orb'
+  | 'lightning_bolt'
+  | 'axe_spin'
+  | 'fireball'
+  | 'explosion'
+  | 'demon_fireball';  // ADD THIS
+```
+
+### QUALITY-003: UpgradeChoice Type Mismatch
+
+**Location:** `src/server/src/systems/XPSystem.ts:14-21` vs `src/shared/src/types.ts:206-213`
+**Issue:** Implementation uses `'weapon' | 'stat'` instead of spec's `'new_weapon' | 'upgrade_weapon' | 'stat_boost'`
+**Impact:** Loss of semantic information
+
+### QUALITY-004: Magic Numbers in PhysicsSystem
+
+**Location:** `src/server/src/systems/PhysicsSystem.ts`
+**Issue:** Hardcoded values should be constants
+- Line 29: `Math.PI` orbital speed → `BIBLE_ORBIT_SPEED`
+- Line 33: Orbit radius `3` → `WEAPON_CONFIGS.bible.range`
+- Line 98: Query radius `100` → `ENEMY_DETECTION_RANGE`
+
+---
+
+## COMPLETED PHASES (Reference)
+
+### Phase 1: Foundation - COMPLETE (14/14 tasks)
+### Phase 2: Server Core - COMPLETE (24/24 tasks)
+### Phase 3: Client Core - COMPLETE (12/12 tasks)
+### Phase 4: Networking - COMPLETE (8/8 tasks)
+### Phase 5: UI/HUD - COMPLETE (12/12 tasks)
+### Phase 6: Polish & Optimization - COMPLETE (17/17 tasks)
+
+All 8 weapons, audio system, visual effects, mobile controls, settings/tutorial/pause menus, object pooling, interest management, LOD, and frustum culling are fully implemented.
 
 ---
 
@@ -277,149 +264,29 @@ src/
 │   │   ├── SpawnSystem.ts      # Wave-based enemy spawning
 │   │   ├── WeaponSystem.ts     # Auto-fire, 8 weapon types
 │   │   ├── CombatSystem.ts     # Collision detection, damage
-│   │   └── XPSystem.ts         # Orb collection, upgrades
+│   │   ├── XPSystem.ts         # Orb collection, upgrades
+│   │   └── ObjectPool.ts       # Entity pooling
 │   ├── rooms/
 │   │   └── GameRoom.ts         # 60Hz game loop, Colyseus room
 │   └── index.ts                # Express + Colyseus server
 
 └── client/src/
     ├── game/
-    │   ├── Renderer.ts         # Three.js, InstancedMesh
-    │   ├── InputManager.ts     # WASD, client prediction
+    │   ├── Renderer.ts         # Three.js, InstancedMesh, visual effects
+    │   ├── InputManager.ts     # WASD, touch controls, client prediction
     │   ├── Interpolator.ts     # Smooth movement
-    │   └── Game.ts             # Main game class
+    │   ├── TouchControls.ts    # Mobile virtual joystick
+    │   └── Game.ts             # Main game class, AudioManager integration
     ├── network/
-    │   ├── NetworkClient.ts    # DOES NOT EXIST - TO BE IMPLEMENTED (P1)
-    │   └── index.ts            # Barrel export (placeholder only)
+    │   ├── NetworkClient.ts    # Colyseus client, state sync, reconnection
+    │   └── index.ts            # Barrel export
+    ├── audio/
+    │   ├── AudioManager.ts     # Web Audio API, synthesized sounds
+    │   └── index.ts            # Barrel export
     └── ui/
-        ├── HUD.ts              # DOES NOT EXIST - TO BE IMPLEMENTED (P3)
-        └── index.ts            # Barrel export (placeholder only)
+        ├── HUD.ts              # Full HUD: health, XP, weapons, minimap, modals
+        └── index.ts            # Barrel export
 ```
-
-### Critical Patterns
-
-#### Colyseus Schema Decorators
-```typescript
-import { Schema, type, MapSchema, ArraySchema } from '@colyseus/schema';
-
-class PlayerSchema extends Schema {
-  @type('string') id: string = '';
-  @type('number') x: number = 0;
-  @type([WeaponSchema]) weapons = new ArraySchema<WeaponSchema>();
-}
-
-class GameState extends Schema {
-  @type({ map: PlayerSchema }) players = new MapSchema<PlayerSchema>();
-}
-```
-
-#### Three.js InstancedMesh (Performance Critical)
-```typescript
-// CRITICAL: Set count BEFORE setting matrices
-mesh.count = entities.length;
-
-entities.forEach((entity, index) => {
-  dummy.position.set(entity.x, 0, entity.y);
-  dummy.updateMatrix();
-  mesh.setMatrixAt(index, dummy.matrix);
-});
-
-// REQUIRED: Flag matrix as needing update
-mesh.instanceMatrix.needsUpdate = true;
-```
-
-#### State Serialization (Client)
-```typescript
-// Convert Colyseus MapSchema to plain Maps for rendering
-const players = new Map();
-state.players.forEach((player, id) => {
-  players.set(id, {
-    id: player.id,
-    x: player.x,
-    y: player.y,
-    // ... destructure all fields
-  });
-});
-```
-
-#### Spatial Hash Queries
-```typescript
-// Query entities within radius
-const nearbyEnemies = spatialHash.queryRadius(x, y, radius, 'enemy');
-
-// Query nearest entity of type
-const nearestPlayer = spatialHash.queryNearestOfType(x, y, 'player', maxRange);
-```
-
----
-
-## KNOWN ISSUES
-
-### Blocking Issues
-
-| ID | Issue | Location | Severity | Status |
-|----|-------|----------|----------|--------|
-| - | - | - | - | All resolved |
-
-### Non-Blocking Issues
-
-| ID | Issue | Location | Severity | Status |
-|----|-------|----------|----------|--------|
-| TEST-001 | No unit tests exist | N/A | Low | Resolved |
-| DESIGN-001 | Garlic creates unused explosion projectiles | `WeaponSystem.ts:259-274` | Info | Won't Fix |
-| SPEC-001 | Ghost phasing not implemented | types.ts | Info | Won't Fix (flavor text only) |
-| SPEC-002 | Player-player collision not implemented | CombatSystem | Info | Won't Fix (optional per spec line 466) |
-
-### Verified Constants
-
-| Item | Location | Value | Notes |
-|------|----------|-------|-------|
-| SERVER_TICK_RATE | `constants.ts:42` | 16 (ms) | ~62.5Hz - correctly documented in code |
-| WAVE_SCHEDULE | `constants.ts:280-291` | Array format | `[{time, enemies, bossType?}]` - matches spec |
-| WEAPON_CONFIGS | `constants.ts` | 8 weapons | All defined correctly |
-| ENEMY_CONFIGS | `constants.ts` | 9 enemies | All defined correctly |
-
----
-
-## SPEC FILE REFERENCE
-
-| Spec File | Lines | Purpose | Key Content |
-|-----------|-------|---------|-------------|
-| `01-project-setup.md` | ~300 | Project structure | package.json files, configs |
-| `02-shared-types.md` | ~628 | Type definitions | All types, constants, 8 weapons, 9 enemies |
-| `03-server-gameloop.md` | ~456 | Server architecture | GameRoom, 60Hz loop, system orchestration |
-| `04-server-state.md` | ~420 | Colyseus state | All 8 schema definitions |
-| `05-weapon-combat.md` | ~700 | Weapon/combat | **All 8 weapon implementations**, CombatSystem |
-| `06-spawning.md` | ~200 | Enemy spawning | Wave schedule, spawn algorithms |
-| `07-client-renderer.md` | ~668 | Client rendering | Three.js setup, InstancedMesh, camera |
-| `08-client-networking.md` | ~245 | Client networking | **Complete NetworkClient** |
-| `09-ui-hud.md` | ~536 | UI/HUD | **Complete HUD implementation** |
-
-**Total Specification:** ~4,153 lines with ~95% copy-paste-ready code
-
----
-
-## MVP COMPLETION CRITERIA
-
-### Minimum Viable Product Checklist
-
-- [x] **P0 Bug Fixed** - PhysicsSystem constructor
-- [x] **Connection** - Player connects and spawns in world
-- [x] **Movement** - WASD movement with visual feedback
-- [x] **Combat** - Auto-attacking weapons (knife minimum)
-- [x] **Enemies** - Enemies spawn and chase player
-- [x] **XP System** - XP collection works, level-up UI
-- [x] **Death/Respawn** - Death screen
-- [x] **Multiplayer** - See other players moving
-
-### Post-MVP Enhancements
-
-- [x] All 8 weapons functional
-- [x] Full HUD implementation
-- [x] Audio system (complete - 6/6)
-- [x] Visual effects (complete - 5/5)
-- [x] Mobile support
-- [x] Performance optimizations
 
 ---
 
@@ -443,6 +310,9 @@ npm run typecheck
 
 # Lint
 npm run lint
+
+# Run tests
+npm run test
 ```
 
 ---
@@ -451,52 +321,27 @@ npm run lint
 
 | Date | Version | Changes |
 |------|---------|---------|
-| 2026-01-13 | 2.24 | Fixed magnet range boost bug in XPSystem - was incorrectly adding +20 per upgrade instead of +1 as specified in UPGRADE_POOL. Magnet boost now correctly adds +1 per upgrade (max 5 upgrades: 3→4→5→6→7→8 range). Added comprehensive schema unit tests - Created PlayerSchema.test.ts (33 tests) and GameState.test.ts (27 tests) covering weapon management, XP system, damage/death/respawn, and entity CRUD operations with object pooling. Total test count now 209 (136 server + 73 shared). Note: Ghost enemy phasing (spec flavor text) and player-player collision (marked optional in spec) documented as future enhancements. |
-| 2026-01-13 | 2.23 | Bible Weapon Orbital Mechanics FIX - Fixed bug where Bible orb projectiles were static instead of orbiting the player. Added special handling in PhysicsSystem for 'orb' type projectiles to orbit their owner at π radians/sec. Fixed orbit radius in WeaponSystem to scale with weapon level (was hardcoded to 50, now uses config.range * level scaling). Orbs now properly follow player movement and rotate around them. |
-| 2026-01-13 | 2.22 | InputSystem Tests COMPLETE - Added comprehensive InputSystem test suite (41 tests) covering input validation, rate limiting, spam detection, and player kicking. Fixed bug where first input was always detected as spam due to lastInputTime being initialized to current time. Total test count now 149 (76 server + 73 shared). All tests passing. |
-| 2026-01-13 | 2.21 | ESLint Configuration ADDED - Created .eslintrc.json with TypeScript support. Installed @typescript-eslint/parser and @typescript-eslint/eslint-plugin. Fixed 18 lint warnings across client/server packages (unused imports, unused vars, unused parameters). All lint, typecheck, and tests pass. |
-| 2026-01-13 | 2.20 | Unit Testing Infrastructure COMPLETE - Set up Vitest testing framework in shared and server packages. Created 108 unit tests total (73 shared + 35 server). Tests cover: utils.ts functions (vector math, distance, interpolation, random), constants validation (WEAPON_CONFIGS, ENEMY_CONFIGS, GAME_CONSTANTS), SpatialHash (insertion, queries, removal), ObjectPool (acquire, release, expansion). All tests passing. Resolved TEST-001. |
-| 2026-01-13 | 2.19 | Mobile Touch Controls COMPLETE - Added virtual joystick for mobile play. TouchControls class handles touch events with joystick zone on left half of screen. Joystick appears where user touches, with smooth analog input and dead zone. Integrated with InputManager for seamless keyboard/touch input switching. Mobile device auto-detection (touch + mobile UA/screen size). HUD responsive layout for mobile screens. Tutorial shows joystick controls on mobile vs WASD on desktop. |
-| 2026-01-13 | 2.18 | Pause Menu COMPLETE - Added pause overlay with PAUSED title. RESUME button to continue gameplay. SETTINGS button opens settings from pause menu. P key toggles pause state. Game loop skips updates when paused. Resume resets delta time to prevent time jump. |
-| 2026-01-13 | 2.17 | Tutorial Overlay COMPLETE - Added tutorial overlay for first-time players. Shows WASD movement controls with key icons. Explains auto-attack combat and XP collection mechanics. Provides tips (ESC for settings, avoid edges, watch for bosses). Uses localStorage to track if tutorial has been shown. START GAME button dismisses tutorial and starts game. |
-| 2026-01-13 | 2.16 | Settings Menu COMPLETE - Added settings button (gear icon) in top-right corner of HUD. Added settings modal with master/SFX/music volume sliders. Added mute all checkbox. ESC key toggles settings menu. Click outside modal to close. Connected HUD settings to AudioManager in Game.ts for volume control. |
-| 2026-01-13 | 2.15 | Boss Unique Abilities COMPLETE - Added BOSS_ABILITY_CONFIGS to constants.ts for all three boss types. Added ability cooldown and charge state fields to EnemySchema. boss_slime: Splits into 4 smaller slimes on death. boss_skeleton: Summons 3 skeleton minions every 8 seconds. boss_demon: Charges at player when within 8 units, deals 40 AOE damage on impact (5s cooldown). |
-| 2026-01-13 | 2.14 | Demon Ranged Attack COMPLETE - Added ENEMY_ATTACK_CONFIGS to constants.ts for demon and boss_demon. Added attackCooldown field to EnemySchema. Implemented ranged attack AI in PhysicsSystem - demons stop at range and fire projectiles. Updated CombatSystem to handle enemy projectiles hitting players. Demon attacks deal 15 damage every 2.5s at 15 unit range; Boss demon deals 25 damage every 1.5s at 20 unit range. |
-| 2026-01-13 | 2.13 | Performance Optimization - LOD COMPLETE - Added distance-based Level of Detail for projectiles and XP orbs. Creates low-detail InstancedMesh (4-segment) for entities beyond 15 units from camera center. Reduces triangle count by 75% for distant entities. PHASE 6 NOW 100% COMPLETE (17/17 tasks). All core features implemented. |
-| 2026-01-13 | 2.12 | Performance Optimization - Object Pooling, State Delta Compression, Batch Rendering COMPLETE - Created ObjectPool.ts for server-side entity reuse (projectiles, enemies, XP orbs). Added removeEnemy/Projectile/XPOrb methods to GameState. Fixed bug: expired projectiles now cleaned up in PhysicsSystem. Confirmed Colyseus handles delta compression automatically. Confirmed InstancedMesh handles batch rendering. Phase 6 now 16/17 complete (94.1%) |
-| 2026-01-13 | 2.11 | Performance Optimization - Interest Management COMPLETE - Added @filterChildren decorators to GameState.ts for enemies, projectiles, and XP orbs. Uses INTEREST_RADIUS (50 units) for distance filtering. Reduces network bandwidth by only syncing entities within player view radius. Phase 6 now 13/17 complete (76.5%) |
-| 2026-01-13 | 2.10 | Performance Optimization - Frustum Culling COMPLETE - Distance-based culling implemented for enemies, projectiles, and XP orbs to reduce draw calls for off-screen entities. Phase 6 now 12/17 complete (70.6%) |
-| 2026-01-13 | 2.9 | Phase 6 Visual Effects COMPLETE (5/5) - All visual effect systems implemented: weapon impact particles, death explosions, level up flash. Added Renderer.spawnWeaponImpact(), Renderer.spawnDeathExplosion(), Renderer.triggerLevelUpFlash(). Phase 6 now 11/17 complete (64.7%) |
-| 2026-01-13 | 2.8 | Phase 6 Progress - Audio System COMPLETE (6/6), Visual Effects partial (2/5) - damage numbers and XP sparkles implemented |
-| 2026-01-13 | 2.7 | P3.2-P3.4 Security COMPLETE - Ban persistence with file storage, WebSocket URL validation, client-side rate limiting |
-| 2026-01-13 | 2.6 | P3.1 Security - Player kick mechanism implemented in InputSystem with callback to GameRoom |
-| 2026-01-13 | 2.5 | P2 Weapons COMPLETE (8/8) - Lightning, Axe, Fireball, Whip fully implemented with spatialHash integration |
-| 2026-01-13 | 2.4 | Phase 5 UI/HUD COMPLETE (12/12 tasks) - Full HUD.ts implementation with health bars, XP, weapons, leaderboard, minimap, upgrade modal, death screen |
-| 2026-01-13 | 2.3 | Phase 4 Networking COMPLETE (8/8 tasks) - NetworkClient.ts created with full implementation |
-| 2026-01-13 | 2.3 | P0 Bug RESOLVED - PhysicsSystem constructor in GameRoom.ts:34 fixed |
-| 2026-01-13 | 2.3 | Type errors FIXED - GameRoom onMessage, CombatSystem projectileType, XPSystem upgrades, WeaponSystem nearestEnemy, MapSchema iteration issues |
-| 2026-01-13 | 2.3 | Shared package rebuilt with correct types, vite-env.d.ts added for import.meta.env types |
-| 2026-01-13 | 2.3 | Progress: 58/85 tasks completed (68.2%), blocking issues: 0 |
-| 2026-01-13 | 2.3 | Next priority: Phase 5 UI/HUD System |
-| 2026-01-13 | 2.2 | Verified WAVE_SCHEDULE is array format (removed incorrect CONST-002 issue) |
-| 2026-01-13 | 2.2 | Confirmed SERVER_TICK_RATE = 16ms with comment (~60Hz) - correct |
-| 2026-01-13 | 2.2 | Added "Verified Constants" section to KNOWN ISSUES |
-| 2026-01-13 | 2.2 | Documented spatialHash requirement for Lightning/Fireball weapons in P2 |
-| 2026-01-13 | 2.2 | Added implementation options for WeaponSystem spatialHash access |
-| 2026-01-13 | 2.2 | Split P2 weapon table into "Implemented" and "Stub" sections |
-| 2026-01-13 | 2.2 | Removed Constants Mismatch Issues section (issues were incorrect) |
-| 2026-01-13 | 2.1 | Comprehensive codebase audit findings integrated |
-| 2026-01-13 | 2.1 | Confirmed NetworkClient.ts does NOT exist (only placeholder in network/index.ts) |
-| 2026-01-13 | 2.1 | Confirmed HUD.ts does NOT exist (only placeholder in ui/index.ts) |
-| 2026-01-13 | 2.1 | Verified InputSystem.ts:167-173 detects but does NOT kick rate limit violators |
-| 2026-01-13 | 2.0 | Complete rewrite with accurate priority analysis |
-| 2026-01-13 | 2.0 | Identified P0 bug (PhysicsSystem constructor) |
-| 2026-01-13 | 2.0 | Verified 4 weapon stubs with spec references |
-| 2026-01-13 | 2.0 | Confirmed Phase 4 (Networking) 0% complete |
-| 2026-01-13 | 2.0 | Confirmed Phase 5 (UI/HUD) 0% complete |
-| 2026-01-13 | 2.0 | Added detailed implementation code snippets |
-| 2026-01-13 | 2.0 | Added verification checklists for each phase |
-| 2026-01-13 | 1.0 | Phase 3 (Client Core) COMPLETE - 12/12 tasks |
-| 2026-01-13 | 1.0 | Phase 2 (Server Core) COMPLETE - 24/24 tasks |
-| 2026-01-12 | 1.0 | Phase 1 (Foundation) COMPLETE - 14/14 tasks |
-| 2026-01-12 | 0.1 | Initial project setup |
+| 2026-01-13 | 2.26 | CRITICAL BUG FIXES - Fixed 6 bugs: BUG-001 (enemy initialization missing), BUG-002 (upgrade choices never sent to client), BUG-003 (server never sends player_died message), BUG-004 (unlimited piercing projectiles destroyed on first hit), BUG-005 (double PvP damage reduction), BUG-008 (hostility decay rate 20x too fast). All critical game-breaking bugs are now resolved. |
+| 2026-01-13 | 2.25 | COMPREHENSIVE CODEBASE AUDIT - Identified 11 bugs (5 critical, 6 medium), 6 test gaps, 4 code quality issues. Critical bugs: BUG-001 (enemy initialization missing), BUG-002 (upgrade choices lost), BUG-003 (server never sends level_up/player_died), BUG-004 (piercing=0 projectiles destroyed), BUG-005 (double PvP damage reduction). Updated IMPLEMENTATION_PLAN.md with detailed fixes for all issues. |
+| 2026-01-13 | 2.24 | Fixed magnet range boost bug in XPSystem - was incorrectly adding +20 per upgrade instead of +1 as specified in UPGRADE_POOL. Added comprehensive schema unit tests (33 PlayerSchema + 27 GameState tests). Total test count now 209. |
+| 2026-01-13 | 2.23 | Bible Weapon Orbital Mechanics FIX - Fixed bug where Bible orb projectiles were static instead of orbiting the player. Added special handling in PhysicsSystem for 'orb' type projectiles. |
+| 2026-01-13 | 2.22 | InputSystem Tests COMPLETE - Added comprehensive InputSystem test suite (41 tests). Fixed bug where first input was always detected as spam. |
+| 2026-01-13 | 2.21 | ESLint Configuration ADDED - Created .eslintrc.json with TypeScript support. Fixed 18 lint warnings. |
+| 2026-01-13 | 2.20 | Unit Testing Infrastructure COMPLETE - Set up Vitest testing framework. Created 108 unit tests total (73 shared + 35 server). |
+| 2026-01-13 | 2.19 | Mobile Touch Controls COMPLETE - Added virtual joystick for mobile play. |
+| 2026-01-13 | 2.18 | Pause Menu COMPLETE - Added pause overlay with P key toggle. |
+| 2026-01-13 | 2.17 | Tutorial Overlay COMPLETE - Added tutorial overlay for first-time players. |
+| 2026-01-13 | 2.16 | Settings Menu COMPLETE - Added settings with volume sliders. |
+| 2026-01-13 | 2.15 | Boss Unique Abilities COMPLETE - Split, summon, and charge abilities. |
+| 2026-01-13 | 2.14 | Demon Ranged Attack COMPLETE - Demons fire projectiles at range. |
+| 2026-01-13 | 2.13 | LOD COMPLETE - Distance-based Level of Detail for performance. |
+| 2026-01-13 | 2.12 | Object Pooling COMPLETE - Server-side entity reuse. |
+| 2026-01-13 | 2.11 | Interest Management COMPLETE - @filterChildren decorators. |
+| 2026-01-13 | 2.10 | Frustum Culling COMPLETE - Distance-based culling. |
+| 2026-01-13 | 2.9 | Visual Effects COMPLETE (5/5) - All particle systems. |
+| 2026-01-13 | 2.8 | Audio System COMPLETE (6/6) - Web Audio API sounds. |
+| 2026-01-13 | 2.7 | Security COMPLETE - Ban persistence, URL validation, rate limiting. |
+| 2026-01-13 | 2.6 | Player kick mechanism implemented. |
+| 2026-01-13 | 2.5 | All 8 Weapons COMPLETE - Lightning, Axe, Fireball, Whip. |
+| 2026-01-13 | 2.4 | Phase 5 UI/HUD COMPLETE (12/12 tasks). |
+| 2026-01-13 | 2.3 | Phase 4 Networking COMPLETE (8/8 tasks). |

@@ -120,15 +120,16 @@ export class Game {
    */
   private async startGameConnection() {
     try {
+      // Setup network event handlers BEFORE connecting
+      // This ensures we don't miss the initial state update
+      this.setupNetworkHandlers();
+
       // Connect to server
       await this.network.connect();
       this.localPlayerId = this.network.sessionId;
       this.connected = true;
 
       console.log('[Game] Connected with player ID:', this.localPlayerId);
-
-      // Setup network event handlers
-      this.setupNetworkHandlers();
 
       // Start game loop
       this.running = true;
@@ -148,6 +149,7 @@ export class Game {
   private setupNetworkHandlers() {
     // Handle state updates from server
     this.network.onStateChange((state: SerializedGameState) => {
+      console.log('[Game] State received, players:', state.players.size);
       this.interpolator.pushState(this.convertToRenderState(state), performance.now());
     });
 
@@ -366,6 +368,11 @@ export class Game {
   private render() {
     const renderTime = performance.now() - 100; // 100ms interpolation delay
     const state = this.interpolator.getInterpolatedState(renderTime);
+
+    // Debug: log player count periodically
+    if (Math.random() < 0.01) { // ~1% of frames
+      console.log('[Game] Render state players:', state.players.size);
+    }
 
     // Update camera to follow local player
     const localPlayer = state.players.get(this.localPlayerId);

@@ -52,7 +52,7 @@ export class CombatSystem {
   }
 
   private processProjectileCollisions(gameState: GameState, spatialHash: SpatialHash): void {
-    Object.values(gameState.projectiles).forEach(projectile => {
+    gameState.projectiles.forEach(projectile => {
       // Skip projectiles with no remaining lifetime
       if (projectile.lifetime <= 0) return;
 
@@ -158,7 +158,8 @@ export class CombatSystem {
     });
 
     // Check if projectile should be destroyed (piercing limit reached)
-    if (projectile.hitEnemies.size >= projectile.piercing) {
+    // BUG-004 fix: Only check piercing limit if piercing > 0 (0 means unlimited)
+    if (projectile.piercing > 0 && projectile.hitEnemies.size >= projectile.piercing) {
       projectile.lifetime = 0; // Mark for cleanup
     }
   }
@@ -168,11 +169,11 @@ export class CombatSystem {
     const sourcePlayer = gameState.players.get(projectile.ownerId);
     if (!sourcePlayer) return;
 
-    // Calculate PvP damage (reduced to 15%)
-    const pvpDamage = projectile.damage * 0.15;
-    const validatedDamage = this.validateDamage(pvpDamage, 'projectile', projectile.type, 1);
+    // BUG-005 fix: Don't apply PvP damage reduction here - PlayerSchema.takeDamage() handles it
+    // Previously this was applying 0.15 multiplier, then takeDamage() applied it again (0.15 * 0.15 = 0.0225)
+    const validatedDamage = this.validateDamage(projectile.damage, 'projectile', projectile.type, 1);
 
-    // Apply damage with PvP flag
+    // Apply damage with PvP flag (takeDamage will apply PVP_DAMAGE_MULTIPLIER)
     player.takeDamage(validatedDamage, sourcePlayer.id, true);
     this.combatMetrics.totalDamageDealt += validatedDamage;
 
@@ -191,8 +192,8 @@ export class CombatSystem {
     // Increase source player hostility
     sourcePlayer.hostility = Math.min(sourcePlayer.hostility + 10, 100);
 
-    // Check if projectile piercing exceeded
-    if (projectile.hitEnemies.size >= projectile.piercing) {
+    // Check if projectile piercing exceeded (BUG-004 fix: 0 means unlimited)
+    if (projectile.piercing > 0 && projectile.hitEnemies.size >= projectile.piercing) {
       projectile.lifetime = 0;
     }
   }
@@ -223,7 +224,7 @@ export class CombatSystem {
   }
 
   private processContactDamage(gameState: GameState, spatialHash: SpatialHash, deltaTime: number): void {
-    Object.values(gameState.players).forEach(player => {
+    gameState.players.forEach(player => {
       // Skip dead or invulnerable players
       if (player.dead || player.isInvulnerable) return;
 
@@ -285,7 +286,7 @@ export class CombatSystem {
     );
 
     // Apply damage to all enemies in explosion radius
-    Object.values(gameState.enemies).forEach(enemy => {
+    gameState.enemies.forEach(enemy => {
       if (enemy.health <= 0) return;
 
       const distance = Math.sqrt((x - enemy.x) ** 2 + (y - enemy.y) ** 2);
@@ -374,7 +375,7 @@ export class CombatSystem {
     });
 
     // Handle dead players
-    Object.values(gameState.players).forEach(player => {
+    gameState.players.forEach(player => {
       if (player.health <= 0 && !player.dead) {
         player.die('combat');
         this.combatMetrics.playersKilled++;

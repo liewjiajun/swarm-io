@@ -41,7 +41,10 @@ const gameServer = new Server({
 });
 
 // Register GameRoom handler
-gameServer.define('game', GameRoom);
+// autoDispose: false prevents room from being disposed when empty (fixes "room disposed" error)
+gameServer.define('game', GameRoom, {
+  autoDispose: false
+});
 
 // Add Colyseus monitor endpoint for debugging
 app.use('/colyseus', monitor());

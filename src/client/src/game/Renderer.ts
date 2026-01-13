@@ -282,8 +282,13 @@ export class Renderer {
     const dt = this.lastRenderTime > 0 ? Math.min((now - this.lastRenderTime) / 1000, 0.1) : 0.016;
     this.lastRenderTime = now;
 
-    // Smooth camera follow
-    const lerpFactor = 0.1;
+    // Smooth camera follow - use faster lerp initially to snap to player
+    const distanceToTarget = Math.sqrt(
+      Math.pow(this.cameraTarget.x - this.camera.position.x, 2) +
+      Math.pow(this.cameraTarget.y + 20 - this.camera.position.z, 2)
+    );
+    // Use faster lerp if camera is far from target (initial positioning)
+    const lerpFactor = distanceToTarget > 50 ? 0.5 : 0.1;
     this.camera.position.x += (this.cameraTarget.x - this.camera.position.x) * lerpFactor;
     this.camera.position.z += (this.cameraTarget.y + 20 - this.camera.position.z) * lerpFactor;
     this.camera.lookAt(
@@ -335,6 +340,11 @@ export class Renderer {
       }
     });
 
+    // Debug: Log player count on first render
+    if (this.playerSprites.size === 0 && players.size > 0) {
+      console.log('[Renderer] Creating sprites for', players.size, 'players');
+    }
+
     // Update/create player sprites
     players.forEach((player, id) => {
       // For Phase 3, we assume all players are alive
@@ -342,6 +352,7 @@ export class Renderer {
 
       let sprite = this.playerSprites.get(id);
       if (!sprite) {
+        console.log('[Renderer] Creating player sprite at', player.x.toFixed(1), player.y.toFixed(1));
         sprite = this.createPlayerSprite(id === localPlayerId);
         this.playerSprites.set(id, sprite);
         this.scene.add(sprite);
@@ -365,7 +376,7 @@ export class Renderer {
       transparent: true,
     });
     const sprite = new THREE.Sprite(material);
-    sprite.scale.set(1, 1, 1);
+    sprite.scale.set(2, 2, 1); // Larger sprite for better visibility
     return sprite;
   }
 

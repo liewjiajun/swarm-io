@@ -216,7 +216,8 @@ export class NetworkClient {
           this.room = await this.client.reconnect(storedSession);
           console.log('[NetworkClient] Reconnected to room:', this.room.id);
         } catch (reconnectError) {
-          console.log('[NetworkClient] Reconnection failed, joining fresh:', reconnectError);
+          console.log('[NetworkClient] Reconnection failed, clearing stale session and joining fresh:', reconnectError);
+          localStorage.removeItem('swarm_session');
           this.room = await this.client.joinOrCreate('game');
         }
       } else {
@@ -241,16 +242,111 @@ export class NetworkClient {
     }
   }
 
+  private statePollingInterval: ReturnType<typeof setInterval> | null = null;
+
   private setupStateHandlers() {
     if (!this.room) return;
 
-    // Listen for state changes
-    this.room.onStateChange((state) => {
-      const serializedState = this.serializeState(state);
-      this.stateChangeCallbacks.forEach(cb => cb(serializedState));
+    const state = this.room.state;
+
+    // Trigger initial update with current state
+    this.triggerStateUpdate(state);
+
+    // Listen for state changes (fires on every server tick with changes)
+    this.room.onStateChange(() => {
+      this.triggerStateUpdate(state);
     });
 
+    // Set up onAdd/onRemove for future changes
+    state.players.onAdd((player: any, sessionId: string) => {
+      console.log('[NetworkClient] Player ADDED:', sessionId);
+      this.triggerStateUpdate(state);
+    });
+
+    state.players.onRemove((player: any, sessionId: string) => {
+      console.log('[NetworkClient] Player REMOVED:', sessionId);
+      this.triggerStateUpdate(state);
+    });
+
+    state.enemies.onAdd(() => this.triggerStateUpdate(state));
+    state.enemies.onRemove(() => this.triggerStateUpdate(state));
+    state.projectiles.onAdd(() => this.triggerStateUpdate(state));
+    state.projectiles.onRemove(() => this.triggerStateUpdate(state));
+    state.xpOrbs.onAdd(() => this.triggerStateUpdate(state));
+    state.xpOrbs.onRemove(() => this.triggerStateUpdate(state));
+
+    // Fallback: Poll state periodically in case onAdd/onStateChange doesn't fire
+    // This ensures we eventually get the player data even if there's a timing issue
+    this.startStatePolling(state);
+
     console.log('[NetworkClient] State handlers setup complete');
+  }
+
+  private startStatePolling(state: any) {
+    // Stop any existing polling
+    if (this.statePollingInterval) {
+      clearInterval(this.statePollingInterval);
+    }
+
+    // Poll every 100ms for the first 5 seconds after connection
+    let pollCount = 0;
+    const maxPolls = 50; // 5 seconds at 100ms intervals
+
+    this.statePollingInterval = setInterval(() => {
+      pollCount++;
+
+      // Check if we have players now
+      const playerCount = this.getPlayerCount(state);
+      if (playerCount > 0) {
+        console.log('[NetworkClient] Polling found players:', playerCount);
+        this.triggerStateUpdate(state);
+        // Stop polling once we have players
+        if (this.statePollingInterval) {
+          clearInterval(this.statePollingInterval);
+          this.statePollingInterval = null;
+        }
+        return;
+      }
+
+      // Stop polling after max attempts
+      if (pollCount >= maxPolls) {
+        console.log('[NetworkClient] State polling timed out after', pollCount, 'attempts');
+        if (this.statePollingInterval) {
+          clearInterval(this.statePollingInterval);
+          this.statePollingInterval = null;
+        }
+      }
+    }, 100);
+  }
+
+  private getPlayerCount(state: any): number {
+    // Try multiple methods to get player count
+    if (state.players?.$items instanceof Map) {
+      return state.players.$items.size;
+    }
+    if (typeof state.players?.size === 'number') {
+      return state.players.size;
+    }
+    // Try forEach to count
+    let count = 0;
+    try {
+      state.players?.forEach(() => count++);
+    } catch {
+      // Ignore errors
+    }
+    return count;
+  }
+
+  private triggerStateUpdate(state: any) {
+    const serializedState = this.serializeState(state);
+    const playerCount = serializedState.players.size;
+
+    // Only log when there's meaningful data
+    if (playerCount > 0) {
+      console.log('[NetworkClient] State update: players:', playerCount);
+    }
+
+    this.stateChangeCallbacks.forEach(cb => cb(serializedState));
   }
 
   private setupMessageHandlers() {
@@ -312,6 +408,14 @@ export class NetworkClient {
   private async handleReconnect(): Promise<void> {
     if (this.isReconnecting) return;
 
+    // Max reconnection attempts before giving up
+    const MAX_RECONNECT_ATTEMPTS = 5;
+    if (this.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+      console.error('[NetworkClient] Max reconnection attempts reached, giving up');
+      localStorage.removeItem('swarm_session');
+      throw new Error('Failed to connect after multiple attempts');
+    }
+
     this.isReconnecting = true;
 
     const delay = this.reconnectDelays[
@@ -319,7 +423,7 @@ export class NetworkClient {
     ];
 
     this.reconnectAttempts++;
-    console.log(`[NetworkClient] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
+    console.log(`[NetworkClient] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
 
     await new Promise(resolve => setTimeout(resolve, delay));
 
@@ -327,10 +431,46 @@ export class NetworkClient {
     await this.connect();
   }
 
+  /**
+   * Helper to iterate Colyseus MapSchema on client side
+   * Tries multiple methods for compatibility with Schema 2.0
+   */
+  private forEachInMap<T>(mapSchema: any, callback: (item: T, id: string) => void): void {
+    if (!mapSchema) return;
+
+    // Method 1: Try entries() - standard for Schema 2.0 MapSchema
+    if (typeof mapSchema.entries === 'function') {
+      try {
+        for (const [id, item] of mapSchema.entries()) {
+          callback(item as T, id);
+        }
+        return;
+      } catch {
+        // Fall through to next method
+      }
+    }
+
+    // Method 2: Try forEach - common MapSchema method
+    if (typeof mapSchema.forEach === 'function') {
+      try {
+        mapSchema.forEach((item: T, id: string) => callback(item, id));
+        return;
+      } catch {
+        // Fall through to next method
+      }
+    }
+
+    // Method 3: Fallback to $items internal Map
+    const items = mapSchema.$items;
+    if (items instanceof Map) {
+      items.forEach((item: T, id: string) => callback(item, id));
+    }
+  }
+
   private serializeState(state: any): SerializedGameState {
     // Convert Colyseus MapSchema to plain JavaScript Maps
     const players = new Map<string, SerializedPlayer>();
-    state.players.forEach((player: any, id: string) => {
+    this.forEachInMap(state.players, (player: any, id: string) => {
       players.set(id, {
         id: player.id,
         x: player.x,
@@ -348,7 +488,7 @@ export class NetworkClient {
         invulnerableTime: player.invulnerableTime,
         dead: player.dead,
         pendingUpgrade: player.pendingUpgrade,
-        weapons: Array.from(player.weapons || []).map((w: any) => ({
+        weapons: Array.from(player.weapons?.$items?.values() || player.weapons || []).map((w: any) => ({
           type: w.type,
           level: w.level,
         })),
@@ -356,7 +496,7 @@ export class NetworkClient {
     });
 
     const enemies = new Map<string, SerializedEnemy>();
-    state.enemies.forEach((enemy: any, id: string) => {
+    this.forEachInMap(state.enemies, (enemy: any, id: string) => {
       enemies.set(id, {
         id: enemy.id,
         type: enemy.type,
@@ -368,7 +508,7 @@ export class NetworkClient {
     });
 
     const projectiles = new Map<string, SerializedProjectile>();
-    state.projectiles.forEach((proj: any, id: string) => {
+    this.forEachInMap(state.projectiles, (proj: any, id: string) => {
       projectiles.set(id, {
         id: proj.id,
         type: proj.type,
@@ -379,7 +519,7 @@ export class NetworkClient {
     });
 
     const xpOrbs = new Map<string, SerializedXPOrb>();
-    state.xpOrbs.forEach((orb: any, id: string) => {
+    this.forEachInMap(state.xpOrbs, (orb: any, id: string) => {
       xpOrbs.set(id, {
         id: orb.id,
         x: orb.x,

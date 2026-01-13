@@ -29,7 +29,7 @@ export class WeaponSystem {
     this.spatialHash = spatialHash;
 
     // Process all living players' weapons
-    Object.values(gameState.players).forEach(player => {
+    gameState.players.forEach(player => {
       if (!player.dead && !player.pendingUpgrade) {
         this.updatePlayerWeapons(gameState, player, deltaTime);
       }
@@ -37,6 +37,9 @@ export class WeaponSystem {
   }
 
   private updatePlayerWeapons(gameState: GameState, player: PlayerSchema, deltaTime: number): void {
+    // Guard against undefined weapons (can happen during player initialization)
+    if (!player.weapons) return;
+
     // Update cooldowns and fire weapons that are ready
     player.weapons.forEach(weapon => {
       // Security validation: Ensure weapon type exists
@@ -168,7 +171,7 @@ export class WeaponSystem {
     let nearestEnemy: EnemySchema | null = null;
     let nearestDistance = Infinity;
 
-    Object.values(gameState.enemies).forEach(enemy => {
+    gameState.enemies.forEach(enemy => {
       const distance = Math.sqrt((enemy.x - player.x) ** 2 + (enemy.y - player.y) ** 2);
       if (distance < nearestDistance && distance <= config.range) {
         nearestEnemy = enemy;
@@ -261,7 +264,7 @@ export class WeaponSystem {
     const config = WEAPON_CONFIGS.garlic;
 
     // Garlic deals direct damage to all enemies within radius (no projectiles)
-    Object.values(gameState.enemies).forEach(enemy => {
+    gameState.enemies.forEach(enemy => {
       const distance = Math.sqrt((enemy.x - player.x) ** 2 + (enemy.y - player.y) ** 2);
 
       if (distance <= config.range) {

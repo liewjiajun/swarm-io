@@ -336,11 +336,24 @@ export class GameRoom extends Room<GameState> {
 
       console.log(`[GameRoom] Player ${client.sessionId} spawned at (${spawnPos.x.toFixed(1)}, ${spawnPos.y.toFixed(1)})`);
 
-      // Send welcome message
-      client.send('game_info', {
-        playerId: client.sessionId,
-        worldRadius: this.state.world.worldRadius,
-        playerCount: this.state.world.playerCount
+      // Debug: Confirm player is in state
+      console.log(`[GameRoom] Players in state after add: ${this.state.players.size}`);
+      this.state.players.forEach((p, id) => {
+        console.log(`[GameRoom] - Player ${id}: x=${p.x.toFixed(1)}, y=${p.y.toFixed(1)}`);
+      });
+
+      // Force world state to update (ensures state change is detected)
+      this.state.world.playerCount = this.state.players.size;
+
+      // Use setImmediate to send game_info AFTER the state has been broadcast
+      // This ensures the client receives the state update before the game_info message
+      setImmediate(() => {
+        client.send('game_info', {
+          playerId: client.sessionId,
+          worldRadius: this.state.world.worldRadius,
+          playerCount: this.state.world.playerCount
+        });
+        console.log(`[GameRoom] Sent game_info to ${client.sessionId} after state broadcast`);
       });
 
     } catch (error) {
@@ -419,6 +432,12 @@ export class GameRoom extends Room<GameState> {
       // Update player timers and states
       this.updatePlayerTimers(deltaTime);
 
+      // Send level_up messages to clients with pending upgrades (BUG-002 fix)
+      this.notifyLevelUps();
+
+      // Send player_died messages to clients who just died (BUG-003 fix)
+      this.notifyPlayerDeaths();
+
     } catch (error) {
       console.error('[GameRoom] Error in game loop:', error);
     }
@@ -450,7 +469,7 @@ export class GameRoom extends Room<GameState> {
     this.spatialHash.clear();
 
     // Insert all entities into spatial hash
-    Object.values(this.state.players).forEach(player => {
+    this.state.players.forEach(player => {
       if (!player.dead) {
         this.spatialHash.insert({
           id: player.id,
@@ -462,7 +481,7 @@ export class GameRoom extends Room<GameState> {
       }
     });
 
-    Object.values(this.state.enemies).forEach(enemy => {
+    this.state.enemies.forEach(enemy => {
       this.spatialHash.insert({
         id: enemy.id,
         x: enemy.x,
@@ -472,7 +491,7 @@ export class GameRoom extends Room<GameState> {
       });
     });
 
-    Object.values(this.state.projectiles).forEach(projectile => {
+    this.state.projectiles.forEach(projectile => {
       this.spatialHash.insert({
         id: projectile.id,
         x: projectile.x,
@@ -482,7 +501,7 @@ export class GameRoom extends Room<GameState> {
       });
     });
 
-    Object.values(this.state.xpOrbs).forEach(orb => {
+    this.state.xpOrbs.forEach(orb => {
       this.spatialHash.insert({
         id: orb.id,
         x: orb.x,
@@ -494,7 +513,7 @@ export class GameRoom extends Room<GameState> {
   }
 
   private updatePlayerTimers(deltaTime: number) {
-    Object.values(this.state.players).forEach(player => {
+    this.state.players.forEach(player => {
       if (!player.dead) {
         // Update time alive
         player.timeAlive += deltaTime;
@@ -504,9 +523,64 @@ export class GameRoom extends Room<GameState> {
           player.invulnerableTime = Math.max(0, player.invulnerableTime - deltaTime);
         }
 
-        // Decay hostility over time
+        // Decay hostility over time (BUG-008 fix: use constant instead of hardcoded value)
         if (player.hostility > 0) {
-          player.hostility = Math.max(0, player.hostility - deltaTime * 2); // 2 points per second
+          player.hostility = Math.max(0, player.hostility - deltaTime * GAME_CONSTANTS.HOSTILITY_DECAY_RATE);
+        }
+      }
+    });
+  }
+
+  /**
+   * Notify clients when their player has leveled up and has pending upgrade choices (BUG-002 fix)
+   */
+  private notifyLevelUps(): void {
+    this.state.players.forEach((player, playerId) => {
+      // Check if player has pending upgrade with choices that haven't been notified yet
+      if (player.pendingUpgrade && player.pendingChoices && player.pendingChoices.length > 0) {
+        const client = this.clients.find(c => c.sessionId === playerId);
+        if (client) {
+          // Send level_up message with upgrade choices
+          client.send('level_up', {
+            newLevel: player.level,
+            choices: player.pendingChoices
+          });
+
+          console.log(`[GameRoom] Sent level_up to ${playerId} with ${player.pendingChoices.length} choices`);
+
+          // Clear choices after sending to prevent re-sending
+          // Note: player.pendingUpgrade stays true until they choose an upgrade
+          player.pendingChoices = [];
+        }
+      }
+    });
+  }
+
+  /**
+   * Notify clients when their player has died (BUG-003 fix)
+   */
+  private notifyPlayerDeaths(): void {
+    this.state.players.forEach((player, playerId) => {
+      // Check if player just died (dead=true but deathTime is very recent - within last 100ms)
+      if (player.dead && player.deathTime > 0) {
+        const timeSinceDeath = Date.now() - player.deathTime;
+
+        // Only send once, right after death (within 100ms window)
+        if (timeSinceDeath < 100) {
+          const client = this.clients.find(c => c.sessionId === playerId);
+          if (client) {
+            client.send('player_died', {
+              playerId: player.id,
+              killedBy: player.killedBy || 'unknown',
+              finalScore: {
+                kills: player.kills,
+                timeAlive: player.timeAlive,
+                level: player.level
+              }
+            });
+
+            console.log(`[GameRoom] Sent player_died to ${playerId} (killed by: ${player.killedBy})`);
+          }
         }
       }
     });
@@ -591,8 +665,8 @@ export class GameRoom extends Room<GameState> {
   }
 
   private recalculateWorldSize() {
-    // Count living players
-    const playerCount = Object.keys(this.state.players).length;
+    // Count living players (use .size for MapSchema, not Object.keys)
+    const playerCount = this.state.players.size;
 
     // Update world state
     this.state.world.playerCount = playerCount;
@@ -605,9 +679,9 @@ export class GameRoom extends Room<GameState> {
   getRoomStats(): Record<string, unknown> {
     return {
       playerCount: this.state.world.playerCount,
-      enemyCount: Object.keys(this.state.enemies).length,
-      projectileCount: Object.keys(this.state.projectiles).length,
-      xpOrbCount: Object.keys(this.state.xpOrbs).length,
+      enemyCount: this.state.enemies.size,
+      projectileCount: this.state.projectiles.size,
+      xpOrbCount: this.state.xpOrbs.size,
       gameTime: this.state.world.gameTime,
       currentWave: this.state.world.currentWave,
       worldRadius: this.state.world.worldRadius,

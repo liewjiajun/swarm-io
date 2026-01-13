@@ -99,8 +99,9 @@ export class SpawnSystem {
         return;
       }
 
-      // Create boss enemy
-      gameState.addEnemy(wave.bossType, spawnPos.x, spawnPos.y);
+      // Create boss enemy and initialize with difficulty scaling
+      const boss = gameState.addEnemy(wave.bossType, spawnPos.x, spawnPos.y);
+      boss.initialize(wave.bossType, gameState.world.difficulty);
       this.bossSpawned.add(currentWave);
       this.spawnMetrics.bossesSpawned++;
       this.spawnMetrics.totalSpawned++;
@@ -161,8 +162,9 @@ export class SpawnSystem {
       return;
     }
 
-    // Create enemy
-    gameState.addEnemy(enemyType, spawnPos.x, spawnPos.y);
+    // Create enemy and initialize with difficulty scaling
+    const enemy = gameState.addEnemy(enemyType, spawnPos.x, spawnPos.y);
+    enemy.initialize(enemyType, gameState.world.difficulty);
     this.lastSpawnTime = currentTime;
     this.spawnMetrics.enemiesSpawned++;
     this.spawnMetrics.totalSpawned++;
@@ -195,7 +197,7 @@ export class SpawnSystem {
     const worldRadius = gameState.world.worldRadius;
 
     // 70% chance to spawn near a random living player
-    const livingPlayers = Object.values(gameState.players).filter(player => !player.dead);
+    const livingPlayers = Array.from(gameState.players.values()).filter(player => !player.dead);
 
     if (livingPlayers.length > 0 && Math.random() < 0.7) {
       // Spawn near random player

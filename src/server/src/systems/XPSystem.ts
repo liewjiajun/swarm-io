@@ -49,7 +49,7 @@ export class XPSystem {
   }
 
   private processOrbMagnetization(gameState: GameState, _spatialHash: SpatialHash): void {
-    Object.values(gameState.xpOrbs).forEach(orb => {
+    gameState.xpOrbs.forEach(orb => {
       // Skip already magnetized orbs
       if (orb.magnetized || orb.collected) return;
 
@@ -57,7 +57,7 @@ export class XPSystem {
       let nearestPlayer: PlayerSchema | null = null;
       let nearestDistance = Infinity;
 
-      Object.values(gameState.players).forEach(player => {
+      gameState.players.forEach(player => {
         if (player.dead) return;
 
         const distance = Math.sqrt((orb.x - player.x) ** 2 + (orb.y - player.y) ** 2);
@@ -78,7 +78,7 @@ export class XPSystem {
   }
 
   private processOrbCollection(gameState: GameState, spatialHash: SpatialHash): void {
-    Object.values(gameState.players).forEach(player => {
+    gameState.players.forEach(player => {
       if (player.dead) return;
 
       // Get nearby XP orbs
@@ -131,7 +131,7 @@ export class XPSystem {
   }
 
   private processLevelUps(gameState: GameState): void {
-    Object.values(gameState.players).forEach(player => {
+    gameState.players.forEach(player => {
       // Skip if player already has pending upgrade
       if (player.pendingUpgrade || player.dead) return;
 
@@ -156,8 +156,8 @@ export class XPSystem {
       player.level = newLevel;
       player.xpToNextLevel = getXPForLevel(newLevel + 1) - player.xp;
 
-      // Generate upgrade choices (stored in GameRoom for client requests)
-      this.generateUpgradeChoices(player);
+      // Generate upgrade choices and store them on player for client retrieval
+      player.pendingChoices = this.generateUpgradeChoices(player);
 
       // Set pending upgrade state (this will be handled by GameRoom message system)
       player.pendingUpgrade = true;
