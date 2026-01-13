@@ -3,9 +3,9 @@
 ## Current Status: Phase 5 Complete - UI/HUD System Fully Operational
 
 **Last Updated:** 2026-01-13
-**Implementation Progress:** 76/85 tasks completed (89.4%)
+**Implementation Progress:** 79/85 tasks completed (92.9%)
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
-**Next Priority:** Phase 3 Security (player kick mechanism)
+**Next Priority:** Phase 6 - Polish & Optimization
 
 ---
 
@@ -14,11 +14,11 @@
 | Metric | Value | Notes |
 |--------|-------|-------|
 | Total Tasks | 85 | Across 6 phases |
-| Completed | 76 | 89.4% |
-| Remaining | 9 | P3 priority |
+| Completed | 79 | 92.9% |
+| Remaining | 6 | Polish & optimization |
 | Blocking Issues | 0 | All critical bugs resolved |
-| Critical Path | Phase 3 Security | Player kick mechanism |
-| Est. Time to MVP | 1-2 hours | Security hardening |
+| Critical Path | Phase 6 | Polish & Optimization |
+| Est. Time to MVP | Complete | MVP is complete |
 
 ---
 
@@ -85,54 +85,17 @@
 
 ## P3: SECURITY HARDENING
 
-**Status:** 1/4 tasks complete (25%)
-**Impact:** Cheaters can flood server without consequences
-
-### Current Security Gap
-
-```typescript
-// InputSystem.ts:167-173 (CURRENT)
-// TODO: Implement player kick/ban mechanism when violations exceed threshold
-if (playerRate.violations >= this.MAX_VIOLATIONS_BEFORE_KICK) {
-  console.warn(
-    `Player ${playerId} exceeded violation threshold (${playerRate.violations}). ` +
-    'Consider implementing kick/ban mechanism.'
-  );
-}
-// BUT NO ACTUAL KICK IS PERFORMED
-```
+**Status:** 4/4 tasks complete (100%)
+**Impact:** Full security hardening with kick mechanism, ban persistence, and rate limiting
 
 ### Task List
 
 | ID | Task | File | Description | Est. LOC | Status |
 |----|------|------|-------------|----------|--------|
 | P3.1 | Implement player kick mechanism | `InputSystem.ts:167` | Kick after 5+ violations | ~25 | COMPLETE |
-| P3.2 | Add ban persistence | GameRoom.ts | Store banned IPs/sessionIds | ~40 | Pending |
-| P3.3 | WebSocket URL validation | NetworkClient.ts | Prevent arbitrary connections | ~15 | Pending |
-| P3.4 | Client-side rate limiting | NetworkClient.ts | Max 60 inputs/sec | ~20 | Pending |
-
-### Required Implementation
-
-```typescript
-// InputSystem.ts - Add kick callback
-constructor(private onKickPlayer?: (playerId: string, reason: string) => void) {}
-
-// In rate limit check:
-if (playerRate.violations >= this.MAX_VIOLATIONS_BEFORE_KICK) {
-  if (this.onKickPlayer) {
-    this.onKickPlayer(playerId, 'rate_limit_exceeded');
-  }
-}
-
-// GameRoom.ts - Wire up kick
-this.inputSystem = new InputSystem((playerId, reason) => {
-  const client = this.clients.find(c => c.sessionId === playerId);
-  if (client) {
-    client.leave(4000); // Custom close code
-    console.log(`[Security] Kicked player ${playerId}: ${reason}`);
-  }
-});
-```
+| P3.2 | Add ban persistence | GameRoom.ts | Store banned IPs/sessionIds | ~40 | COMPLETE |
+| P3.3 | WebSocket URL validation | NetworkClient.ts | Prevent arbitrary connections | ~15 | COMPLETE |
+| P3.4 | Client-side rate limiting | NetworkClient.ts | Max 60 inputs/sec | ~20 | COMPLETE |
 
 ---
 
@@ -443,6 +406,7 @@ npm run lint
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-01-13 | 2.7 | P3.2-P3.4 Security COMPLETE - Ban persistence with file storage, WebSocket URL validation, client-side rate limiting |
 | 2026-01-13 | 2.6 | P3.1 Security - Player kick mechanism implemented in InputSystem with callback to GameRoom |
 | 2026-01-13 | 2.5 | P2 Weapons COMPLETE (8/8) - Lightning, Axe, Fireball, Whip fully implemented with spatialHash integration |
 | 2026-01-13 | 2.4 | Phase 5 UI/HUD COMPLETE (12/12 tasks) - Full HUD.ts implementation with health bars, XP, weapons, leaderboard, minimap, upgrade modal, death screen |

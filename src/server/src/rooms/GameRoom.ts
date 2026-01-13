@@ -11,6 +11,8 @@ import {
 } from '../systems/index.js';
 import { GAME_CONSTANTS, randomPointOnCircle } from '@swarm-io/shared';
 import { InputMessage, UpgradeMessage } from '@swarm-io/shared';
+import * as fs from 'fs';
+import * as path from 'path';
 
 interface PlayerInput {
   dx: number;
@@ -23,6 +25,13 @@ interface ClientData {
   inputBuffer: PlayerInput[];
   lastProcessedSequence: number;
   joinTime: number;
+}
+
+interface BanEntry {
+  reason: string;
+  timestamp: number;
+  duration: number; // -1 = permanent, or milliseconds until expiry
+  violations: number;
 }
 
 export class GameRoom extends Room<GameState> {
@@ -40,6 +49,12 @@ export class GameRoom extends Room<GameState> {
   // Client management
   private clientData = new Map<string, ClientData>();
 
+  // Ban persistence (P3.2)
+  private bannedSessions = new Map<string, BanEntry>();
+  private bannedIPs = new Map<string, BanEntry>();
+  private readonly banFilePath = path.join(process.cwd(), 'data', 'bans.json');
+  private readonly DEFAULT_BAN_DURATION = 30 * 60 * 1000; // 30 minutes
+
   // Game timing
   private gameLoopInterval: Delayed | null = null;
 
@@ -48,6 +63,9 @@ export class GameRoom extends Room<GameState> {
 
     // Initialize game state
     this.setState(new GameState());
+
+    // Load persisted bans (P3.2)
+    this.loadBans();
 
     // Setup security kick callback
     this.inputSystem.setKickCallback((playerId, reason) => {
@@ -65,17 +83,203 @@ export class GameRoom extends Room<GameState> {
 
   /**
    * Kick a player from the game due to security violation
+   * Also records the ban for persistence (P3.2)
    */
   private kickPlayer(playerId: string, reason: string): void {
     const client = this.clients.find(c => c.sessionId === playerId);
     if (client) {
       console.log(`[SECURITY] Kicking player ${playerId}: ${reason}`);
 
+      // Record ban before kicking (P3.2)
+      this.banPlayer(playerId, reason, this.getClientIP(client));
+
       // Send kick notification to client before disconnecting
       client.send('kicked', { reason });
 
       // Disconnect with custom close code (4000 = kicked for security)
       client.leave(4000);
+    }
+  }
+
+  /**
+   * Get client IP address for ban tracking (P3.2)
+   */
+  private getClientIP(client: Client): string {
+    // Colyseus exposes the underlying WebSocket, which has the request info
+    const req = (client as any).req || (client as any)._req;
+    if (req) {
+      // Check for forwarded IP (behind proxy)
+      const forwarded = req.headers?.['x-forwarded-for'];
+      if (forwarded) {
+        return (typeof forwarded === 'string' ? forwarded : forwarded[0]).split(',')[0].trim();
+      }
+      // Use socket remote address
+      return req.socket?.remoteAddress || req.connection?.remoteAddress || 'unknown';
+    }
+    return 'unknown';
+  }
+
+  /**
+   * Ban a player by session and optionally by IP (P3.2)
+   */
+  private banPlayer(sessionId: string, reason: string, ip?: string): void {
+    const banEntry: BanEntry = {
+      reason,
+      timestamp: Date.now(),
+      duration: this.DEFAULT_BAN_DURATION,
+      violations: 1
+    };
+
+    // Check if already banned to accumulate violations
+    const existingBan = this.bannedSessions.get(sessionId);
+    if (existingBan) {
+      banEntry.violations = existingBan.violations + 1;
+      // Escalate ban duration with repeat offenses
+      banEntry.duration = Math.min(
+        this.DEFAULT_BAN_DURATION * Math.pow(2, banEntry.violations - 1),
+        24 * 60 * 60 * 1000 // Max 24 hours
+      );
+    }
+
+    this.bannedSessions.set(sessionId, banEntry);
+    console.log(`[SECURITY] Banned session ${sessionId} for ${banEntry.duration / 1000}s (violations: ${banEntry.violations})`);
+
+    // Also ban by IP if available
+    if (ip && ip !== 'unknown') {
+      const existingIPBan = this.bannedIPs.get(ip);
+      if (existingIPBan) {
+        banEntry.violations = Math.max(banEntry.violations, existingIPBan.violations + 1);
+        banEntry.duration = Math.min(
+          this.DEFAULT_BAN_DURATION * Math.pow(2, banEntry.violations - 1),
+          24 * 60 * 60 * 1000
+        );
+      }
+      this.bannedIPs.set(ip, { ...banEntry });
+      console.log(`[SECURITY] Banned IP ${ip} for ${banEntry.duration / 1000}s`);
+    }
+
+    // Persist bans to file
+    this.saveBans();
+  }
+
+  /**
+   * Check if a session or IP is banned (P3.2)
+   */
+  private isBanned(sessionId: string, ip?: string): { banned: boolean; reason?: string; remaining?: number } {
+    const now = Date.now();
+
+    // Check session ban
+    const sessionBan = this.bannedSessions.get(sessionId);
+    if (sessionBan) {
+      if (sessionBan.duration === -1) {
+        return { banned: true, reason: sessionBan.reason };
+      }
+      const elapsed = now - sessionBan.timestamp;
+      if (elapsed < sessionBan.duration) {
+        return { banned: true, reason: sessionBan.reason, remaining: sessionBan.duration - elapsed };
+      }
+      // Ban expired, remove it
+      this.bannedSessions.delete(sessionId);
+    }
+
+    // Check IP ban
+    if (ip && ip !== 'unknown') {
+      const ipBan = this.bannedIPs.get(ip);
+      if (ipBan) {
+        if (ipBan.duration === -1) {
+          return { banned: true, reason: ipBan.reason };
+        }
+        const elapsed = now - ipBan.timestamp;
+        if (elapsed < ipBan.duration) {
+          return { banned: true, reason: ipBan.reason, remaining: ipBan.duration - elapsed };
+        }
+        // Ban expired, remove it
+        this.bannedIPs.delete(ip);
+      }
+    }
+
+    return { banned: false };
+  }
+
+  /**
+   * Load bans from persistent storage (P3.2)
+   */
+  private loadBans(): void {
+    try {
+      if (fs.existsSync(this.banFilePath)) {
+        const data = JSON.parse(fs.readFileSync(this.banFilePath, 'utf-8'));
+
+        // Load session bans
+        if (data.sessions) {
+          for (const [id, entry] of Object.entries(data.sessions)) {
+            this.bannedSessions.set(id, entry as BanEntry);
+          }
+        }
+
+        // Load IP bans
+        if (data.ips) {
+          for (const [ip, entry] of Object.entries(data.ips)) {
+            this.bannedIPs.set(ip, entry as BanEntry);
+          }
+        }
+
+        // Clean up expired bans
+        this.cleanupExpiredBans();
+
+        console.log(`[SECURITY] Loaded ${this.bannedSessions.size} session bans, ${this.bannedIPs.size} IP bans`);
+      }
+    } catch (error) {
+      console.error('[SECURITY] Failed to load bans:', error);
+    }
+  }
+
+  /**
+   * Save bans to persistent storage (P3.2)
+   */
+  private saveBans(): void {
+    try {
+      // Ensure data directory exists
+      const dataDir = path.dirname(this.banFilePath);
+      if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir, { recursive: true });
+      }
+
+      const data = {
+        sessions: Object.fromEntries(this.bannedSessions),
+        ips: Object.fromEntries(this.bannedIPs),
+        lastUpdated: Date.now()
+      };
+
+      fs.writeFileSync(this.banFilePath, JSON.stringify(data, null, 2));
+    } catch (error) {
+      console.error('[SECURITY] Failed to save bans:', error);
+    }
+  }
+
+  /**
+   * Remove expired bans from memory (P3.2)
+   */
+  private cleanupExpiredBans(): void {
+    const now = Date.now();
+    let cleaned = 0;
+
+    for (const [id, entry] of this.bannedSessions) {
+      if (entry.duration !== -1 && now - entry.timestamp >= entry.duration) {
+        this.bannedSessions.delete(id);
+        cleaned++;
+      }
+    }
+
+    for (const [ip, entry] of this.bannedIPs) {
+      if (entry.duration !== -1 && now - entry.timestamp >= entry.duration) {
+        this.bannedIPs.delete(ip);
+        cleaned++;
+      }
+    }
+
+    if (cleaned > 0) {
+      console.log(`[SECURITY] Cleaned up ${cleaned} expired bans`);
+      this.saveBans();
     }
   }
 
@@ -97,6 +301,22 @@ export class GameRoom extends Room<GameState> {
     console.log(`[GameRoom] Player ${client.sessionId} joining...`);
 
     try {
+      // Check if player is banned (P3.2)
+      const clientIP = this.getClientIP(client);
+      const banStatus = this.isBanned(client.sessionId, clientIP);
+      if (banStatus.banned) {
+        const remaining = banStatus.remaining
+          ? ` (${Math.ceil(banStatus.remaining / 1000)}s remaining)`
+          : ' (permanent)';
+        console.log(`[SECURITY] Rejected banned player ${client.sessionId}${remaining}: ${banStatus.reason}`);
+        client.send('banned', {
+          reason: banStatus.reason,
+          remaining: banStatus.remaining
+        });
+        client.leave(4001); // Custom close code for banned
+        return;
+      }
+
       // Generate spawn position near center with some spread
       const spawnRadius = Math.min(100, this.state.world.worldRadius * 0.2);
       const spawnPos = randomPointOnCircle(spawnRadius);

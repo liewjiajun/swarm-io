@@ -1,6 +1,14 @@
 import { Client, Room } from 'colyseus.js';
 import type { PlayerInput } from '@swarm-io/shared';
 
+// P3.3: WebSocket URL validation error
+class URLValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'URLValidationError';
+  }
+}
+
 interface StateChangeCallback {
   (state: SerializedGameState): void;
 }
@@ -97,14 +105,100 @@ export class NetworkClient {
   private readonly reconnectDelays = [1000, 2000, 4000, 8000, 30000];
   private isReconnecting = false;
 
+  // P3.4: Client-side rate limiting (match server's 30 inputs/sec limit)
+  private readonly MAX_INPUTS_PER_SECOND = 30;
+  private readonly RATE_LIMIT_WINDOW = 1000; // 1 second window
+  private inputTimestamps: number[] = [];
+  private inputsDropped = 0;
+
   constructor() {
     // Connect to server - use relative URL in production, localhost in dev
     const serverUrl = import.meta.env.DEV
       ? 'ws://localhost:2567'
       : `wss://${window.location.host}`;
 
+    // P3.3: Validate WebSocket URL before connecting
+    this.validateServerUrl(serverUrl);
+
     this.client = new Client(serverUrl);
     console.log('[NetworkClient] Initialized with server URL:', serverUrl);
+  }
+
+  /**
+   * P3.3: Validate WebSocket URL for security
+   * - Ensures correct protocol (ws:// in dev, wss:// in prod)
+   * - Validates hostname matches current origin in production
+   * - Prevents connection to arbitrary servers
+   */
+  private validateServerUrl(url: string): void {
+    const isDev = import.meta.env.DEV;
+
+    // Parse the URL
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(url);
+    } catch (e) {
+      throw new URLValidationError(`Invalid WebSocket URL: ${url}`);
+    }
+
+    // Validate protocol
+    const validProtocols = isDev ? ['ws:', 'wss:'] : ['wss:'];
+    if (!validProtocols.includes(parsedUrl.protocol)) {
+      throw new URLValidationError(
+        `Invalid WebSocket protocol: ${parsedUrl.protocol}. ` +
+        `Expected: ${validProtocols.join(' or ')}`
+      );
+    }
+
+    // In development, only allow localhost connections
+    if (isDev) {
+      const allowedDevHosts = ['localhost', '127.0.0.1', '::1'];
+      if (!allowedDevHosts.includes(parsedUrl.hostname)) {
+        throw new URLValidationError(
+          `Invalid dev server hostname: ${parsedUrl.hostname}. ` +
+          `Only localhost connections allowed in development.`
+        );
+      }
+    } else {
+      // In production, validate hostname matches current origin
+      if (parsedUrl.hostname !== window.location.hostname) {
+        throw new URLValidationError(
+          `WebSocket hostname mismatch: ${parsedUrl.hostname} !== ${window.location.hostname}. ` +
+          `Cross-origin WebSocket connections are not allowed.`
+        );
+      }
+    }
+
+    console.log('[NetworkClient] URL validation passed:', url);
+  }
+
+  /**
+   * P3.4: Check if we can send an input (client-side rate limiting)
+   * Returns true if input can be sent, false if rate limited
+   */
+  private checkRateLimit(): boolean {
+    const now = Date.now();
+
+    // Remove timestamps outside the rate limit window
+    this.inputTimestamps = this.inputTimestamps.filter(
+      ts => now - ts < this.RATE_LIMIT_WINDOW
+    );
+
+    // Check if we're within limits
+    if (this.inputTimestamps.length >= this.MAX_INPUTS_PER_SECOND) {
+      this.inputsDropped++;
+      if (this.inputsDropped % 10 === 1) {
+        console.warn(
+          `[NetworkClient] Rate limited: ${this.inputsDropped} inputs dropped ` +
+          `(limit: ${this.MAX_INPUTS_PER_SECOND}/sec)`
+        );
+      }
+      return false;
+    }
+
+    // Record this input
+    this.inputTimestamps.push(now);
+    return true;
   }
 
   async connect(): Promise<void> {
@@ -184,6 +278,20 @@ export class NetworkClient {
       console.log('[NetworkClient] Respawn complete:', data);
     });
 
+    // P3.2: Handle kick/ban notifications from server
+    this.room.onMessage('kicked', (data) => {
+      console.error('[NetworkClient] Kicked from server:', data.reason);
+      localStorage.removeItem('swarm_session'); // Clear session to prevent auto-reconnect
+    });
+
+    this.room.onMessage('banned', (data) => {
+      const remaining = data.remaining
+        ? ` Time remaining: ${Math.ceil(data.remaining / 1000)}s`
+        : '';
+      console.error(`[NetworkClient] Banned from server: ${data.reason}.${remaining}`);
+      localStorage.removeItem('swarm_session'); // Clear session to prevent auto-reconnect
+    });
+
     console.log('[NetworkClient] Message handlers setup complete');
   }
 
@@ -194,7 +302,8 @@ export class NetworkClient {
       console.log('[NetworkClient] Disconnected from room, code:', code);
 
       // Only attempt reconnection for unexpected disconnects
-      if (code !== 1000 && code !== 4000) {
+      // 1000 = normal close, 4000 = kicked, 4001 = banned
+      if (code !== 1000 && code !== 4000 && code !== 4001) {
         this.handleReconnect();
       }
     });
@@ -298,6 +407,12 @@ export class NetworkClient {
 
   sendInput(input: PlayerInput) {
     if (!this.room) return;
+
+    // P3.4: Apply client-side rate limiting
+    if (!this.checkRateLimit()) {
+      return; // Input dropped due to rate limit
+    }
+
     this.room.send('input', { type: 'input', input });
   }
 
