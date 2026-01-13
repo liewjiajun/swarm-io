@@ -1,5 +1,6 @@
 import { GameState, PlayerSchema, EnemySchema } from '../state/GameState.js';
 import { WEAPON_CONFIGS } from '@swarm-io/shared';
+import { SpatialHash, SpatialEntity } from './SpatialHash.js';
 
 interface WeaponMetrics {
   totalShots: number;
@@ -16,11 +17,17 @@ export class WeaponSystem {
     securityViolations: 0
   };
 
+  // SpatialHash reference for efficient enemy queries (Lightning, Fireball)
+  private spatialHash: SpatialHash | null = null;
+
   constructor() {
     console.log('[WeaponSystem] Initialized with auto-firing weapon support');
   }
 
-  update(gameState: GameState, deltaTime: number): void {
+  update(gameState: GameState, spatialHash: SpatialHash, deltaTime: number): void {
+    // Store spatial hash reference for weapon methods
+    this.spatialHash = spatialHash;
+
     // Process all living players' weapons
     Object.values(gameState.players).forEach(player => {
       if (!player.dead && !player.pendingUpgrade) {
@@ -275,27 +282,163 @@ export class WeaponSystem {
     });
   }
 
-  // TODO: Implement remaining weapons (lightning, axe, fireball, whip)
-  // These will be added incrementally as per the implementation plan
-
+  // LIGHTNING: Random multi-target strikes to nearby enemies
   private fireLightning(gameState: GameState, player: PlayerSchema, weapon: any, damage: number): void {
-    // TODO: Implement lightning strikes to random nearby enemies
-    console.log(`[WeaponSystem] Lightning not yet implemented for player ${player.id}`);
+    const config = WEAPON_CONFIGS.lightning;
+    if (!this.spatialHash) return;
+
+    // Calculate number of strikes based on level (1-5)
+    const strikeCount = Math.min(1 + Math.floor(weapon.level / 2), 5);
+    const range = config.range * (1 + (weapon.level - 1) * 0.1);
+
+    // Query nearby enemies using spatial hash for efficiency
+    const nearbyEnemies = this.spatialHash.queryRadius(
+      player.x, player.y, range, 'enemy'
+    );
+
+    if (nearbyEnemies.length === 0) return;
+
+    // Shuffle and take strikeCount random targets
+    const shuffled = nearbyEnemies.sort(() => Math.random() - 0.5);
+    const targets = shuffled.slice(0, strikeCount);
+
+    for (const entity of targets) {
+      // Create visual lightning bolt projectile
+      gameState.addProjectile(
+        'lightning_bolt',  // type
+        player.id,         // ownerId
+        entity.x,          // x (at target position)
+        entity.y,          // y
+        0,                 // velocityX (stationary)
+        0,                 // velocityY
+        damage,            // damage
+        0.15,              // lifetime (very short for visual)
+        0.5,               // radius
+        1                  // piercing (single hit)
+      );
+
+      // Apply direct damage to target
+      entity.entity.health -= damage;
+
+      this.weaponMetrics.projectilesCreated++;
+    }
   }
 
+  // AXE: Thrown spinning axes that pierce through enemies
   private fireAxe(gameState: GameState, player: PlayerSchema, weapon: any, damage: number): void {
-    // TODO: Implement thrown spinning axe projectiles
-    console.log(`[WeaponSystem] Axe not yet implemented for player ${player.id}`);
+    const config = WEAPON_CONFIGS.axe;
+    const speed = config.projectileSpeed || 8;
+
+    // Calculate number of axes based on level (1-3)
+    const axeCount = Math.min(1 + Math.floor(weapon.level / 3), 3);
+
+    for (let i = 0; i < axeCount; i++) {
+      // Calculate spread angle for multiple axes
+      const angleOffset = (i - (axeCount - 1) / 2) * 0.5;
+      const cos = Math.cos(angleOffset);
+      const sin = Math.sin(angleOffset);
+
+      // Rotate facing direction by angle offset
+      const dirX = player.facingX * cos - player.facingY * sin;
+      const dirY = player.facingX * sin + player.facingY * cos;
+
+      gameState.addProjectile(
+        'axe_spin',        // type
+        player.id,         // ownerId
+        player.x,          // x
+        player.y,          // y
+        dirX * speed,      // velocityX
+        dirY * speed,      // velocityY
+        damage,            // damage
+        3,                 // lifetime (3 seconds)
+        0.6,               // radius
+        999                // piercing (unlimited)
+      );
+
+      this.weaponMetrics.projectilesCreated++;
+    }
   }
 
+  // FIREBALL: Targeted explosive projectile toward nearest enemy
   private fireFireball(gameState: GameState, player: PlayerSchema, weapon: any, damage: number): void {
-    // TODO: Implement exploding fireball projectiles
-    console.log(`[WeaponSystem] Fireball not yet implemented for player ${player.id}`);
+    const config = WEAPON_CONFIGS.fireball;
+    if (!this.spatialHash) return;
+
+    // Find nearest enemy within range using spatial hash
+    const nearestEnemy = this.spatialHash.queryNearestOfType(
+      player.x, player.y, 'enemy', config.range
+    );
+
+    // Default to facing direction if no enemy found
+    let dirX = player.facingX;
+    let dirY = player.facingY;
+
+    // Aim toward nearest enemy if found
+    if (nearestEnemy) {
+      const dx = nearestEnemy.x - player.x;
+      const dy = nearestEnemy.y - player.y;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      if (len > 0) {
+        dirX = dx / len;
+        dirY = dy / len;
+      }
+    }
+
+    const speed = config.projectileSpeed || 10;
+
+    gameState.addProjectile(
+      'fireball',        // type (CombatSystem handles explosion on hit)
+      player.id,         // ownerId
+      player.x,          // x
+      player.y,          // y
+      dirX * speed,      // velocityX
+      dirY * speed,      // velocityY
+      damage,            // damage
+      3,                 // lifetime (3 seconds)
+      0.5,               // radius
+      1                  // piercing (explodes on first hit)
+    );
+
+    this.weaponMetrics.projectilesCreated++;
   }
 
+  // WHIP: Wide horizontal arc attack
   private fireWhip(gameState: GameState, player: PlayerSchema, weapon: any, damage: number): void {
-    // TODO: Implement wide horizontal arc attacks
-    console.log(`[WeaponSystem] Whip not yet implemented for player ${player.id}`);
+    const config = WEAPON_CONFIGS.whip;
+
+    // Scale range and arc width with level
+    const range = config.range * (1 + (weapon.level - 1) * 0.1);
+    const arcWidth = (config.area || 4) * (1 + (weapon.level - 1) * 0.1);
+
+    // Create multiple slash projectiles in an arc pattern
+    const slashCount = 5;
+    for (let i = 0; i < slashCount; i++) {
+      // Calculate position along arc (-0.5 to 0.5)
+      const t = i / (slashCount - 1) - 0.5;
+      const angle = t * arcWidth / range;
+
+      // Rotate facing direction by arc angle
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+
+      const dirX = player.facingX * cos - player.facingY * sin;
+      const dirY = player.facingX * sin + player.facingY * cos;
+
+      gameState.addProjectile(
+        'slash',                        // type
+        player.id,                      // ownerId
+        player.x + dirX * range * 0.5,  // x (spawned along arc)
+        player.y + dirY * range * 0.5,  // y
+        0,                              // velocityX (stationary)
+        0,                              // velocityY
+        damage,                         // damage
+        0.15,                           // lifetime (very short)
+        0.5,                            // radius
+        999                             // piercing (unlimited)
+      );
+
+      this.weaponMetrics.projectilesCreated++;
+    }
   }
 
   // Utility methods for weapon calculations

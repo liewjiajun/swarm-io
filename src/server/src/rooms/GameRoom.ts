@@ -170,7 +170,7 @@ export class GameRoom extends Room<GameState> {
 
       // Update all systems in dependency order
       this.physicsSystem.update(this.state, deltaTime);
-      this.weaponSystem.update(this.state, deltaTime);
+      this.weaponSystem.update(this.state, this.spatialHash, deltaTime);
       this.combatSystem.update(this.state, this.spatialHash, deltaTime);
       this.xpSystem.update(this.state, this.spatialHash, deltaTime);
       this.spawnSystem.update(this.state, deltaTime);

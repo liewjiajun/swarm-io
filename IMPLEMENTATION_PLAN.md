@@ -3,9 +3,9 @@
 ## Current Status: Phase 5 Complete - UI/HUD System Fully Operational
 
 **Last Updated:** 2026-01-13
-**Implementation Progress:** 70/85 tasks completed (82.4%)
+**Implementation Progress:** 75/85 tasks completed (88.2%)
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
-**Next Priority:** Phase 2 Weapons (remaining 4 weapons)
+**Next Priority:** Phase 3 Security (player kick mechanism)
 
 ---
 
@@ -14,11 +14,11 @@
 | Metric | Value | Notes |
 |--------|-------|-------|
 | Total Tasks | 85 | Across 6 phases |
-| Completed | 70 | 82.4% |
-| Remaining | 15 | P2 priority |
+| Completed | 75 | 88.2% |
+| Remaining | 10 | P3 priority |
 | Blocking Issues | 0 | All critical bugs resolved |
-| Critical Path | Phase 2 Weapons | Remaining 4 weapons |
-| Est. Time to MVP | 2-3 hours | 4 weapons remaining |
+| Critical Path | Phase 3 Security | Player kick mechanism |
+| Est. Time to MVP | 1-2 hours | Security hardening |
 
 ---
 
@@ -52,188 +52,34 @@
 
 ---
 
-## P2: MISSING WEAPONS (4/8 Weapons Are Stubs)
+## P2: WEAPONS (8/8 Weapons Complete)
 
-**Status:** 4 weapons functional, 4 are stubs (console.log only) - 50% Complete
-**Impact:** Players can select these weapons but they don't function
+**Status:** All 8 weapons fully implemented - 100% Complete
+**Impact:** All weapons fully functional
 **Spec Reference:** `specs/05-weapon-combat.md:201-324` (full implementations)
 
-### Implemented Weapons (Full Functionality)
+### All Weapons (Full Functionality)
 
 | Weapon | Location | Status |
 |--------|----------|--------|
-| Knife | `WeaponSystem.ts:117-153` | COMPLETE |
-| Wand | `WeaponSystem.ts:156-206` | COMPLETE |
-| Bible | `WeaponSystem.ts:209-246` | COMPLETE |
-| Garlic | `WeaponSystem.ts:249-275` | COMPLETE |
-
-### Stub Weapons (console.log only)
-
-| Weapon | Location | Current Code |
-|--------|----------|--------------|
-| Lightning | `WeaponSystem.ts:280-283` | `console.log('[WeaponSystem] Lightning not yet implemented...')` |
-| Axe | `WeaponSystem.ts:285-288` | `console.log('[WeaponSystem] Axe not yet implemented...')` |
-| Fireball | `WeaponSystem.ts:290-293` | `console.log('[WeaponSystem] Fireball not yet implemented...')` |
-| Whip | `WeaponSystem.ts:295-298` | `console.log('[WeaponSystem] Whip not yet implemented...')` |
-
-### Pre-requisite: WeaponSystem SpatialHash Access
-
-**IMPORTANT:** The spec implementations for Lightning and Fireball use `this.spatialHash.queryRadius()` and `this.spatialHash.queryNearestOfType()`, but the current WeaponSystem does not have access to spatialHash.
-
-**Current Code (WeaponSystem.ts):**
-- Constructor takes no parameters
-- `update()` method receives `gameState` but NOT `spatialHash`
-
-**Required Fix Options:**
-
-**Option 1: Pass spatialHash to update() method:**
-```typescript
-// In GameRoom.ts game loop, change:
-this.weaponSystem.update(this.state, dt);
-// To:
-this.weaponSystem.update(this.state, dt, this.spatialHash);
-
-// And update WeaponSystem.update() signature
-update(gameState: GameState, dt: number, spatialHash: SpatialHash): void
-```
-
-**Option 2: Pass spatialHash to constructor:**
-```typescript
-constructor(private spatialHash: SpatialHash) {
-  console.log('[WeaponSystem] Initialized with auto-firing weapon support');
-}
-
-// GameRoom.ts change:
-private weaponSystem = new WeaponSystem(this.spatialHash);
-```
+| Knife | `WeaponSystem.ts` | COMPLETE |
+| Wand | `WeaponSystem.ts` | COMPLETE |
+| Bible | `WeaponSystem.ts` | COMPLETE |
+| Garlic | `WeaponSystem.ts` | COMPLETE |
+| Lightning | `WeaponSystem.ts` | COMPLETE |
+| Axe | `WeaponSystem.ts` | COMPLETE |
+| Fireball | `WeaponSystem.ts` | COMPLETE |
+| Whip | `WeaponSystem.ts` | COMPLETE |
 
 ### Task List
 
-| ID | Task | Spec Lines | Est. LOC | Complexity | Notes |
-|----|------|------------|----------|------------|-------|
-| P2.0 | Add spatialHash access to WeaponSystem | N/A | ~10 | Low | Required for Lightning/Fireball |
-| P2.1 | Implement `fireLightning()` | 201-231 | ~30 | Medium | Needs spatialHash.queryRadius |
-| P2.2 | Implement `fireAxe()` | 233-259 | ~30 | Low | No spatialHash needed |
-| P2.3 | Implement `fireFireball()` | 261-292 | ~35 | Medium | Needs spatialHash.queryNearestOfType |
-| P2.4 | Implement `fireWhip()` | 294-324 | ~25 | Low | No spatialHash needed |
-
-### Weapon Implementations from Spec
-
-#### Lightning (Random Multi-Target Strikes) - NEEDS spatialHash
-```typescript
-private fireLightning(gameState: GameState, player: PlayerSchema, weapon: any, damage: number): void {
-  const config = WEAPON_CONFIGS.lightning;
-  const strikeCount = Math.min(1 + Math.floor(weapon.level / 2), 5);
-  const range = config.range * (1 + (weapon.level - 1) * 0.1);
-
-  const nearbyEnemies = this.spatialHash.queryRadius(
-    player.x, player.y, range, 'enemy'
-  );
-
-  // Shuffle and take strikeCount random targets
-  const shuffled = nearbyEnemies.sort(() => Math.random() - 0.5);
-  const targets = shuffled.slice(0, strikeCount);
-
-  for (const entity of targets) {
-    // Create visual lightning bolt
-    gameState.addProjectile(
-      'lightning_bolt', player.id,
-      entity.x, entity.y,
-      0, 0, damage,
-      0.1, 0.5, 1
-    );
-    // Direct damage
-    entity.entity.health -= damage;
-  }
-}
-```
-
-#### Axe (Piercing Boomerang Pattern)
-```typescript
-private fireAxe(gameState: GameState, player: PlayerSchema, weapon: any, damage: number): void {
-  const config = WEAPON_CONFIGS.axe;
-  const speed = config.projectileSpeed || 8;
-  const axeCount = Math.min(1 + Math.floor(weapon.level / 3), 3);
-
-  for (let i = 0; i < axeCount; i++) {
-    const angleOffset = (i - (axeCount - 1) / 2) * 0.5;
-    const cos = Math.cos(angleOffset);
-    const sin = Math.sin(angleOffset);
-
-    const dirX = player.facingX * cos - player.facingY * sin;
-    const dirY = player.facingX * sin + player.facingY * cos;
-
-    gameState.addProjectile(
-      'axe_spin', player.id,
-      player.x, player.y,
-      dirX * speed, dirY * speed,
-      damage, 3, 0.6, 999 // 3s lifetime, unlimited piercing
-    );
-  }
-}
-```
-
-#### Fireball (Targeted Explosive) - NEEDS spatialHash
-```typescript
-private fireFireball(gameState: GameState, player: PlayerSchema, weapon: any, damage: number): void {
-  const config = WEAPON_CONFIGS.fireball;
-
-  // Find nearest enemy
-  const nearestEnemy = this.spatialHash.queryNearestOfType(
-    player.x, player.y, 'enemy', config.range
-  );
-
-  let dirX = player.facingX;
-  let dirY = player.facingY;
-
-  if (nearestEnemy) {
-    const dx = nearestEnemy.x - player.x;
-    const dy = nearestEnemy.y - player.y;
-    const len = Math.sqrt(dx * dx + dy * dy);
-    dirX = dx / len;
-    dirY = dy / len;
-  }
-
-  const speed = config.projectileSpeed || 10;
-
-  gameState.addProjectile(
-    'fireball', player.id,
-    player.x, player.y,
-    dirX * speed, dirY * speed,
-    damage, 3, 0.5, 1 // Explodes on first hit
-  );
-  // Note: CombatSystem.handleFireballExplosion() handles the AOE
-}
-```
-
-#### Whip (Wide Horizontal Arc)
-```typescript
-private fireWhip(gameState: GameState, player: PlayerSchema, weapon: any, damage: number): void {
-  const config = WEAPON_CONFIGS.whip;
-  const range = config.range * (1 + (weapon.level - 1) * 0.1);
-  const arcWidth = (config.area || 4) * (1 + (weapon.level - 1) * 0.1);
-
-  const slashCount = 5;
-  for (let i = 0; i < slashCount; i++) {
-    const t = i / (slashCount - 1) - 0.5; // -0.5 to 0.5
-    const angle = t * arcWidth / range;
-
-    const cos = Math.cos(angle);
-    const sin = Math.sin(angle);
-
-    const dirX = player.facingX * cos - player.facingY * sin;
-    const dirY = player.facingX * sin + player.facingY * cos;
-
-    gameState.addProjectile(
-      'slash', player.id,
-      player.x + dirX * range * 0.5,
-      player.y + dirY * range * 0.5,
-      0, 0, damage,
-      0.15, 0.5, 999 // Short lifetime, unlimited piercing
-    );
-  }
-}
-```
+| ID | Task | Spec Lines | Est. LOC | Complexity | Status |
+|----|------|------------|----------|------------|--------|
+| P2.0 | Add spatialHash access to WeaponSystem | N/A | ~10 | Low | COMPLETE |
+| P2.1 | Implement `fireLightning()` | 201-231 | ~30 | Medium | COMPLETE |
+| P2.2 | Implement `fireAxe()` | 233-259 | ~30 | Low | COMPLETE |
+| P2.3 | Implement `fireFireball()` | 261-292 | ~35 | Medium | COMPLETE |
+| P2.4 | Implement `fireWhip()` | 294-324 | ~25 | Low | COMPLETE |
 
 ---
 
@@ -513,10 +359,6 @@ const nearestPlayer = spatialHash.queryNearestOfType(x, y, 'player', maxRange);
 
 | ID | Issue | Location | Severity | Status |
 |----|-------|----------|----------|--------|
-| STUB-001 | Lightning weapon stub | `WeaponSystem.ts:280-283` | Medium | Open |
-| STUB-002 | Axe weapon stub | `WeaponSystem.ts:285-288` | Medium | Open |
-| STUB-003 | Fireball weapon stub | `WeaponSystem.ts:290-293` | Medium | Open |
-| STUB-004 | Whip weapon stub | `WeaponSystem.ts:295-298` | Medium | Open |
 | SEC-001 | Player kick not enforced | `InputSystem.ts:167-173` | Low | Open |
 | TEST-001 | No unit tests exist | N/A | Low | Open |
 | DESIGN-001 | Garlic creates unused explosion projectiles | `WeaponSystem.ts:259-274` | Info | Won't Fix |
@@ -565,7 +407,7 @@ const nearestPlayer = spatialHash.queryNearestOfType(x, y, 'player', maxRange);
 
 ### Post-MVP Enhancements
 
-- [ ] All 8 weapons functional
+- [x] All 8 weapons functional
 - [ ] Full HUD implementation
 - [ ] Audio system
 - [ ] Visual effects
@@ -602,6 +444,7 @@ npm run lint
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-01-13 | 2.5 | P2 Weapons COMPLETE (8/8) - Lightning, Axe, Fireball, Whip fully implemented with spatialHash integration |
 | 2026-01-13 | 2.4 | Phase 5 UI/HUD COMPLETE (12/12 tasks) - Full HUD.ts implementation with health bars, XP, weapons, leaderboard, minimap, upgrade modal, death screen |
 | 2026-01-13 | 2.3 | Phase 4 Networking COMPLETE (8/8 tasks) - NetworkClient.ts created with full implementation |
 | 2026-01-13 | 2.3 | P0 Bug RESOLVED - PhysicsSystem constructor in GameRoom.ts:34 fixed |
