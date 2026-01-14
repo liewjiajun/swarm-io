@@ -582,6 +582,7 @@ export class HUD {
         cursor: pointer;
         z-index: 150;
         transition: all 0.2s ease;
+        pointer-events: auto; /* BUG-021 FIX: Override parent #ui pointer-events: none */
       }
 
       .settings-btn:hover {

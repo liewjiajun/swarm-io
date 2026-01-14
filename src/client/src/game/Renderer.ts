@@ -167,13 +167,18 @@ export class Renderer {
   }
 
   private createEntityPools() {
-    // Enemy pool (start with bat type, will create others as needed)
-    this.createEnemyPool('bat', 0xff6b6b, 500);
-    this.createEnemyPool('skeleton', 0xcccccc, 200);
-    this.createEnemyPool('zombie', 0x4ecdc4, 200);
-    this.createEnemyPool('ghost', 0xaaaaff, 100);
-    this.createEnemyPool('slime', 0x95e1d3, 100);
-    this.createEnemyPool('demon', 0xff0000, 50);
+    // BUG-022 FIX: More distinct enemy colors for visual differentiation
+    // Enemy pools - each type has a unique, distinguishable color
+    this.createEnemyPool('bat', 0x8b4513, 500);         // Brown - small flying pest
+    this.createEnemyPool('skeleton', 0xffffff, 200);    // White - bone color
+    this.createEnemyPool('zombie', 0x228b22, 200);      // Forest green - undead rot
+    this.createEnemyPool('ghost', 0x87ceeb, 100);       // Sky blue - ethereal
+    this.createEnemyPool('slime', 0x32cd32, 100);       // Lime green - acidic
+    this.createEnemyPool('demon', 0xff4500, 50);        // Orange-red - hellfire
+    // Boss enemies - larger and more intimidating colors
+    this.createEnemyPool('boss_slime', 0x00ff00, 10);   // Bright green - giant slime
+    this.createEnemyPool('boss_skeleton', 0xffd700, 10); // Gold - skeleton king
+    this.createEnemyPool('boss_demon', 0x8b0000, 10);   // Dark red - demon lord
 
     // Projectile pool - High detail (8x8 segments = 128 triangles per sphere)
     const projGeometry = new THREE.SphereGeometry(0.5, 8, 8); // Larger for visibility
@@ -424,7 +429,10 @@ export class Renderer {
         // Reset dummy transform
         this.dummy.position.set(enemy.x, 1.0, enemy.y);
         this.dummy.rotation.set(0, 0, 0);
-        this.dummy.scale.set(1.5, 1.5, 1.5); // Larger scale for visibility
+        // BUG-022 FIX: Scale bosses larger for visual distinction
+        const isBoss = type.startsWith('boss_');
+        const scale = isBoss ? 3.0 : 1.5;
+        this.dummy.scale.set(scale, scale, scale);
         this.dummy.updateMatrix();
         mesh!.setMatrixAt(index, this.dummy.matrix);
       });

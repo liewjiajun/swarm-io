@@ -40,29 +40,33 @@
 **Root Cause:** CombatSystem was tracking enemiesKilled in its own metrics but never incremented the PLAYER's kills counter. No code was crediting the player who killed the enemy.
 **Fix:** Added lastDamagedBy field to EnemySchema. Set it in processProjectileHit() when damage is applied. In processDeadEntities(), look up the killer by lastDamagedBy and increment their kills counter.
 
-### BUG-019: Console Log Spam (Performance) [MEDIUM]
-**Status:** NOT FIXED
+### BUG-019: Console Log Spam (Performance) [MEDIUM] ✅ FIXED
+**Status:** FIXED
 **Symptoms:** 10,000+ "[Game] State received, players: 1" messages flood the console.
 **Impact:** Performance degradation, makes debugging difficult.
-**Fix Needed:** Remove or throttle the log in Game.ts:119
+**Root Cause:** Game.ts was logging every state update at line 157, firing 60+ times per second
+**Fix:** Removed the high-frequency log in setupNetworkHandlers() and the periodic render log
 
-### BUG-020: Player Died Event Fires Multiple Times [MEDIUM]
-**Status:** NOT FIXED
+### BUG-020: Player Died Event Fires Multiple Times [MEDIUM] ✅ FIXED
+**Status:** FIXED
 **Symptoms:** Console shows duplicate "Player died" and "Local player died" messages.
 **Impact:** Could cause issues with death handling, multiple death screens, etc.
-**Investigation Needed:** Check for duplicate callback registration in Game.ts
+**Root Cause:** notifyPlayerDeaths() could send the player_died message multiple times within the 100ms window since the game loop runs at 60Hz (~6 ticks in 100ms)
+**Fix:** Clear player.deathTime = 0 after sending the notification to prevent duplicate messages
 
-### BUG-021: Settings Button Non-Functional [LOW]
-**Status:** NOT FIXED
+### BUG-021: Settings Button Non-Functional [LOW] ✅ FIXED
+**Status:** FIXED
 **Symptoms:** Clicking the settings gear icon in top-right does nothing.
 **Impact:** No way to access game settings (if any exist).
-**Fix Needed:** Either implement settings menu or remove the button
+**Root Cause:** Same pointer-events inheritance issue - settings-btn is a fixed element outside .hud and inherited pointer-events: none from #ui
+**Fix:** Added pointer-events: auto to .settings-btn CSS
 
-### BUG-022: All Enemies Look Identical [MEDIUM]
-**Status:** NOT FIXED
+### BUG-022: All Enemies Look Identical [MEDIUM] ✅ FIXED
+**Status:** FIXED
 **Symptoms:** All enemy types (bat, skeleton, zombie, ghost, slime, demon) render as identical red/pink squares.
 **Impact:** Players cannot distinguish enemy types or their threat levels.
-**Fix Needed:** Different colors or shapes per enemy type in Renderer.ts
+**Root Cause:** While enemy pools had different colors, they may not have been distinct enough. Also boss types didn't have predefined pools.
+**Fix:** Updated enemy colors to be more visually distinct (bat=brown, skeleton=white, zombie=forest green, ghost=sky blue, slime=lime green, demon=orange-red). Added boss pools with unique colors and increased scale (3x vs 1.5x).
 
 ### FEATURE-001: Replace Placeholder Art & Audio [HIGH PRIORITY]
 **Status:** NOT STARTED
@@ -100,8 +104,8 @@
 | Completed | 104 | 122.4% (all phases complete) |
 | Critical Bugs | 0 | All resolved |
 | High Bugs | 0 | All resolved |
-| Medium Bugs | 3 | BUG-019 (console spam), BUG-020 (duplicate events), BUG-022 (enemy visuals) |
-| Low Bugs | 1 | BUG-021 (settings button) |
+| Medium Bugs | 0 | All resolved |
+| Low Bugs | 0 | All resolved |
 | Test Gaps | 0 | All systems have tests |
 | Code Quality | 0 issues | All quality issues resolved |
 | Polish Needed | HIGH | Placeholder art & audio need replacement |
@@ -422,6 +426,7 @@ npm run test
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-01-14 | 2.37 | BUG-019/020/021/022 FIX - Removed console log spam, fixed duplicate death events by clearing deathTime after notification, fixed settings button pointer-events, improved enemy visual differentiation with distinct colors per type and larger boss scaling. |
 | 2026-01-14 | 2.36 | BUG-017 and BUG-018 FIX - Fixed projectile visual sizes in Renderer.ts with type-based sizing. Fixed kill counter by adding lastDamagedBy tracking to EnemySchema and crediting the killing player in CombatSystem.processDeadEntities(). |
 | 2026-01-14 | 2.35 | BUG-015 and BUG-016 FIX - Fixed pointer-events inheritance issue in HUD overlays. All overlays (death-screen, upgrade-modal, settings-modal, pause-overlay) now properly set pointer-events: auto to override parent #ui's pointer-events: none. Also fixed SpawnSystem test mock to use Map instead of plain object for enemies collection. Both critical gameplay bugs (respawn button not working, level up modal not showing) are now resolved. |
 | 2026-01-14 | 2.34 | CRITICAL: COLYSEUS STATE SYNC FIX (BUG-012) - Fixed complete state synchronization failure where clients received empty state (0 bytes). Root cause: TypeScript's `useDefineForClassFields: true` (ES2022 default) created own properties that shadowed Colyseus's getter/setter descriptors for change tracking. Fix: Added `useDefineForClassFields: false` to tsconfig.base.json. Converted all 7 schema files from @type decorators to defineTypes() with constructor initialization pattern. Players now render correctly. |

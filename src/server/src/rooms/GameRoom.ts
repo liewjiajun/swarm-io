@@ -572,6 +572,10 @@ export class GameRoom extends Room<GameState> {
             });
 
             console.log(`[GameRoom] Sent player_died to ${playerId} (killed by: ${player.killedBy})`);
+
+            // BUG-020 FIX: Clear deathTime after sending notification to prevent duplicates
+            // Previously this could fire multiple times within the 100ms window
+            player.deathTime = 0;
           }
         }
       }

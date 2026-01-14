@@ -154,7 +154,7 @@ export class Game {
   private setupNetworkHandlers() {
     // Handle state updates from server
     this.network.onStateChange((state: SerializedGameState) => {
-      console.log('[Game] State received, players:', state.players.size);
+      // BUG-019 FIX: Removed high-frequency log that was causing 10,000+ messages
       this.interpolator.pushState(this.convertToRenderState(state), performance.now());
     });
 
@@ -378,11 +378,6 @@ export class Game {
   private render() {
     const renderTime = performance.now() - 100; // 100ms interpolation delay
     const state = this.interpolator.getInterpolatedState(renderTime);
-
-    // Debug: log player count periodically
-    if (Math.random() < 0.01) { // ~1% of frames
-      console.log('[Game] Render state players:', state.players.size);
-    }
 
     // Update camera to follow local player
     const localPlayer = state.players.get(this.localPlayerId);
