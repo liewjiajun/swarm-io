@@ -1,12 +1,12 @@
 # SWARM.IO Implementation Plan
 
-## Current Status: Phase 6 Complete - All Quality Issues Resolved
+## Current Status: Phase 6 Complete - Visual/Audio Polish Applied
 
 **Last Updated:** 2026-01-14
-**Implementation Progress:** 104/85 tasks completed (122.4%)
+**Implementation Progress:** 109/85 tasks completed (128.2%)
 **Test Count:** 440 tests (357 server + 73 shared + 10 client)
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
-**Next Priority:** Fix critical gameplay bugs and improve game polish
+**Next Priority:** Replace placeholder art with proper 2D sprites or load external audio assets (FEATURE-001 remaining)
 
 ---
 
@@ -69,16 +69,25 @@
 **Fix:** Updated enemy colors to be more visually distinct (bat=brown, skeleton=white, zombie=forest green, ghost=sky blue, slime=lime green, demon=orange-red). Added boss pools with unique colors and increased scale (3x vs 1.5x).
 
 ### FEATURE-001: Replace Placeholder Art & Audio [HIGH PRIORITY]
-**Status:** NOT STARTED
-**Requirements:**
-- **Visuals:** Replace colored cubes with proper 2D sprites or 3D models
+**Status:** PARTIALLY COMPLETE (Procedural Polish Applied)
+**Progress:** Visual/audio polish improvements implemented without external assets
+
+**✅ Completed Procedural Polish (No External Assets Required):**
+- **Per-weapon projectile colors:** Each weapon type has distinct colored projectiles (knife=silver, wand=purple, bible=gold, lightning=cyan, axe=brown, fireball=orange, whip=dark red, garlic=light green)
+- **Projectile rotation animations:** Spinning effects for axe (fast), bible orbs (medium), fireballs (medium), demon fireballs
+- **Audio pitch variation:** ±8% random pitch variation on all synthesized sounds to prevent repetition fatigue
+- **Distinct enemy geometry shapes:** Each enemy type has unique geometry (bat=pyramid, skeleton=tall box, zombie=wide box, ghost=octahedron, slime=icosahedron, demon=cone)
+- **Boss pulsing animation:** Breathing/pulsing scale effect on all boss enemies for intimidating presence
+
+**🔲 Remaining (Requires External Assets):**
+- **Visuals:** Replace procedural shapes with proper 2D sprites or 3D models
   - Player character with animations (idle, walk, attack)
   - Enemy sprites for each type (bat, skeleton, zombie, ghost, slime, demon)
   - Weapon projectile effects
   - XP orb visual effects
   - Death/damage effects
   - Background/arena visuals
-- **Audio:** Add sound effects and music
+- **Audio:** Replace synthesized sounds with recorded audio files
   - Background music (looping)
   - Weapon firing sounds (per weapon type)
   - Enemy hit/death sounds
@@ -426,6 +435,7 @@ npm run test
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-01-14 | 2.40 | VISUAL/AUDIO POLISH - Partial FEATURE-001 implementation with procedural improvements (no external assets required). Added per-weapon projectile colors (8 distinct colors), projectile rotation animations (spinning axe/bible/fireball), audio pitch variation (±8% random to prevent repetition fatigue), distinct enemy geometry shapes (bat=pyramid, skeleton=tall box, zombie=wide box, ghost=octahedron, slime=icosahedron, demon=cone), boss pulsing animation (breathing effect). All 440 tests passing. Git tag 0.4.8 created. |
 | 2026-01-14 | 2.39 | TYPE SAFETY & CORS - Updated shared types to match Colyseus schemas (PlayerState: added dead/pendingUpgrade/armor/magnetRange, changed facing to facingX/facingY, changed invulnerable to invulnerableTime). Removed all `any` types from Interpolator.ts. Made CORS origin configurable via CORS_ORIGIN env variable. Git tag 0.4.7 created. |
 | 2026-01-14 | 2.38 | LINT CLEANUP - Fixed 6 unused variable warnings. Prefixed filter functions in GameState.ts with underscore (deferred @filterChildren support). Prefixed debug counters in Renderer.ts. Removed unused filterChildren import. All 440 tests passing. Git tag 0.4.6 created. |
 | 2026-01-14 | 2.37 | BUG-019/020/021/022 FIX - Removed console log spam, fixed duplicate death events by clearing deathTime after notification, fixed settings button pointer-events, improved enemy visual differentiation with distinct colors per type and larger boss scaling. |

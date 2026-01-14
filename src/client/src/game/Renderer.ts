@@ -181,8 +181,9 @@ export class Renderer {
     this.createEnemyPool('boss_demon', 0x8b0000, 10);   // Dark red - demon lord
 
     // Projectile pool - High detail (8x8 segments = 128 triangles per sphere)
+    // Uses per-instance colors for weapon-specific projectile colors
     const projGeometry = new THREE.SphereGeometry(0.5, 8, 8); // Larger for visibility
-    const projMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+    const projMaterial = new THREE.MeshBasicMaterial({ vertexColors: false });
     this.projectileMesh = new THREE.InstancedMesh(projGeometry, projMaterial, 1000);
     this.projectileMesh.count = 0;
     this.projectileMesh.frustumCulled = false;
@@ -190,7 +191,8 @@ export class Renderer {
 
     // Projectile pool - LOD (4x4 segments = 32 triangles per sphere, 75% reduction)
     const projGeometryLOD = new THREE.SphereGeometry(0.5, 4, 4);
-    this.projectileMeshLOD = new THREE.InstancedMesh(projGeometryLOD, projMaterial, 1000);
+    const projMaterialLOD = new THREE.MeshBasicMaterial({ vertexColors: false });
+    this.projectileMeshLOD = new THREE.InstancedMesh(projGeometryLOD, projMaterialLOD, 1000);
     this.projectileMeshLOD.count = 0;
     this.projectileMeshLOD.frustumCulled = false;
     this.scene.add(this.projectileMeshLOD);
@@ -223,9 +225,41 @@ export class Renderer {
     this.scene.add(this.particleMesh);
   }
 
+  /**
+   * Get distinct geometry for each enemy type
+   * Different shapes help players quickly identify enemy types
+   */
+  private getEnemyGeometry(type: string): THREE.BufferGeometry {
+    const baseType = type.replace('boss_', ''); // Bosses use same shape as regular enemies
+
+    switch (baseType) {
+      case 'bat':
+        // Small pyramid shape - fast, agile flying pest
+        return new THREE.ConeGeometry(0.8, 1.2, 4);
+      case 'skeleton':
+        // Tall narrow box - humanoid skeletal form
+        return new THREE.BoxGeometry(1.0, 2.0, 1.0);
+      case 'zombie':
+        // Wide bulky box - slow shambling tank
+        return new THREE.BoxGeometry(1.8, 1.5, 1.4);
+      case 'ghost':
+        // Octahedron - ethereal floating diamond shape
+        return new THREE.OctahedronGeometry(1.0);
+      case 'slime':
+        // Low-poly sphere - blobby bouncy creature
+        return new THREE.IcosahedronGeometry(0.9, 0);
+      case 'demon':
+        // Inverted cone - menacing horned appearance
+        return new THREE.ConeGeometry(1.0, 1.8, 6);
+      default:
+        // Fallback to basic cube
+        return new THREE.BoxGeometry(1.5, 1.5, 1.5);
+    }
+  }
+
   private createEnemyPool(type: string, color: number, maxCount: number) {
-    // Use larger geometry and BasicMaterial for better visibility
-    const geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5);
+    // Use type-specific geometry for visual variety
+    const geometry = this.getEnemyGeometry(type);
     const material = new THREE.MeshBasicMaterial({ color });
     const mesh = new THREE.InstancedMesh(geometry, material, maxCount);
     mesh.count = 0;
@@ -426,13 +460,25 @@ export class Renderer {
 
       mesh.count = typeEnemies.length;
 
+      const time = Date.now() / 1000; // Current time for animations
+
       typeEnemies.forEach((enemy, index) => {
         // Reset dummy transform
         this.dummy.position.set(enemy.x, 1.0, enemy.y);
         this.dummy.rotation.set(0, 0, 0);
+
         // BUG-022 FIX: Scale bosses larger for visual distinction
         const isBoss = type.startsWith('boss_');
-        const scale = isBoss ? 3.0 : 1.5;
+        let scale = isBoss ? 3.0 : 1.5;
+
+        // Boss pulsing animation - breathing effect for intimidating presence
+        if (isBoss) {
+          // Use enemy position for unique phase offset
+          const pulseOffset = enemy.x * 0.1 + enemy.y * 0.1;
+          const pulse = 1 + Math.sin((time + pulseOffset) * 2) * 0.08;
+          scale *= pulse;
+        }
+
         this.dummy.scale.set(scale, scale, scale);
         this.dummy.updateMatrix();
         mesh!.setMatrixAt(index, this.dummy.matrix);
@@ -458,40 +504,102 @@ export class Renderer {
     demon_fireball: 0.6,  // Enemy fireball - medium projectile
   };
 
+  // Per-weapon projectile colors for visual distinction
+  private static readonly PROJECTILE_COLORS: Record<string, number> = {
+    slash: 0xc0c0c0,      // Silver - knife slashes
+    bullet: 0x9b59b6,     // Purple - magic wand
+    orb: 0xffd700,        // Gold - bible orbs
+    lightning_bolt: 0x00ffff, // Cyan - lightning bolts
+    axe_spin: 0x8b4513,   // Brown - wooden axe handle
+    fireball: 0xff4500,   // Orange-red - fireball
+    explosion: 0xff6600,  // Orange - explosion
+    whip_strike: 0xa52a2a, // Dark red - whip
+    garlic_aura: 0x90ee90, // Light green - garlic
+    demon_fireball: 0xff0000, // Red - enemy fireball
+  };
+
+  // Projectile rotation speeds (radians per second) - 0 means no rotation
+  private static readonly PROJECTILE_ROTATION_SPEEDS: Record<string, number> = {
+    slash: 0,             // No rotation - quick arc
+    bullet: 0,            // No rotation - flies straight
+    orb: 2.0,             // Slow spin - bible orb
+    lightning_bolt: 0,    // No rotation - bolt shape
+    axe_spin: 15.0,       // Fast spin - spinning axe
+    fireball: 3.0,        // Medium spin - tumbling fireball
+    explosion: 0,         // No rotation - expanding
+    whip_strike: 0,       // No rotation - arc
+    garlic_aura: 1.0,     // Slow spin - aura effect
+    demon_fireball: 5.0,  // Medium-fast spin - tumbling
+  };
+
   private getProjectileVisualSize(type: string): number {
     return Renderer.PROJECTILE_VISUAL_SIZES[type] || 0.5; // Default 0.5 for unknown types
+  }
+
+  private getProjectileColor(type: string): number {
+    return Renderer.PROJECTILE_COLORS[type] || 0xffff00; // Default yellow for unknown types
+  }
+
+  private getProjectileRotationSpeed(type: string): number {
+    return Renderer.PROJECTILE_ROTATION_SPEEDS[type] || 0; // Default no rotation
   }
 
   private updateProjectiles(projectiles: Map<string, ProjectileState>) {
     // Filter and sort projectiles with frustum culling and LOD
     let indexHi = 0;  // High detail (close to camera)
     let indexLo = 0;  // Low detail (far from camera)
+    const time = Date.now() / 1000; // Current time in seconds for animation
 
     projectiles.forEach(projectile => {
       // Skip projectiles outside view
       if (!this.isInView(projectile.x, projectile.y, projectile.radius)) return;
 
       this.dummy.position.set(projectile.x, 1.0, projectile.y);
-      this.dummy.rotation.set(0, 0, 0);
+
+      // Apply rotation animation based on projectile type
+      const rotationSpeed = this.getProjectileRotationSpeed(projectile.type);
+      if (rotationSpeed > 0) {
+        // Use position-based offset for unique rotation per projectile
+        const rotationOffset = (projectile.x + projectile.y) * 0.5;
+        const rotation = (time + rotationOffset) * rotationSpeed;
+        // Spin around Y axis (vertical) for top-down view
+        this.dummy.rotation.set(0, rotation, rotation * 0.3);
+      } else {
+        this.dummy.rotation.set(0, 0, 0);
+      }
+
       // BUG-017 FIX: Use type-based visual size instead of collision radius
       const visualSize = this.getProjectileVisualSize(projectile.type);
       this.dummy.scale.setScalar(visualSize);
       this.dummy.updateMatrix();
 
+      // Get per-weapon color
+      const color = this.getProjectileColor(projectile.type);
+      this.tempColor.setHex(color);
+
       // Use LOD based on distance from camera center
       if (this.shouldUseLOD(projectile.x, projectile.y)) {
         this.projectileMeshLOD.setMatrixAt(indexLo, this.dummy.matrix);
+        this.projectileMeshLOD.setColorAt(indexLo, this.tempColor);
         indexLo++;
       } else {
         this.projectileMesh.setMatrixAt(indexHi, this.dummy.matrix);
+        this.projectileMesh.setColorAt(indexHi, this.tempColor);
         indexHi++;
       }
     });
 
     this.projectileMesh.count = indexHi;
     this.projectileMesh.instanceMatrix.needsUpdate = true;
+    if (this.projectileMesh.instanceColor) {
+      this.projectileMesh.instanceColor.needsUpdate = true;
+    }
+
     this.projectileMeshLOD.count = indexLo;
     this.projectileMeshLOD.instanceMatrix.needsUpdate = true;
+    if (this.projectileMeshLOD.instanceColor) {
+      this.projectileMeshLOD.instanceColor.needsUpdate = true;
+    }
   }
 
   private updateXPOrbs(orbs: Map<string, XPOrbState>) {

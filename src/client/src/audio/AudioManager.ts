@@ -115,8 +115,21 @@ export class AudioManager {
     sounds.forEach(playFn => playFn());
   }
 
+  // Pitch variation range (±8% by default) to prevent repetitive sounds
+  private readonly pitchVariation: number = 0.08;
+
   /**
-   * Play a synthesized sound effect
+   * Apply random pitch variation to prevent sound repetition fatigue
+   * @param baseFrequency - The base frequency to vary
+   * @returns Frequency with random variation applied
+   */
+  private applyPitchVariation(baseFrequency: number): number {
+    const variation = 1 + (Math.random() * 2 - 1) * this.pitchVariation;
+    return baseFrequency * variation;
+  }
+
+  /**
+   * Play a synthesized sound effect with automatic pitch variation
    */
   private playSound(params: SoundParams, volume: number = 1.0): void {
     const play = () => {
@@ -126,12 +139,16 @@ export class AudioManager {
       const gainNode = this.audioContext.createGain();
 
       oscillator.type = params.type;
-      oscillator.frequency.setValueAtTime(params.frequency, this.audioContext.currentTime);
 
-      // Apply frequency sweep if specified
+      // Apply pitch variation to prevent repetitive sounds
+      const variedFrequency = this.applyPitchVariation(params.frequency);
+      oscillator.frequency.setValueAtTime(variedFrequency, this.audioContext.currentTime);
+
+      // Apply frequency sweep if specified (with proportional variation)
       if (params.frequencyEnd !== undefined) {
+        const variedFrequencyEnd = this.applyPitchVariation(params.frequencyEnd);
         oscillator.frequency.exponentialRampToValueAtTime(
-          params.frequencyEnd,
+          variedFrequencyEnd,
           this.audioContext.currentTime + params.duration
         );
       }
