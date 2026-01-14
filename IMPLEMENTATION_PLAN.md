@@ -26,20 +26,19 @@
 **Root Cause:** Same issue as BUG-015 - `.upgrade-modal` was missing `pointer-events: auto` and inherited `pointer-events: none` from parent `#ui`, making the modal and upgrade buttons unclickable.
 **Fix:** Added `pointer-events: auto` to `.upgrade-modal` in HUD.ts. Also fixed the same issue in `.settings-modal` and `.pause-overlay` for consistency.
 
-### BUG-017: Projectile Size Way Too Large [HIGH]
-**Status:** NOT FIXED
+### BUG-017: Projectile Size Way Too Large [HIGH] ✅ FIXED
+**Status:** FIXED
 **Symptoms:** Knife projectile renders as a huge yellow octagon that completely covers the player sprite.
 **Impact:** Player cannot see their character; visually confusing.
-**Fix Needed:** Reduce projectile geometry size in Renderer.ts
+**Root Cause:** Renderer was using projectile.radius (collision radius) directly for visual size. For knife, this was 2 units making the visual 4 units in diameter. For wand, it was 20 making it enormous.
+**Fix:** Added PROJECTILE_VISUAL_SIZES constant mapping in Renderer.ts with appropriate visual sizes for each projectile type (slash: 0.8, bullet: 0.5, orb: 0.7, etc.)
 
-### BUG-018: Enemies Killed Counter Always Zero [HIGH]
-**Status:** NOT FIXED
+### BUG-018: Enemies Killed Counter Always Zero [HIGH] ✅ FIXED
+**Status:** FIXED
 **Symptoms:** Death screen shows "Enemies Killed: 0" even after playing for extended time with weapon firing.
 **Impact:** Either weapons aren't dealing damage, enemies aren't dying, or kill counter is broken.
-**Investigation Needed:**
-- Verify projectile-enemy collision detection in CombatSystem
-- Check if enemy health is being reduced
-- Verify kill counter increment logic
+**Root Cause:** CombatSystem was tracking enemiesKilled in its own metrics but never incremented the PLAYER's kills counter. No code was crediting the player who killed the enemy.
+**Fix:** Added lastDamagedBy field to EnemySchema. Set it in processProjectileHit() when damage is applied. In processDeadEntities(), look up the killer by lastDamagedBy and increment their kills counter.
 
 ### BUG-019: Console Log Spam (Performance) [MEDIUM]
 **Status:** NOT FIXED
@@ -100,7 +99,7 @@
 | Total Tasks | 85 | Across 6 phases |
 | Completed | 104 | 122.4% (all phases complete) |
 | Critical Bugs | 0 | All resolved |
-| High Bugs | 2 | BUG-017 (projectile size), BUG-018 (kills counter) |
+| High Bugs | 0 | All resolved |
 | Medium Bugs | 3 | BUG-019 (console spam), BUG-020 (duplicate events), BUG-022 (enemy visuals) |
 | Low Bugs | 1 | BUG-021 (settings button) |
 | Test Gaps | 0 | All systems have tests |
@@ -423,6 +422,7 @@ npm run test
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-01-14 | 2.36 | BUG-017 and BUG-018 FIX - Fixed projectile visual sizes in Renderer.ts with type-based sizing. Fixed kill counter by adding lastDamagedBy tracking to EnemySchema and crediting the killing player in CombatSystem.processDeadEntities(). |
 | 2026-01-14 | 2.35 | BUG-015 and BUG-016 FIX - Fixed pointer-events inheritance issue in HUD overlays. All overlays (death-screen, upgrade-modal, settings-modal, pause-overlay) now properly set pointer-events: auto to override parent #ui's pointer-events: none. Also fixed SpawnSystem test mock to use Map instead of plain object for enemies collection. Both critical gameplay bugs (respawn button not working, level up modal not showing) are now resolved. |
 | 2026-01-14 | 2.34 | CRITICAL: COLYSEUS STATE SYNC FIX (BUG-012) - Fixed complete state synchronization failure where clients received empty state (0 bytes). Root cause: TypeScript's `useDefineForClassFields: true` (ES2022 default) created own properties that shadowed Colyseus's getter/setter descriptors for change tracking. Fix: Added `useDefineForClassFields: false` to tsconfig.base.json. Converted all 7 schema files from @type decorators to defineTypes() with constructor initialization pattern. Players now render correctly. |
 | 2026-01-13 | 2.33 | SPEC COMPLIANCE AUDIT - Comprehensive verification of all 9 spec files. Spawning system: perfect match. Weapons: documented balance adjustments. UI/HUD: all 9 components verified. Added "Known Spec Variances" section documenting intentional differences and reasons. |

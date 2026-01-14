@@ -131,6 +131,9 @@ export class CombatSystem {
     this.combatMetrics.totalDamageDealt += validatedDamage;
     this.combatMetrics.projectileHits++;
 
+    // BUG-018 FIX: Track who damaged this enemy for kill credit
+    enemy.lastDamagedBy = projectile.ownerId;
+
     // Record hit for piercing limit
     if (!projectile.canHit(enemy.id)) {
       this.logSecurityViolation('Projectile piercing limit exceeded', {
@@ -376,6 +379,14 @@ export class CombatSystem {
     deadEnemyIds.forEach(enemyId => {
       const enemy = gameState.enemies.get(enemyId);
       if (enemy) {
+        // BUG-018 FIX: Credit the player who killed this enemy
+        if (enemy.lastDamagedBy) {
+          const killer = gameState.players.get(enemy.lastDamagedBy);
+          if (killer && !killer.dead) {
+            killer.kills++;
+          }
+        }
+
         // Check for boss ability on death (e.g., slime split)
         this.handleBossDeathAbility(gameState, enemy);
 

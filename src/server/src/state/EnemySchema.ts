@@ -28,6 +28,9 @@ export class EnemySchema extends Schema {
   chargeTargetX: number = 0;
   chargeTargetY: number = 0;
 
+  // BUG-018 FIX: Track who last damaged this enemy for kill credit
+  lastDamagedBy: string = '';
+
   constructor() {
     super();
     // Initialize synced values through the setters

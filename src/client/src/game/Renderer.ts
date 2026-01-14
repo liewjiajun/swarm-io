@@ -434,6 +434,25 @@ export class Renderer {
     });
   }
 
+  // BUG-017 FIX: Visual sizes for projectiles (independent of collision radius)
+  // The collision radius can be large for hit detection, but visual should be small
+  private static readonly PROJECTILE_VISUAL_SIZES: Record<string, number> = {
+    slash: 0.8,           // Knife slash - small quick arc
+    bullet: 0.5,          // Wand bullet - small projectile
+    orb: 0.7,             // Bible orb - medium orbiting orb
+    lightning_bolt: 0.4,  // Lightning - thin bolt
+    axe_spin: 0.9,        // Axe - spinning axe head
+    fireball: 0.8,        // Fireball - medium fire projectile
+    explosion: 2.0,       // Explosion - larger effect
+    whip_strike: 0.6,     // Whip - arc effect
+    garlic_aura: 0.7,     // Garlic - medium aura
+    demon_fireball: 0.6,  // Enemy fireball - medium projectile
+  };
+
+  private getProjectileVisualSize(type: string): number {
+    return Renderer.PROJECTILE_VISUAL_SIZES[type] || 0.5; // Default 0.5 for unknown types
+  }
+
   private updateProjectiles(projectiles: Map<string, ProjectileState>) {
     // Filter and sort projectiles with frustum culling and LOD
     let indexHi = 0;  // High detail (close to camera)
@@ -445,7 +464,9 @@ export class Renderer {
 
       this.dummy.position.set(projectile.x, 1.0, projectile.y);
       this.dummy.rotation.set(0, 0, 0);
-      this.dummy.scale.setScalar(Math.max(projectile.radius * 2, 1.0)); // Ensure minimum size
+      // BUG-017 FIX: Use type-based visual size instead of collision radius
+      const visualSize = this.getProjectileVisualSize(projectile.type);
+      this.dummy.scale.setScalar(visualSize);
       this.dummy.updateMatrix();
 
       // Use LOD based on distance from camera center
