@@ -176,33 +176,37 @@ export class Renderer {
     this.createEnemyPool('demon', 0xff0000, 50);
 
     // Projectile pool - High detail (8x8 segments = 128 triangles per sphere)
-    const projGeometry = new THREE.SphereGeometry(0.2, 8, 8);
+    const projGeometry = new THREE.SphereGeometry(0.5, 8, 8); // Larger for visibility
     const projMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
     this.projectileMesh = new THREE.InstancedMesh(projGeometry, projMaterial, 1000);
     this.projectileMesh.count = 0;
+    this.projectileMesh.frustumCulled = false;
     this.scene.add(this.projectileMesh);
 
     // Projectile pool - LOD (4x4 segments = 32 triangles per sphere, 75% reduction)
-    const projGeometryLOD = new THREE.SphereGeometry(0.2, 4, 4);
+    const projGeometryLOD = new THREE.SphereGeometry(0.5, 4, 4);
     this.projectileMeshLOD = new THREE.InstancedMesh(projGeometryLOD, projMaterial, 1000);
     this.projectileMeshLOD.count = 0;
+    this.projectileMeshLOD.frustumCulled = false;
     this.scene.add(this.projectileMeshLOD);
 
     // XP orb pool - High detail
-    const xpGeometry = new THREE.SphereGeometry(0.15, 8, 8);
+    const xpGeometry = new THREE.SphereGeometry(0.4, 8, 8); // Larger for visibility
     const xpMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff88 });
     this.xpOrbMesh = new THREE.InstancedMesh(xpGeometry, xpMaterial, 2000);
     this.xpOrbMesh.count = 0;
+    this.xpOrbMesh.frustumCulled = false;
     this.scene.add(this.xpOrbMesh);
 
     // XP orb pool - LOD
-    const xpGeometryLOD = new THREE.SphereGeometry(0.15, 4, 4);
+    const xpGeometryLOD = new THREE.SphereGeometry(0.4, 4, 4);
     this.xpOrbMeshLOD = new THREE.InstancedMesh(xpGeometryLOD, xpMaterial, 2000);
     this.xpOrbMeshLOD.count = 0;
+    this.xpOrbMeshLOD.frustumCulled = false;
     this.scene.add(this.xpOrbMeshLOD);
 
     // Particle pool for sparkle effects
-    const particleGeometry = new THREE.SphereGeometry(0.08, 4, 4);
+    const particleGeometry = new THREE.SphereGeometry(0.15, 4, 4);
     const particleMaterial = new THREE.MeshBasicMaterial({
       color: 0xffffff,
       transparent: true,
@@ -210,14 +214,17 @@ export class Renderer {
     });
     this.particleMesh = new THREE.InstancedMesh(particleGeometry, particleMaterial, 500);
     this.particleMesh.count = 0;
+    this.particleMesh.frustumCulled = false;
     this.scene.add(this.particleMesh);
   }
 
   private createEnemyPool(type: string, color: number, maxCount: number) {
-    const geometry = new THREE.BoxGeometry(0.8, 0.8, 0.8);
-    const material = new THREE.MeshStandardMaterial({ color });
+    // Use larger geometry and BasicMaterial for better visibility
+    const geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5);
+    const material = new THREE.MeshBasicMaterial({ color });
     const mesh = new THREE.InstancedMesh(geometry, material, maxCount);
     mesh.count = 0;
+    mesh.frustumCulled = false; // Disable THREE.js frustum culling - we do our own
     this.scene.add(mesh);
     this.enemyMeshes.set(type, mesh);
   }
@@ -386,15 +393,21 @@ export class Renderer {
 
     // Group enemies by type (with frustum culling)
     const enemiesByType = new Map<string, EnemyState[]>();
+    let totalEnemies = 0;
+    let visibleEnemies = 0;
+
     enemies.forEach(enemy => {
+      totalEnemies++;
       // Skip enemies outside view frustum
       if (!this.isInView(enemy.x, enemy.y)) return;
+      visibleEnemies++;
 
       if (!enemiesByType.has(enemy.type)) {
         enemiesByType.set(enemy.type, []);
       }
       enemiesByType.get(enemy.type)!.push(enemy);
     });
+
 
     // Update each type's InstancedMesh
     enemiesByType.forEach((typeEnemies, type) => {
@@ -408,13 +421,16 @@ export class Renderer {
       mesh.count = typeEnemies.length;
 
       typeEnemies.forEach((enemy, index) => {
-        this.dummy.position.set(enemy.x, 0.4, enemy.y);
-        this.dummy.scale.setScalar(enemy.health / enemy.maxHealth * 0.5 + 0.5);
+        // Reset dummy transform
+        this.dummy.position.set(enemy.x, 1.0, enemy.y);
+        this.dummy.rotation.set(0, 0, 0);
+        this.dummy.scale.set(1.5, 1.5, 1.5); // Larger scale for visibility
         this.dummy.updateMatrix();
         mesh!.setMatrixAt(index, this.dummy.matrix);
       });
 
       mesh.instanceMatrix.needsUpdate = true;
+      mesh.frustumCulled = false; // Disable frustum culling on mesh itself
     });
   }
 
@@ -427,8 +443,9 @@ export class Renderer {
       // Skip projectiles outside view
       if (!this.isInView(projectile.x, projectile.y, projectile.radius)) return;
 
-      this.dummy.position.set(projectile.x, 0.5, projectile.y);
-      this.dummy.scale.setScalar(projectile.radius * 2);
+      this.dummy.position.set(projectile.x, 1.0, projectile.y);
+      this.dummy.rotation.set(0, 0, 0);
+      this.dummy.scale.setScalar(Math.max(projectile.radius * 2, 1.0)); // Ensure minimum size
       this.dummy.updateMatrix();
 
       // Use LOD based on distance from camera center
@@ -456,12 +473,13 @@ export class Renderer {
       // Skip orbs outside view
       if (!this.isInView(orb.x, orb.y, 0.5)) return;
 
-      const scale = orb.size === 'large' ? 0.5 : orb.size === 'medium' ? 0.3 : 0.15;
+      const scale = orb.size === 'large' ? 1.0 : orb.size === 'medium' ? 0.7 : 0.5; // Larger for visibility
 
       // Bob up and down
-      const bobOffset = Math.sin(Date.now() * 0.005 + orb.x) * 0.1;
+      const bobOffset = Math.sin(Date.now() * 0.005 + orb.x) * 0.2;
 
-      this.dummy.position.set(orb.x, 0.3 + bobOffset, orb.y);
+      this.dummy.position.set(orb.x, 0.5 + bobOffset, orb.y);
+      this.dummy.rotation.set(0, 0, 0);
       this.dummy.scale.setScalar(scale);
       this.dummy.updateMatrix();
 

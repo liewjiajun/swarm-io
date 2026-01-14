@@ -114,6 +114,11 @@ export class SpawnSystem {
     const currentTime = gameState.world.gameTime;
     const playerCount = gameState.world.playerCount;
 
+    // DEBUG: Log spawn system state periodically (every ~5 seconds of game time)
+    if (Math.floor(currentTime) % 5 === 0 && Math.floor(currentTime) !== Math.floor(this.lastSpawnTime)) {
+      console.log(`[SpawnSystem DEBUG] gameTime: ${currentTime.toFixed(1)}s, players: ${playerCount}, enemies: ${gameState.enemies.size}`);
+    }
+
     // Calculate spawn interval based on player count
     const baseSpawnInterval = GAME_CONSTANTS.ENEMY_SPAWN_INTERVAL; // 0.5 seconds
     const spawnInterval = Math.max(0.1, baseSpawnInterval - (playerCount * 0.02));
@@ -125,7 +130,8 @@ export class SpawnSystem {
 
     // Check spawn cap: max (playerCount * 50) enemies
     const maxEnemies = playerCount * 50;
-    const currentEnemyCount = Object.keys(gameState.enemies).length;
+    // Use .size for MapSchema, not Object.keys().length
+    const currentEnemyCount = gameState.enemies.size;
 
     if (currentEnemyCount >= maxEnemies) {
       return; // Spawn cap reached

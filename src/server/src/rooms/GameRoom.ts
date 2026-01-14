@@ -336,24 +336,16 @@ export class GameRoom extends Room<GameState> {
 
       console.log(`[GameRoom] Player ${client.sessionId} spawned at (${spawnPos.x.toFixed(1)}, ${spawnPos.y.toFixed(1)})`);
 
-      // Debug: Confirm player is in state
-      console.log(`[GameRoom] Players in state after add: ${this.state.players.size}`);
-      this.state.players.forEach((p, id) => {
-        console.log(`[GameRoom] - Player ${id}: x=${p.x.toFixed(1)}, y=${p.y.toFixed(1)}`);
-      });
-
-      // Force world state to update (ensures state change is detected)
+      // Update world state
       this.state.world.playerCount = this.state.players.size;
 
-      // Use setImmediate to send game_info AFTER the state has been broadcast
-      // This ensures the client receives the state update before the game_info message
+      // Send game_info AFTER the state has been broadcast
       setImmediate(() => {
         client.send('game_info', {
           playerId: client.sessionId,
           worldRadius: this.state.world.worldRadius,
           playerCount: this.state.world.playerCount
         });
-        console.log(`[GameRoom] Sent game_info to ${client.sessionId} after state broadcast`);
       });
 
     } catch (error) {

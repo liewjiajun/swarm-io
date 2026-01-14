@@ -454,6 +454,7 @@ export class HUD {
         z-index: 200;
         font-family: 'Press Start 2P', monospace;
         text-align: center;
+        pointer-events: auto; /* BUG-016 FIX: Override parent #ui pointer-events: none */
       }
 
       .upgrade-modal.hidden {
@@ -519,6 +520,7 @@ export class HUD {
         justify-content: center;
         z-index: 300;
         font-family: 'Press Start 2P', monospace;
+        pointer-events: auto; /* BUG-015 FIX: Override parent #ui pointer-events: none */
       }
 
       .death-screen.hidden {
@@ -600,6 +602,7 @@ export class HUD {
         justify-content: center;
         z-index: 400;
         font-family: 'Press Start 2P', monospace;
+        pointer-events: auto; /* Override parent #ui pointer-events: none */
       }
 
       .settings-modal.hidden {
@@ -871,6 +874,7 @@ export class HUD {
         justify-content: center;
         z-index: 450;
         font-family: 'Press Start 2P', monospace;
+        pointer-events: auto; /* Override parent #ui pointer-events: none */
       }
 
       .pause-overlay.hidden {

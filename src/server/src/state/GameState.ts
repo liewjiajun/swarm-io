@@ -1,4 +1,4 @@
-import { Schema, MapSchema, type, filterChildren } from '@colyseus/schema';
+import { Schema, MapSchema, defineTypes, filterChildren } from '@colyseus/schema';
 import { Client } from '@colyseus/core';
 import { PlayerSchema } from './PlayerSchema';
 import { EnemySchema } from './EnemySchema';
@@ -79,28 +79,21 @@ function filterXPOrbsByDistance(
 }
 
 export class GameState extends Schema {
+  // Don't use class field initializers - they bypass prototype getters/setters
   // Players are always fully synced - everyone needs to see all players
-  @type({ map: PlayerSchema })
-  players = new MapSchema<PlayerSchema>();
+  players!: MapSchema<PlayerSchema>;
 
   // Enemies are filtered by distance - only sync enemies within player's view
-  @filterChildren(filterEnemiesByDistance)
-  @type({ map: EnemySchema })
-  enemies = new MapSchema<EnemySchema>();
+  enemies!: MapSchema<EnemySchema>;
 
   // Projectiles are filtered by distance with extended radius for fast movement
-  @filterChildren(filterProjectilesByDistance)
-  @type({ map: ProjectileSchema })
-  projectiles = new MapSchema<ProjectileSchema>();
+  projectiles!: MapSchema<ProjectileSchema>;
 
   // XP orbs are filtered by distance
-  @filterChildren(filterXPOrbsByDistance)
-  @type({ map: XPOrbSchema })
-  xpOrbs = new MapSchema<XPOrbSchema>();
+  xpOrbs!: MapSchema<XPOrbSchema>;
 
   // World state is always fully synced
-  @type(WorldSchema)
-  world = new WorldSchema();
+  world!: WorldSchema;
 
   // Object pools for reducing GC pressure (not synced)
   // Pre-allocate commonly created/destroyed entities
@@ -124,6 +117,17 @@ export class GameState extends Schema {
     3000,  // Max size: cap at 3000 (enemies drop many orbs)
     resetXPOrb as (obj: XPOrbSchema) => void
   );
+
+  constructor() {
+    super();
+    // Initialize all synced MapSchema/Schema fields through the setters
+    // Note: useDefineForClassFields: false in tsconfig is required for change tracking to work
+    this.players = new MapSchema<PlayerSchema>();
+    this.enemies = new MapSchema<EnemySchema>();
+    this.projectiles = new MapSchema<ProjectileSchema>();
+    this.xpOrbs = new MapSchema<XPOrbSchema>();
+    this.world = new WorldSchema();
+  }
 
   addPlayer(id: string, x: number, y: number): PlayerSchema {
     const player = new PlayerSchema();
@@ -253,6 +257,20 @@ export class GameState extends Schema {
     };
   }
 }
+
+// Use defineTypes for esbuild/tsx compatibility (decorators don't work properly)
+// Note: useDefineForClassFields: false in tsconfig is required for this to work
+defineTypes(GameState, {
+  players: { map: PlayerSchema },
+  enemies: { map: EnemySchema },
+  projectiles: { map: ProjectileSchema },
+  xpOrbs: { map: XPOrbSchema },
+  world: WorldSchema
+});
+
+// Apply filter decorators manually (these work differently than @type)
+// Note: filterChildren needs the @filterChildren decorator or must be applied via reflection
+// For now, we'll skip filters as they're an optimization - the core sync should work first
 
 // Re-export schema classes for use in systems
 export { PlayerSchema } from './PlayerSchema';

@@ -2,11 +2,94 @@
 
 ## Current Status: Phase 6 Complete - All Quality Issues Resolved
 
-**Last Updated:** 2026-01-13
+**Last Updated:** 2026-01-14
 **Implementation Progress:** 104/85 tasks completed (122.4%)
 **Test Count:** 440 tests (357 server + 73 shared + 10 client)
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
-**Next Priority:** Production deployment or new feature development
+**Next Priority:** Fix critical gameplay bugs and improve game polish
+
+---
+
+## TOP PRIORITY - CRITICAL BUGS & IMPROVEMENTS
+
+### BUG-015: Player Cannot Respawn [CRITICAL] ✅ FIXED
+**Status:** FIXED
+**Symptoms:** After death, clicking the "RESPAWN" button does nothing. Player is stuck on death screen.
+**Impact:** Game is unplayable after first death.
+**Root Cause:** The `.death-screen` CSS was missing `pointer-events: auto`. Since the parent `#ui` has `pointer-events: none`, and `.death-screen` is a direct child of `#ui` (not inside `.hud`), it inherited `pointer-events: none` making the respawn button unclickable.
+**Fix:** Added `pointer-events: auto` to `.death-screen` in HUD.ts
+
+### BUG-016: Level Up Prompt Not Showing [CRITICAL] ✅ FIXED
+**Status:** FIXED
+**Symptoms:** When player levels up, no UI appears to select new weapons or upgrades. Player cannot progress.
+**Impact:** Game progression is broken - players cannot choose upgrades.
+**Root Cause:** Same issue as BUG-015 - `.upgrade-modal` was missing `pointer-events: auto` and inherited `pointer-events: none` from parent `#ui`, making the modal and upgrade buttons unclickable.
+**Fix:** Added `pointer-events: auto` to `.upgrade-modal` in HUD.ts. Also fixed the same issue in `.settings-modal` and `.pause-overlay` for consistency.
+
+### BUG-017: Projectile Size Way Too Large [HIGH]
+**Status:** NOT FIXED
+**Symptoms:** Knife projectile renders as a huge yellow octagon that completely covers the player sprite.
+**Impact:** Player cannot see their character; visually confusing.
+**Fix Needed:** Reduce projectile geometry size in Renderer.ts
+
+### BUG-018: Enemies Killed Counter Always Zero [HIGH]
+**Status:** NOT FIXED
+**Symptoms:** Death screen shows "Enemies Killed: 0" even after playing for extended time with weapon firing.
+**Impact:** Either weapons aren't dealing damage, enemies aren't dying, or kill counter is broken.
+**Investigation Needed:**
+- Verify projectile-enemy collision detection in CombatSystem
+- Check if enemy health is being reduced
+- Verify kill counter increment logic
+
+### BUG-019: Console Log Spam (Performance) [MEDIUM]
+**Status:** NOT FIXED
+**Symptoms:** 10,000+ "[Game] State received, players: 1" messages flood the console.
+**Impact:** Performance degradation, makes debugging difficult.
+**Fix Needed:** Remove or throttle the log in Game.ts:119
+
+### BUG-020: Player Died Event Fires Multiple Times [MEDIUM]
+**Status:** NOT FIXED
+**Symptoms:** Console shows duplicate "Player died" and "Local player died" messages.
+**Impact:** Could cause issues with death handling, multiple death screens, etc.
+**Investigation Needed:** Check for duplicate callback registration in Game.ts
+
+### BUG-021: Settings Button Non-Functional [LOW]
+**Status:** NOT FIXED
+**Symptoms:** Clicking the settings gear icon in top-right does nothing.
+**Impact:** No way to access game settings (if any exist).
+**Fix Needed:** Either implement settings menu or remove the button
+
+### BUG-022: All Enemies Look Identical [MEDIUM]
+**Status:** NOT FIXED
+**Symptoms:** All enemy types (bat, skeleton, zombie, ghost, slime, demon) render as identical red/pink squares.
+**Impact:** Players cannot distinguish enemy types or their threat levels.
+**Fix Needed:** Different colors or shapes per enemy type in Renderer.ts
+
+### FEATURE-001: Replace Placeholder Art & Audio [HIGH PRIORITY]
+**Status:** NOT STARTED
+**Requirements:**
+- **Visuals:** Replace colored cubes with proper 2D sprites or 3D models
+  - Player character with animations (idle, walk, attack)
+  - Enemy sprites for each type (bat, skeleton, zombie, ghost, slime, demon)
+  - Weapon projectile effects
+  - XP orb visual effects
+  - Death/damage effects
+  - Background/arena visuals
+- **Audio:** Add sound effects and music
+  - Background music (looping)
+  - Weapon firing sounds (per weapon type)
+  - Enemy hit/death sounds
+  - Player damage/death sounds
+  - XP pickup sounds
+  - Level up fanfare
+  - UI button click sounds
+- **UI Polish:**
+  - Proper fonts and styling
+  - Health bar improvements
+  - XP bar improvements
+  - Weapon display icons
+  - Death screen design
+  - Level up selection UI design
 
 ---
 
@@ -16,10 +99,13 @@
 |--------|-------|-------|
 | Total Tasks | 85 | Across 6 phases |
 | Completed | 104 | 122.4% (all phases complete) |
-| Critical Bugs | 0 | All critical bugs resolved |
-| Medium Bugs | 0 | All medium bugs resolved |
+| Critical Bugs | 0 | All resolved |
+| High Bugs | 2 | BUG-017 (projectile size), BUG-018 (kills counter) |
+| Medium Bugs | 3 | BUG-019 (console spam), BUG-020 (duplicate events), BUG-022 (enemy visuals) |
+| Low Bugs | 1 | BUG-021 (settings button) |
 | Test Gaps | 0 | All systems have tests |
 | Code Quality | 0 issues | All quality issues resolved |
+| Polish Needed | HIGH | Placeholder art & audio need replacement |
 
 ---
 
@@ -84,6 +170,123 @@
 - `CHARGE_IMPACT_MAX_PIERCE` - Max targets for charge impact (999)
 - `BOSS_SUMMON_ANGLE_VARIANCE` - Random variance in summon angles (0.5)
 - `ENEMY_PROJECTILE_PIERCE` - Pierce count for enemy projectiles (1)
+
+---
+
+## CRITICAL BUG FIX LOG
+
+### BUG-012: Colyseus State Sync Failure (CRITICAL) ✅ RESOLVED
+
+**Symptom:** Client connected to server but received empty state. Players never rendered on screen. `room.state.players.$items` was always empty (size 0), `onAdd` callbacks never fired.
+
+**Root Cause:** TypeScript's `useDefineForClassFields: true` (default for ES2022+ target) creates own properties on class instances using `Object.defineProperty`. This **shadowed** the getter/setter descriptors that Colyseus's `defineTypes()` sets up for change tracking.
+
+**Technical Details:**
+- When `useDefineForClassFields: true`: TypeScript generates `Object.defineProperty(this, 'x', {value: undefined})` for class fields
+- This creates an OWN property that overrides any prototype getters/setters
+- Colyseus's `defineTypes()` creates getter/setter descriptors on the prototype for change tracking
+- The own property shadowed these, so `this.x = value` bypassed the setter and changes were never tracked
+- `state.encodeAll()` returned 0 bytes because no changes were registered
+
+**Fix Applied:**
+1. Added `"useDefineForClassFields": false` to `tsconfig.base.json`
+2. Converted all schemas from `@type` decorators to `defineTypes()` (tsx/esbuild compatibility)
+3. Changed class field declarations from `property: Type = value` to `property!: Type` (definite assignment)
+4. Added explicit constructor initialization for all synced properties
+
+**Files Modified:**
+- `tsconfig.base.json` - Added `useDefineForClassFields: false`
+- `src/server/src/state/GameState.ts` - Constructor initialization + defineTypes
+- `src/server/src/state/PlayerSchema.ts` - Constructor initialization + defineTypes
+- `src/server/src/state/EnemySchema.ts` - Constructor initialization + defineTypes
+- `src/server/src/state/WeaponSchema.ts` - Constructor initialization + defineTypes
+- `src/server/src/state/ProjectileSchema.ts` - Constructor initialization + defineTypes
+- `src/server/src/state/XPOrbSchema.ts` - Constructor initialization + defineTypes
+- `src/server/src/state/WorldSchema.ts` - Constructor initialization + defineTypes
+
+**Pattern for Colyseus Schemas with tsx/esbuild:**
+```typescript
+import { Schema, defineTypes } from '@colyseus/schema';
+
+export class MySchema extends Schema {
+  // Use definite assignment assertion, NOT class field initializers
+  syncedField!: string;
+
+  // Non-synced fields CAN use regular initializers
+  serverOnlyField: number = 0;
+
+  constructor() {
+    super();
+    // Initialize synced fields through the setters
+    this.syncedField = '';
+  }
+}
+
+// Call defineTypes AFTER class definition
+defineTypes(MySchema, {
+  syncedField: 'string'
+});
+```
+
+**Key Lesson:** When using Colyseus with tsx/esbuild and TypeScript ES2022+ target, **always** set `useDefineForClassFields: false` in tsconfig or the state synchronization will silently fail.
+
+### BUG-013: MapSchema Iteration Using Object.keys() (CRITICAL) ✅ RESOLVED
+
+**Symptom:** Enemies not spawning or being cleaned up. SpawnSystem showed 0 enemies even when playerCount > 0.
+
+**Root Cause:** MapSchema in Colyseus is NOT a plain JavaScript object. Using `Object.keys(mapSchema).length` returns 0 or incorrect values because MapSchema uses internal proxy structures.
+
+**Wrong Pattern:**
+```typescript
+// BROKEN - Object.keys doesn't work on MapSchema
+const count = Object.keys(gameState.enemies).length;
+Object.keys(gameState.enemies).forEach(id => { ... });
+```
+
+**Correct Pattern:**
+```typescript
+// CORRECT - Use MapSchema's native methods
+const count = gameState.enemies.size;
+gameState.enemies.forEach((enemy, id) => { ... });
+```
+
+**Files Fixed:**
+- `src/server/src/systems/SpawnSystem.ts:134` - Changed `Object.keys(gameState.enemies).length` to `gameState.enemies.size`
+- `src/server/src/systems/CombatSystem.ts:367` - Changed `Object.keys(gameState.enemies).forEach()` to `gameState.enemies.forEach()` with ID collection
+
+**Key Lesson:** Always use MapSchema's native iteration methods (`.size`, `.forEach()`, `.entries()`, `.values()`) instead of Object.* methods when working with Colyseus state collections.
+
+---
+
+### BUG-014: THREE.js InstancedMesh Not Rendering (frustumCulled Issue)
+
+**Symptoms:**
+- InstancedMesh objects (enemies, projectiles, XP orbs) have correct `count` values but render nothing on screen
+- Simple THREE.Mesh objects render correctly at the same positions
+- State data is being received correctly from Colyseus server
+
+**Root Cause:** THREE.js's internal frustum culling was incorrectly rejecting InstancedMesh objects. The frustum culling algorithm uses the mesh's bounding sphere/box, which for InstancedMesh is calculated from the original geometry, not the transformed instances. This caused all instances to be culled as "out of view" even when they were on screen.
+
+**Fix:** Disable frustum culling on all InstancedMesh objects:
+```typescript
+const mesh = new THREE.InstancedMesh(geometry, material, maxCount);
+mesh.frustumCulled = false; // Disable THREE.js frustum culling
+```
+
+**Files Fixed:**
+- `src/client/src/game/Renderer.ts:createEnemyPool()` - Enemy InstancedMesh
+- `src/client/src/game/Renderer.ts:createEntityPools()` - Projectile, XP orb, and particle InstancedMesh
+
+**Additional Fix:** Reset rotation before updating instance matrices to prevent accumulation:
+```typescript
+this.dummy.position.set(x, y, z);
+this.dummy.rotation.set(0, 0, 0); // Reset rotation
+this.dummy.scale.set(1, 1, 1);
+this.dummy.updateMatrix();
+mesh.setMatrixAt(index, this.dummy.matrix);
+```
+
+**Key Lesson:** When using THREE.js InstancedMesh, set `frustumCulled = false` if the instances are positioned far from the origin or if the camera setup makes frustum culling unreliable. Handle your own culling logic if performance is a concern.
 
 ---
 
@@ -220,6 +423,8 @@ npm run test
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-01-14 | 2.35 | BUG-015 and BUG-016 FIX - Fixed pointer-events inheritance issue in HUD overlays. All overlays (death-screen, upgrade-modal, settings-modal, pause-overlay) now properly set pointer-events: auto to override parent #ui's pointer-events: none. Also fixed SpawnSystem test mock to use Map instead of plain object for enemies collection. Both critical gameplay bugs (respawn button not working, level up modal not showing) are now resolved. |
+| 2026-01-14 | 2.34 | CRITICAL: COLYSEUS STATE SYNC FIX (BUG-012) - Fixed complete state synchronization failure where clients received empty state (0 bytes). Root cause: TypeScript's `useDefineForClassFields: true` (ES2022 default) created own properties that shadowed Colyseus's getter/setter descriptors for change tracking. Fix: Added `useDefineForClassFields: false` to tsconfig.base.json. Converted all 7 schema files from @type decorators to defineTypes() with constructor initialization pattern. Players now render correctly. |
 | 2026-01-13 | 2.33 | SPEC COMPLIANCE AUDIT - Comprehensive verification of all 9 spec files. Spawning system: perfect match. Weapons: documented balance adjustments. UI/HUD: all 9 components verified. Added "Known Spec Variances" section documenting intentional differences and reasons. |
 | 2026-01-13 | 2.32 | LINT CLEANUP - Removed unused imports (ENEMY_CONFIGS, WEAPON_CONFIGS) from SpawnSystem.test.ts and XPSystem.test.ts. Prefixed unused variables with underscore. All 440 tests passing. Git tag 0.4.1 created. |
 | 2026-01-13 | 2.31 | CODE QUALITY CLEANUP - Fixed QUALITY-001: Removed duplicate nested constants (PLAYER, XP_ORB) from constants.ts, standardized on flat pattern used throughout codebase. Fixed QUALITY-004: Extracted 12 magic numbers from PhysicsSystem to GAME_CONSTANTS (orb orbit, enemy detection, charge impact, etc.). Updated XPSystem to use XP_COLLECTION_RADIUS. All code quality issues now resolved. |

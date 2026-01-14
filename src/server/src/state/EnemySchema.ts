@@ -1,18 +1,19 @@
-import { Schema, type } from '@colyseus/schema';
+import { Schema, defineTypes } from '@colyseus/schema';
 import { ENEMY_CONFIGS } from '@swarm-io/shared';
 
 export class EnemySchema extends Schema {
-  @type('string') id: string = '';
-  @type('string') type: string = '';
-  @type('number') x: number = 0;
-  @type('number') y: number = 0;
-  @type('number') health: number = 10;
-  @type('number') maxHealth: number = 10;
-  @type('number') velocityX: number = 0;
-  @type('number') velocityY: number = 0;
-  @type('string') targetPlayerId: string = '';
+  // Don't use class field initializers - they bypass prototype getters/setters
+  id!: string;
+  type!: string;
+  x!: number;
+  y!: number;
+  health!: number;
+  maxHealth!: number;
+  velocityX!: number;
+  velocityY!: number;
+  targetPlayerId!: string;
 
-  // Cached config values (not synced, derived from type)
+  // Cached config values (not synced, derived from type) - can use regular initializers
   private _speed: number = 0;
   private _damage: number = 0;
   private _xpValue: number = 0;
@@ -26,6 +27,20 @@ export class EnemySchema extends Schema {
   isCharging: boolean = false;
   chargeTargetX: number = 0;
   chargeTargetY: number = 0;
+
+  constructor() {
+    super();
+    // Initialize synced values through the setters
+    this.id = '';
+    this.type = '';
+    this.x = 0;
+    this.y = 0;
+    this.health = 10;
+    this.maxHealth = 10;
+    this.velocityX = 0;
+    this.velocityY = 0;
+    this.targetPlayerId = '';
+  }
 
   initialize(type: string, difficulty: number = 1) {
     const config = ENEMY_CONFIGS[type];
@@ -72,3 +87,16 @@ export class EnemySchema extends Schema {
     return this._size;
   }
 }
+
+// Use defineTypes for esbuild/tsx compatibility (decorators don't work properly)
+defineTypes(EnemySchema, {
+  id: 'string',
+  type: 'string',
+  x: 'number',
+  y: 'number',
+  health: 'number',
+  maxHealth: 'number',
+  velocityX: 'number',
+  velocityY: 'number',
+  targetPlayerId: 'string'
+});

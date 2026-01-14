@@ -514,7 +514,9 @@ export class Game {
 
   // Public method to handle respawn
   respawn() {
+    console.log('[Game] Respawn requested, connected:', this.connected);
     if (this.connected) {
+      console.log('[Game] Sending respawn message to server');
       this.network.sendRespawn();
     }
   }

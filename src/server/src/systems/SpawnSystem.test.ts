@@ -55,10 +55,10 @@ function createMockGameState(
 ) {
   const playersMap = new Map(players.map(p => [p.id, p]));
 
-  // Create enemies object with correct structure
-  const enemiesObj: any = {};
+  // Create enemies map with MapSchema-like interface (.size, .forEach)
+  const enemiesMap = new Map<string, any>();
   for (let i = 0; i < enemyCount; i++) {
-    enemiesObj[`enemy-${i}`] = createMockEnemy(`enemy-${i}`);
+    enemiesMap.set(`enemy-${i}`, createMockEnemy(`enemy-${i}`));
   }
 
   const addedEnemies: any[] = [];
@@ -66,14 +66,14 @@ function createMockGameState(
   return {
     world,
     players: playersMap,
-    enemies: enemiesObj,
+    enemies: enemiesMap,
     addEnemy: vi.fn().mockImplementation((type, x, y) => {
       const enemy = createMockEnemy(`enemy-${addedEnemies.length}`);
       enemy.type = type;
       enemy.x = x;
       enemy.y = y;
       addedEnemies.push(enemy);
-      enemiesObj[enemy.id] = enemy;
+      enemiesMap.set(enemy.id, enemy);
       return enemy;
     }),
     _addedEnemies: addedEnemies

@@ -1,3 +1,6 @@
+// MUST be imported BEFORE any schema classes for decorators to work
+import 'reflect-metadata';
+
 import { Server } from '@colyseus/core';
 import { WebSocketTransport } from '@colyseus/ws-transport';
 import { monitor } from '@colyseus/monitor';

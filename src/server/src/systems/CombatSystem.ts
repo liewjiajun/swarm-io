@@ -364,9 +364,18 @@ export class CombatSystem {
 
   private cleanupDeadEntities(gameState: GameState): void {
     // Remove dead enemies and spawn XP orbs
-    Object.keys(gameState.enemies).forEach(enemyId => {
+    // Collect IDs first to avoid modifying collection during iteration
+    const deadEnemyIds: string[] = [];
+    gameState.enemies.forEach((enemy, enemyId) => {
+      if (enemy.health <= 0) {
+        deadEnemyIds.push(enemyId);
+      }
+    });
+
+    // Now process dead enemies
+    deadEnemyIds.forEach(enemyId => {
       const enemy = gameState.enemies.get(enemyId);
-      if (enemy && enemy.health <= 0) {
+      if (enemy) {
         // Check for boss ability on death (e.g., slime split)
         this.handleBossDeathAbility(gameState, enemy);
 

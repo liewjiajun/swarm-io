@@ -1,35 +1,59 @@
-import { Schema, ArraySchema, type } from '@colyseus/schema';
+import { Schema, ArraySchema, defineTypes } from '@colyseus/schema';
 import { WeaponSchema } from './WeaponSchema';
 import { GAME_CONSTANTS, WEAPON_CONFIGS, getXPForLevel } from '@swarm-io/shared';
 
 export class PlayerSchema extends Schema {
-  @type('string') id: string = '';
-  @type('number') x: number = 0;
-  @type('number') y: number = 0;
-  @type('number') health: number = 100;
-  @type('number') maxHealth: number = 100;
-  @type('number') level: number = 1;
-  @type('number') xp: number = 0;
-  @type('number') xpToNextLevel: number = 5;
-  @type('number') speed: number = 5;
-  @type('number') facingX: number = 1;
-  @type('number') facingY: number = 0;
-  @type('number') kills: number = 0;
-  @type('number') timeAlive: number = 0;
-  @type('number') hostility: number = 0;
-  @type('number') invulnerableTime: number = 0;
-  @type('boolean') dead: boolean = false;
-  @type('boolean') pendingUpgrade: boolean = false;
-  @type('number') armor: number = 0;
-  @type('number') magnetRange: number = GAME_CONSTANTS.XP_MAGNET_RADIUS;
+  // Don't use class field initializers - they bypass prototype getters/setters
+  id!: string;
+  x!: number;
+  y!: number;
+  health!: number;
+  maxHealth!: number;
+  level!: number;
+  xp!: number;
+  xpToNextLevel!: number;
+  speed!: number;
+  facingX!: number;
+  facingY!: number;
+  kills!: number;
+  timeAlive!: number;
+  hostility!: number;
+  invulnerableTime!: number;
+  dead!: boolean;
+  pendingUpgrade!: boolean;
+  armor!: number;
+  magnetRange!: number;
+  weapons!: ArraySchema<WeaponSchema>;
 
-  @type([WeaponSchema])
-  weapons = new ArraySchema<WeaponSchema>();
-
-  // Not synchronized - server only
+  // Not synchronized - server only (can use regular initializers)
   pendingChoices: any[] = [];
   deathTime: number = 0;
   killedBy: string = '';
+
+  constructor() {
+    super();
+    // Initialize all synced values through the setters (with useDefineForClassFields: false)
+    this.id = '';
+    this.x = 0;
+    this.y = 0;
+    this.health = 100;
+    this.maxHealth = 100;
+    this.level = 1;
+    this.xp = 0;
+    this.xpToNextLevel = 5;
+    this.speed = 5;
+    this.facingX = 1;
+    this.facingY = 0;
+    this.kills = 0;
+    this.timeAlive = 0;
+    this.hostility = 0;
+    this.invulnerableTime = 0;
+    this.dead = false;
+    this.pendingUpgrade = false;
+    this.armor = 0;
+    this.magnetRange = GAME_CONSTANTS.XP_MAGNET_RADIUS;
+    this.weapons = new ArraySchema<WeaponSchema>();
+  }
 
   addWeapon(type: string) {
     const config = WEAPON_CONFIGS[type];
@@ -123,3 +147,28 @@ export class PlayerSchema extends Schema {
     return this.invulnerableTime > 0;
   }
 }
+
+// Use defineTypes for esbuild/tsx compatibility (decorators don't work properly)
+// Note: useDefineForClassFields: false in tsconfig is required for this to work
+defineTypes(PlayerSchema, {
+  id: 'string',
+  x: 'number',
+  y: 'number',
+  health: 'number',
+  maxHealth: 'number',
+  level: 'number',
+  xp: 'number',
+  xpToNextLevel: 'number',
+  speed: 'number',
+  facingX: 'number',
+  facingY: 'number',
+  kills: 'number',
+  timeAlive: 'number',
+  hostility: 'number',
+  invulnerableTime: 'number',
+  dead: 'boolean',
+  pendingUpgrade: 'boolean',
+  armor: 'number',
+  magnetRange: 'number',
+  weapons: [WeaponSchema]
+});

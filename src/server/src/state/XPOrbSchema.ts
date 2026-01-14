@@ -1,14 +1,38 @@
-import { Schema, type } from '@colyseus/schema';
+import { Schema, defineTypes } from '@colyseus/schema';
 
 export class XPOrbSchema extends Schema {
-  @type('string') id: string = '';
-  @type('number') x: number = 0;
-  @type('number') y: number = 0;
-  @type('string') size: string = 'small'; // 'small' | 'medium' | 'large'
-  @type('number') value: number = 1;
-  @type('boolean') magnetized: boolean = false;
-  @type('string') targetPlayerId: string = '';
+  // Don't use class field initializers - they bypass prototype getters/setters
+  id!: string;
+  x!: number;
+  y!: number;
+  size!: string; // 'small' | 'medium' | 'large'
+  value!: number;
+  magnetized!: boolean;
+  targetPlayerId!: string;
 
-  // Not synced
+  // Not synced - can use regular initializer
   collected: boolean = false;
+
+  constructor() {
+    super();
+    // Initialize values through the setters
+    this.id = '';
+    this.x = 0;
+    this.y = 0;
+    this.size = 'small';
+    this.value = 1;
+    this.magnetized = false;
+    this.targetPlayerId = '';
+  }
 }
+
+// Use defineTypes for esbuild/tsx compatibility (decorators don't work properly)
+defineTypes(XPOrbSchema, {
+  id: 'string',
+  x: 'number',
+  y: 'number',
+  size: 'string',
+  value: 'number',
+  magnetized: 'boolean',
+  targetPlayerId: 'string'
+});

@@ -12,6 +12,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@colyseus/schema": "^2.0.0",
     "@swarm-io/shared": "*",
     "colyseus.js": "^0.15.0",
     "three": "^0.160.0"

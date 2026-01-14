@@ -257,17 +257,9 @@ export class NetworkClient {
       this.triggerStateUpdate(state);
     });
 
-    // Set up onAdd/onRemove for future changes
-    state.players.onAdd((player: any, sessionId: string) => {
-      console.log('[NetworkClient] Player ADDED:', sessionId);
-      this.triggerStateUpdate(state);
-    });
-
-    state.players.onRemove((player: any, sessionId: string) => {
-      console.log('[NetworkClient] Player REMOVED:', sessionId);
-      this.triggerStateUpdate(state);
-    });
-
+    // Set up onAdd/onRemove handlers for state collections
+    state.players.onAdd(() => this.triggerStateUpdate(state));
+    state.players.onRemove(() => this.triggerStateUpdate(state));
     state.enemies.onAdd(() => this.triggerStateUpdate(state));
     state.enemies.onRemove(() => this.triggerStateUpdate(state));
     state.projectiles.onAdd(() => this.triggerStateUpdate(state));
@@ -298,7 +290,6 @@ export class NetworkClient {
       // Check if we have players now
       const playerCount = this.getPlayerCount(state);
       if (playerCount > 0) {
-        console.log('[NetworkClient] Polling found players:', playerCount);
         this.triggerStateUpdate(state);
         // Stop polling once we have players
         if (this.statePollingInterval) {
@@ -310,7 +301,6 @@ export class NetworkClient {
 
       // Stop polling after max attempts
       if (pollCount >= maxPolls) {
-        console.log('[NetworkClient] State polling timed out after', pollCount, 'attempts');
         if (this.statePollingInterval) {
           clearInterval(this.statePollingInterval);
           this.statePollingInterval = null;
@@ -339,13 +329,6 @@ export class NetworkClient {
 
   private triggerStateUpdate(state: any) {
     const serializedState = this.serializeState(state);
-    const playerCount = serializedState.players.size;
-
-    // Only log when there's meaningful data
-    if (playerCount > 0) {
-      console.log('[NetworkClient] State update: players:', playerCount);
-    }
-
     this.stateChangeCallbacks.forEach(cb => cb(serializedState));
   }
 
@@ -438,19 +421,7 @@ export class NetworkClient {
   private forEachInMap<T>(mapSchema: any, callback: (item: T, id: string) => void): void {
     if (!mapSchema) return;
 
-    // Method 1: Try entries() - standard for Schema 2.0 MapSchema
-    if (typeof mapSchema.entries === 'function') {
-      try {
-        for (const [id, item] of mapSchema.entries()) {
-          callback(item as T, id);
-        }
-        return;
-      } catch {
-        // Fall through to next method
-      }
-    }
-
-    // Method 2: Try forEach - common MapSchema method
+    // Method 1: Try forEach - common MapSchema method
     if (typeof mapSchema.forEach === 'function') {
       try {
         mapSchema.forEach((item: T, id: string) => callback(item, id));
@@ -460,7 +431,7 @@ export class NetworkClient {
       }
     }
 
-    // Method 3: Fallback to $items internal Map
+    // Method 2: Fallback to $items internal Map
     const items = mapSchema.$items;
     if (items instanceof Map) {
       items.forEach((item: T, id: string) => callback(item, id));
@@ -562,8 +533,10 @@ export class NetworkClient {
   }
 
   sendRespawn() {
+    console.log('[NetworkClient] sendRespawn called, room:', !!this.room);
     if (!this.room) return;
     this.room.send('respawn', { type: 'respawn' });
+    console.log('[NetworkClient] Respawn message sent to server');
   }
 
   onStateChange(callback: StateChangeCallback) {
