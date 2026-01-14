@@ -398,14 +398,15 @@ export class Renderer {
 
     // Group enemies by type (with frustum culling)
     const enemiesByType = new Map<string, EnemyState[]>();
-    let totalEnemies = 0;
-    let visibleEnemies = 0;
+    // Debug counters for performance monitoring (prefixed with _ as not currently used)
+    let _totalEnemies = 0;
+    let _visibleEnemies = 0;
 
     enemies.forEach(enemy => {
-      totalEnemies++;
+      _totalEnemies++;
       // Skip enemies outside view frustum
       if (!this.isInView(enemy.x, enemy.y)) return;
-      visibleEnemies++;
+      _visibleEnemies++;
 
       if (!enemiesByType.has(enemy.type)) {
         enemiesByType.set(enemy.type, []);

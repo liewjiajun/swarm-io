@@ -1,4 +1,4 @@
-import { Schema, MapSchema, defineTypes, filterChildren } from '@colyseus/schema';
+import { Schema, MapSchema, defineTypes } from '@colyseus/schema';
 import { Client } from '@colyseus/core';
 import { PlayerSchema } from './PlayerSchema';
 import { EnemySchema } from './EnemySchema';
@@ -15,8 +15,9 @@ const INTEREST_RADIUS_SQ = GAME_CONSTANTS.INTEREST_RADIUS * GAME_CONSTANTS.INTER
 /**
  * Filter function for enemies - only sync enemies within player's interest radius.
  * This reduces network bandwidth by ~60-80% in games with many enemies spread across the world.
+ * NOTE: Currently unused - @filterChildren decorator support deferred for future optimization.
  */
-function filterEnemiesByDistance(
+function _filterEnemiesByDistance(
   client: Client,
   _key: string,
   value: EnemySchema,
@@ -36,8 +37,9 @@ function filterEnemiesByDistance(
 /**
  * Filter function for projectiles - only sync projectiles within player's interest radius.
  * Projectiles move fast so we use a slightly larger radius to prevent pop-in.
+ * NOTE: Currently unused - @filterChildren decorator support deferred for future optimization.
  */
-function filterProjectilesByDistance(
+function _filterProjectilesByDistance(
   client: Client,
   _key: string,
   value: ProjectileSchema,
@@ -60,8 +62,9 @@ function filterProjectilesByDistance(
 /**
  * Filter function for XP orbs - only sync orbs within player's interest radius.
  * Static orbs re-evaluate when magnetized (position updates) or when player approaches.
+ * NOTE: Currently unused - @filterChildren decorator support deferred for future optimization.
  */
-function filterXPOrbsByDistance(
+function _filterXPOrbsByDistance(
   client: Client,
   _key: string,
   value: XPOrbSchema,
