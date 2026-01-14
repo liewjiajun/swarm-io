@@ -426,6 +426,7 @@ npm run test
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-01-14 | 2.39 | TYPE SAFETY & CORS - Updated shared types to match Colyseus schemas (PlayerState: added dead/pendingUpgrade/armor/magnetRange, changed facing to facingX/facingY, changed invulnerable to invulnerableTime). Removed all `any` types from Interpolator.ts. Made CORS origin configurable via CORS_ORIGIN env variable. Git tag 0.4.7 created. |
 | 2026-01-14 | 2.38 | LINT CLEANUP - Fixed 6 unused variable warnings. Prefixed filter functions in GameState.ts with underscore (deferred @filterChildren support). Prefixed debug counters in Renderer.ts. Removed unused filterChildren import. All 440 tests passing. Git tag 0.4.6 created. |
 | 2026-01-14 | 2.37 | BUG-019/020/021/022 FIX - Removed console log spam, fixed duplicate death events by clearing deathTime after notification, fixed settings button pointer-events, improved enemy visual differentiation with distinct colors per type and larger boss scaling. |
 | 2026-01-14 | 2.36 | BUG-017 and BUG-018 FIX - Fixed projectile visual sizes in Renderer.ts with type-based sizing. Fixed kill counter by adding lastDamagedBy tracking to EnemySchema and crediting the killing player in CombatSystem.processDeadEntities(). |
