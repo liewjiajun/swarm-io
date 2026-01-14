@@ -1,15 +1,23 @@
-import { lerp } from '@swarm-io/shared';
+import {
+  lerp,
+  GameState,
+  PlayerState,
+  EnemyState,
+  ProjectileState,
+  XPOrbState,
+  WorldState,
+} from '@swarm-io/shared';
 
 interface StateSnapshot {
   timestamp: number;
-  state: any;
+  state: GameState;
 }
 
 export class Interpolator {
   private snapshots: StateSnapshot[] = [];
   private maxSnapshots = 10;
 
-  pushState(state: any, timestamp: number) {
+  pushState(state: GameState, timestamp: number): void {
     this.snapshots.push({ timestamp, state: this.cloneState(state) });
 
     // Keep only recent snapshots
@@ -18,7 +26,7 @@ export class Interpolator {
     }
   }
 
-  getInterpolatedState(renderTime: number): any {
+  getInterpolatedState(renderTime: number): GameState {
     // Find the two snapshots to interpolate between
     let before: StateSnapshot | null = null;
     let after: StateSnapshot | null = null;
@@ -44,22 +52,22 @@ export class Interpolator {
     return this.interpolateStates(before.state, after.state, t);
   }
 
-  getLocalPlayer(playerId: string): any | null {
+  getLocalPlayer(playerId: string): PlayerState | null {
     const latest = this.snapshots[this.snapshots.length - 1];
     return latest?.state.players.get(playerId) || null;
   }
 
-  private interpolateStates(from: any, to: any, t: number): any {
-    const result = {
-      players: new Map(),
-      enemies: new Map(),
-      projectiles: new Map(),
-      xpOrbs: new Map(),
+  private interpolateStates(from: GameState, to: GameState, t: number): GameState {
+    const result: GameState = {
+      players: new Map<string, PlayerState>(),
+      enemies: new Map<string, EnemyState>(),
+      projectiles: new Map<string, ProjectileState>(),
+      xpOrbs: new Map<string, XPOrbState>(),
       world: to.world,
     };
 
     // Interpolate players
-    to.players.forEach((toPlayer: any, id: string) => {
+    to.players.forEach((toPlayer, id) => {
       const fromPlayer = from.players.get(id);
       if (fromPlayer) {
         result.players.set(id, {
@@ -73,7 +81,7 @@ export class Interpolator {
     });
 
     // Interpolate enemies
-    to.enemies.forEach((toEnemy: any, id: string) => {
+    to.enemies.forEach((toEnemy, id) => {
       const fromEnemy = from.enemies.get(id);
       if (fromEnemy) {
         result.enemies.set(id, {
@@ -87,7 +95,7 @@ export class Interpolator {
     });
 
     // Interpolate projectiles
-    to.projectiles.forEach((toProj: any, id: string) => {
+    to.projectiles.forEach((toProj, id) => {
       const fromProj = from.projectiles.get(id);
       if (fromProj) {
         result.projectiles.set(id, {
@@ -101,7 +109,7 @@ export class Interpolator {
     });
 
     // Interpolate XP orbs
-    to.xpOrbs.forEach((toOrb: any, id: string) => {
+    to.xpOrbs.forEach((toOrb, id) => {
       const fromOrb = from.xpOrbs.get(id);
       if (fromOrb) {
         result.xpOrbs.set(id, {
@@ -117,10 +125,10 @@ export class Interpolator {
     return result;
   }
 
-  private cloneState(state: any): any {
+  private cloneState(state: GameState): GameState {
     // Deep clone state for snapshot storage
-    const cloneMap = (map: Map<string, any>) => {
-      const result = new Map();
+    const cloneMap = <T>(map: Map<string, T>): Map<string, T> => {
+      const result = new Map<string, T>();
       map.forEach((value, key) => {
         result.set(key, { ...value });
       });
@@ -136,13 +144,21 @@ export class Interpolator {
     };
   }
 
-  private emptyState(): any {
+  private emptyState(): GameState {
+    const emptyWorld: WorldState = {
+      worldRadius: 500,
+      playerCount: 0,
+      gameTime: 0,
+      currentWave: 0,
+      difficulty: 1.0,
+    };
+
     return {
-      players: new Map(),
-      enemies: new Map(),
-      projectiles: new Map(),
-      xpOrbs: new Map(),
-      world: { worldRadius: 500, playerCount: 0, gameTime: 0 },
+      players: new Map<string, PlayerState>(),
+      enemies: new Map<string, EnemyState>(),
+      projectiles: new Map<string, ProjectileState>(),
+      xpOrbs: new Map<string, XPOrbState>(),
+      world: emptyWorld,
     };
   }
 }

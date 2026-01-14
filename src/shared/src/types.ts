@@ -24,12 +24,17 @@ export interface PlayerState extends Entity {
   xp: number;
   xpToNextLevel: number;
   speed: number;
-  facing: Vector2; // Normalized direction vector
+  facingX: number; // Normalized direction X component
+  facingY: number; // Normalized direction Y component
   weapons: WeaponState[];
   kills: number;
   timeAlive: number; // Seconds
   hostility: number; // PvP aggression tracker
-  invulnerable: boolean; // Brief invulnerability after respawn
+  invulnerableTime: number; // Seconds remaining of invulnerability
+  dead: boolean; // Whether player is dead
+  pendingUpgrade: boolean; // Whether player has pending upgrade choice
+  armor: number; // Damage reduction
+  magnetRange: number; // XP pickup range
 }
 
 export interface PlayerInput {
@@ -70,7 +75,7 @@ export interface WeaponConfig {
 }
 
 export interface WeaponState {
-  type: WeaponType;
+  type: string; // WeaponType at runtime, but Colyseus sends as string
   level: number;
   cooldownRemaining: number;
 }
@@ -90,7 +95,7 @@ export type ProjectileType =
   | 'demon_fireball';
 
 export interface ProjectileState extends Entity {
-  type: ProjectileType;
+  type: string; // ProjectileType at runtime, but Colyseus sends as string
   ownerId: string;
   damage: number;
   velocityX: number;
@@ -98,7 +103,7 @@ export interface ProjectileState extends Entity {
   lifetime: number; // Remaining seconds
   radius: number;
   piercing: number; // How many enemies it can hit (0 = unlimited)
-  hitEnemies: string[]; // IDs of enemies already hit
+  // Note: hitEnemies is tracked server-side only (not synced to client)
 }
 
 // =============================================================================
@@ -128,10 +133,10 @@ export interface EnemyConfig {
 }
 
 export interface EnemyState extends Entity {
-  type: EnemyType;
+  type: string; // EnemyType at runtime, but Colyseus sends as string
   health: number;
   maxHealth: number;
-  targetPlayerId: string | null;
+  targetPlayerId: string; // Empty string when no target
   velocityX: number;
   velocityY: number;
 }
@@ -143,10 +148,10 @@ export interface EnemyState extends Entity {
 export type XPOrbSize = 'small' | 'medium' | 'large';
 
 export interface XPOrbState extends Entity {
-  size: XPOrbSize;
+  size: string; // XPOrbSize at runtime ('small' | 'medium' | 'large')
   value: number;
   magnetized: boolean; // Being pulled toward a player
-  targetPlayerId: string | null;
+  targetPlayerId: string; // Empty string when no target
 }
 
 // =============================================================================

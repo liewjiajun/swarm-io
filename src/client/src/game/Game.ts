@@ -302,17 +302,17 @@ export class Game {
           xp: 0,
           xpToNextLevel: 100,
           speed: 5,
-          invulnerable: false,
           invulnerableTime: 0,
           timeAlive: 0,
           hostility: 0,
-          facing: { x: 1, y: 0 },
           facingX: 1,
           facingY: 0,
-          weapons: [{ type: 'knife', level: 1 }],
+          weapons: [{ type: 'knife', level: 1, cooldownRemaining: 0 }],
           kills: 0,
           dead: false,
-          pendingUpgrade: false
+          pendingUpgrade: false,
+          armor: 0,
+          magnetRange: 5
         }]
       ]),
       enemies: new Map(),

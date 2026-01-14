@@ -426,6 +426,7 @@ npm run test
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-01-14 | 2.38 | LINT CLEANUP - Fixed 6 unused variable warnings. Prefixed filter functions in GameState.ts with underscore (deferred @filterChildren support). Prefixed debug counters in Renderer.ts. Removed unused filterChildren import. All 440 tests passing. Git tag 0.4.6 created. |
 | 2026-01-14 | 2.37 | BUG-019/020/021/022 FIX - Removed console log spam, fixed duplicate death events by clearing deathTime after notification, fixed settings button pointer-events, improved enemy visual differentiation with distinct colors per type and larger boss scaling. |
 | 2026-01-14 | 2.36 | BUG-017 and BUG-018 FIX - Fixed projectile visual sizes in Renderer.ts with type-based sizing. Fixed kill counter by adding lastDamagedBy tracking to EnemySchema and crediting the killing player in CombatSystem.processDeadEntities(). |
 | 2026-01-14 | 2.35 | BUG-015 and BUG-016 FIX - Fixed pointer-events inheritance issue in HUD overlays. All overlays (death-screen, upgrade-modal, settings-modal, pause-overlay) now properly set pointer-events: auto to override parent #ui's pointer-events: none. Also fixed SpawnSystem test mock to use Map instead of plain object for enemies collection. Both critical gameplay bugs (respawn button not working, level up modal not showing) are now resolved. |

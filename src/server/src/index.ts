@@ -14,9 +14,12 @@ const app = express();
 // Parse JSON bodies
 app.use(express.json());
 
-// CORS middleware for client development
+// CORS configuration - uses environment variable or defaults to localhost for development
+const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173';
+
+// CORS middleware
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', 'http://localhost:5173');
+  res.header('Access-Control-Allow-Origin', CORS_ORIGIN);
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
   res.header('Access-Control-Allow-Credentials', 'true');
@@ -31,14 +34,43 @@ app.use((req, res, next) => {
 // Create HTTP server
 const server = createServer(app);
 
+// Extract allowed origin host for WebSocket verification
+// Supports both 'http://hostname:port' and '*' (allow all) formats
+const getAllowedOriginHost = (corsOrigin: string): string | null => {
+  if (corsOrigin === '*') return null; // Allow all origins
+  try {
+    return new URL(corsOrigin).host;
+  } catch {
+    return null;
+  }
+};
+const ALLOWED_ORIGIN_HOST = getAllowedOriginHost(CORS_ORIGIN);
+
 // Create Colyseus game server
 const gameServer = new Server({
   transport: new WebSocketTransport({
     server,
-    verifyClient: (info: any) => {
-      // Basic verification - allow connections from localhost during development
-      const origin = info.origin;
-      return !origin || origin.includes('localhost') || origin.includes('127.0.0.1');
+    verifyClient: (info: { origin?: string }) => {
+      // Allow if no origin (non-browser clients) or if CORS_ORIGIN is '*'
+      if (!info.origin || CORS_ORIGIN === '*') return true;
+
+      // Allow localhost/127.0.0.1 in development mode
+      const isDevelopment = !process.env.NODE_ENV || process.env.NODE_ENV === 'development';
+      if (isDevelopment && (info.origin.includes('localhost') || info.origin.includes('127.0.0.1'))) {
+        return true;
+      }
+
+      // Check against configured CORS origin
+      if (ALLOWED_ORIGIN_HOST) {
+        try {
+          const requestHost = new URL(info.origin).host;
+          return requestHost === ALLOWED_ORIGIN_HOST;
+        } catch {
+          return false;
+        }
+      }
+
+      return true; // Allow if no specific host configured
     }
   })
 });

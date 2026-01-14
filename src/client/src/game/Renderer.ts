@@ -374,7 +374,7 @@ export class Renderer {
       sprite.position.set(player.x, 0.5, player.y);
 
       // Visual feedback for invulnerability
-      if (player.invulnerable) {
+      if (player.invulnerableTime > 0) {
         sprite.material.opacity = 0.5 + Math.sin(Date.now() * 0.01) * 0.3;
       } else {
         sprite.material.opacity = 1;
