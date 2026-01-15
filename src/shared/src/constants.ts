@@ -23,12 +23,13 @@ export const COLOR_PALETTE = {
   PLAYER_LOCAL: 0x00ff00,    // Local player - bright green
   PLAYER_OTHER: 0x0088ff,    // Other players - sky blue
 
-  // Enemy colors (9)
+  // Enemy colors (10)
   ENEMY_BAT: 0x8b4513,       // Bat - brown
   ENEMY_SKELETON: 0xffffff,  // Skeleton - white
   ENEMY_ZOMBIE: 0x228b22,    // Zombie - forest green
   ENEMY_GHOST: 0x87ceeb,     // Ghost - sky blue (ethereal)
   ENEMY_SLIME: 0x32cd32,     // Slime - lime green
+  ENEMY_MINI_SLIME: 0x90ee90, // Mini Slime - light green (smaller variant)
   ENEMY_DEMON: 0xff4500,     // Demon - orange-red
   BOSS_SLIME: 0x00ff00,      // Boss Slime - bright green
   BOSS_SKELETON: 0xffd700,   // Boss Skeleton - gold
@@ -61,6 +62,7 @@ export const DEATH_PARTICLE_COLORS: Record<string, number> = {
   zombie: 0x4ecdc4,
   ghost: 0xaaaaff,
   slime: 0x95e1d3,
+  mini_slime: 0x95e1d3, // Same as regular slime
   demon: 0xff4444,
   boss_slime: 0x00ff88,
   boss_skeleton: 0xffffff,
@@ -296,6 +298,12 @@ export interface BossAbilityConfig {
 }
 
 export const BOSS_ABILITY_CONFIGS: Record<string, BossAbilityConfig> = {
+  // Regular slime splits into 2 mini_slimes on death (spec: "Splits on death")
+  slime: {
+    type: 'split',
+    splitCount: 2,
+    splitType: 'mini_slime',
+  },
   boss_slime: {
     type: 'split',
     splitCount: 4,
@@ -366,6 +374,16 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
     damage: 8,
     xpValue: 2,
     size: 0.5,
+    isBoss: false,
+  },
+  mini_slime: {
+    type: 'mini_slime',
+    name: 'Mini Slime',
+    health: 8,
+    speed: 2.5,
+    damage: 4,
+    xpValue: 1,
+    size: 0.3,
     isBoss: false,
   },
   demon: {

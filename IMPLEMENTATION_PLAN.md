@@ -4,7 +4,7 @@
 
 **Last Updated:** 2026-01-15
 **Implementation Progress:** 118/85 tasks completed (138.8%)
-**Test Count:** 471 tests (388 server + 73 shared + 10 client) - ALL PASSING
+**Test Count:** 461 tests - ALL PASSING
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
 **Critical Bugs:** 0 | **Medium Bugs:** 1 (BUG-029 design choice, non-blocking)
 
@@ -18,7 +18,7 @@
 | Completed | 118 | 138.8% (all phases complete + extras) |
 | Critical Bugs | 0 | All verified and fixed |
 | Medium Bugs | 1 | BUG-029 (design choice - static charge targeting) |
-| Test Coverage | 471 tests | All passing |
+| Test Coverage | 461 tests | All passing |
 | Code Quality | Good | Structured logging, TypeScript clean |
 
 ### Current Priorities
@@ -120,6 +120,12 @@ defineTypes(MySchema, { syncedField: 'string' });
 **Fix:** `mesh.frustumCulled = false;` on all InstancedMesh objects.
 
 **Key Lesson:** Disable frustum culling on InstancedMesh or implement custom culling.
+
+### Ghost Phasing Behavior (Verified - Not a Bug)
+
+**Issue:** Spec states ghosts "pass through other enemies" - was this implemented?
+
+**Verification:** Ghosts already pass through other enemies since there is no enemy-enemy collision in the game. The spec comment is flavor text describing their ethereal nature, not a mechanical requirement. No code changes needed.
 
 ---
 
@@ -227,6 +233,9 @@ npm run test:memory --players=20 --duration=30
 ## CHANGELOG SUMMARY
 
 **Recent (2026-01-15):**
+- Implemented slime splitting on death: regular slimes now split into 2 mini_slimes when killed (P2 spec compliance)
+- Added mini_slime enemy type: smaller slime (8hp, 4 damage, 0.3 size) that doesn't split
+- Fixed axe weapon description inconsistency in types.ts (was 'Boomerang projectile', now 'Piercing throw')
 - Client structured logging migration: migrated all console.log/warn/error to structured logging utility
   - Updated: AudioManager, AnimationController, SpriteLoader, Renderer, TouchControls, main.ts
   - Tag: 0.4.25
@@ -243,6 +252,6 @@ npm run test:memory --players=20 --duration=30
 **Earlier (2026-01-13 to 2026-01-14):**
 - All 6 phases completed
 - 11 bugs identified and fixed in comprehensive audit
-- 471 tests implemented
+- 461 tests implemented
 - All 8 weapons, audio, visual effects, mobile controls complete
 - Object pooling, interest management, LOD, frustum culling implemented

@@ -401,6 +401,7 @@ export class Renderer {
     this.createEnemyPool('zombie', 0x228b22, 200);      // Forest green - undead rot
     this.createEnemyPool('ghost', 0x87ceeb, 100);       // Sky blue - ethereal
     this.createEnemyPool('slime', 0x32cd32, 100);       // Lime green - acidic
+    this.createEnemyPool('mini_slime', 0x90ee90, 200); // Light green - smaller slime
     this.createEnemyPool('demon', 0xff4500, 50);        // Orange-red - hellfire
     // Boss enemies - larger and more intimidating colors
     this.createEnemyPool('boss_slime', 0x00ff00, 10);   // Bright green - giant slime
@@ -475,6 +476,9 @@ export class Renderer {
       case 'slime':
         // Low-poly sphere - blobby bouncy creature
         return new THREE.IcosahedronGeometry(0.9, 0);
+      case 'mini_slime':
+        // Smaller low-poly sphere - baby slime from split
+        return new THREE.IcosahedronGeometry(0.5, 0);
       case 'demon':
         // Inverted cone - menacing horned appearance
         return new THREE.ConeGeometry(1.0, 1.8, 6);
@@ -534,8 +538,8 @@ export class Renderer {
         death: createSimpleAnimation('player_death', 4, 0.15, false),
       });
 
-      // Define enemy animations (6 types + bosses)
-      const enemyTypes = ['bat', 'skeleton', 'zombie', 'ghost', 'slime', 'demon'];
+      // Define enemy animations (7 types + bosses)
+      const enemyTypes = ['bat', 'skeleton', 'zombie', 'ghost', 'slime', 'mini_slime', 'demon'];
       for (const type of enemyTypes) {
         this.animationController.defineAnimations(type, 'idle', {
           idle: createSimpleAnimation(`${type}_idle`, 2, 0.4, true),

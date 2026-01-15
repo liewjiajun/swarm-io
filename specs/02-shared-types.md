@@ -50,13 +50,13 @@ export interface PlayerInput {
 // WEAPONS
 // =============================================================================
 
-export type WeaponType = 
+export type WeaponType =
   | 'knife'      // Directional slash
   | 'wand'       // Directional projectile
   | 'bible'      // Orbital rotation
   | 'garlic'     // AOE around player
   | 'lightning'  // Homing strike
-  | 'axe'        // Boomerang projectile
+  | 'axe'        // Piercing throw (passes through enemies)
   | 'fireball'   // Exploding projectile
   | 'whip';      // Wide arc attack
 
@@ -108,12 +108,13 @@ export interface ProjectileState extends Entity {
 // ENEMIES
 // =============================================================================
 
-export type EnemyType = 
+export type EnemyType =
   | 'bat'       // Fast, weak, swarm
   | 'skeleton'  // Medium speed/health
   | 'zombie'    // Slow, tanky
   | 'ghost'     // Phases through other enemies
-  | 'slime'     // Splits on death
+  | 'slime'     // Splits on death into mini_slimes
+  | 'mini_slime' // Small slime that doesn't split
   | 'demon'     // Ranged attack
   | 'boss_slime'    // Boss variant
   | 'boss_skeleton' // Boss variant

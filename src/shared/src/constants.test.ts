@@ -94,11 +94,11 @@ describe('WEAPON_CONFIGS', () => {
 });
 
 describe('ENEMY_CONFIGS', () => {
-  const regularEnemies = ['bat', 'skeleton', 'zombie', 'ghost', 'slime', 'demon'];
+  const regularEnemies = ['bat', 'skeleton', 'zombie', 'ghost', 'slime', 'mini_slime', 'demon'];
   const bossEnemies = ['boss_slime', 'boss_skeleton', 'boss_demon'];
 
-  it('should have all 9 enemy types', () => {
-    expect(Object.keys(ENEMY_CONFIGS)).toHaveLength(9);
+  it('should have all 10 enemy types', () => {
+    expect(Object.keys(ENEMY_CONFIGS)).toHaveLength(10);
   });
 
   it('should have valid configuration for each enemy', () => {
