@@ -5,7 +5,9 @@ import { Server } from '@colyseus/core';
 import { WebSocketTransport } from '@colyseus/ws-transport';
 import { monitor } from '@colyseus/monitor';
 import express from 'express';
-import { createServer } from 'http';
+import { createServer as createHttpServer } from 'http';
+import { createServer as createHttpsServer } from 'https';
+import { readFileSync } from 'fs';
 import { GameRoom } from './rooms/GameRoom.js';
 import { logger } from './utils/logger.js';
 import { getTelemetryService } from './services/TelemetryService.js';
@@ -33,8 +35,43 @@ app.use((req, res, next) => {
   }
 });
 
-// Create HTTP server
-const server = createServer(app);
+// SSL/TLS Configuration (P4.3)
+// Set SSL_CERT_PATH and SSL_KEY_PATH environment variables to enable HTTPS
+// In production, consider using a reverse proxy (nginx, cloudflare) instead
+const SSL_CERT_PATH = process.env.SSL_CERT_PATH;
+const SSL_KEY_PATH = process.env.SSL_KEY_PATH;
+const SSL_CA_PATH = process.env.SSL_CA_PATH; // Optional CA certificate
+
+// Determine if SSL is enabled
+const isSSLEnabled = SSL_CERT_PATH && SSL_KEY_PATH;
+
+// Create HTTP or HTTPS server based on SSL configuration
+let server;
+if (isSSLEnabled) {
+  try {
+    const sslOptions: { key: Buffer; cert: Buffer; ca?: Buffer } = {
+      key: readFileSync(SSL_KEY_PATH),
+      cert: readFileSync(SSL_CERT_PATH)
+    };
+
+    // Add CA certificate if provided (for chain validation)
+    if (SSL_CA_PATH) {
+      sslOptions.ca = readFileSync(SSL_CA_PATH);
+    }
+
+    server = createHttpsServer(sslOptions, app);
+    logger.info({ certPath: SSL_CERT_PATH }, 'SSL/TLS enabled - using HTTPS');
+  } catch (error) {
+    logger.fatal({ err: error, certPath: SSL_CERT_PATH, keyPath: SSL_KEY_PATH },
+      'Failed to load SSL certificates - check paths and permissions');
+    process.exit(1);
+  }
+} else {
+  server = createHttpServer(app);
+  if (process.env.NODE_ENV === 'production') {
+    logger.warn('Running in production without SSL/TLS - recommend using HTTPS');
+  }
+}
 
 // Extract allowed origin host for WebSocket verification
 // Supports both 'http://hostname:port' and '*' (allow all) formats
@@ -153,6 +190,10 @@ app.use((req, res) => {
 
 const PORT = parseInt(process.env.PORT || '2567', 10);
 
+// Protocol strings for startup message
+const wsProtocol = isSSLEnabled ? 'wss' : 'ws';
+const httpProtocol = isSSLEnabled ? 'https' : 'http';
+
 // Start server
 gameServer.listen(PORT).then(() => {
   console.log(`
@@ -161,21 +202,25 @@ gameServer.listen(PORT).then(() => {
 ║           Multiplayer Game Server                 ║
 ╠═══════════════════════════════════════════════════╣
 ║ Server started on port ${PORT}                       ║
-║ Game endpoint: ws://localhost:${PORT}/game            ║
-║ Monitor: http://localhost:${PORT}/colyseus            ║
-║ Health: http://localhost:${PORT}/health               ║
-║ Stats: http://localhost:${PORT}/api/stats             ║
-║ Telemetry: http://localhost:${PORT}/api/telemetry     ║
+║ SSL/TLS: ${isSSLEnabled ? 'ENABLED' : 'DISABLED'}                                    ║
+║ Game endpoint: ${wsProtocol}://localhost:${PORT}/game            ║
+║ Monitor: ${httpProtocol}://localhost:${PORT}/colyseus            ║
+║ Health: ${httpProtocol}://localhost:${PORT}/health               ║
+║ Stats: ${httpProtocol}://localhost:${PORT}/api/stats             ║
+║ Telemetry: ${httpProtocol}://localhost:${PORT}/api/telemetry     ║
 ╚═══════════════════════════════════════════════════╝
   `);
 
   console.log('[Server] Game features enabled:');
   console.log('  ✓ Wave-based enemy spawning');
-  console.log('  ✓ 4 weapon types (knife, wand, bible, garlic)');
+  console.log('  ✓ 8 weapon types (all implemented)');
   console.log('  ✓ Damage validation & security');
   console.log('  ✓ XP collection & leveling');
   console.log('  ✓ Multiplayer up to 150 players per room');
   console.log('  ✓ Real-time monitoring & stats');
+  if (isSSLEnabled) {
+    console.log('  ✓ SSL/TLS encryption enabled');
+  }
 
 }).catch((error) => {
   logger.fatal({ err: error }, 'Failed to start server');
