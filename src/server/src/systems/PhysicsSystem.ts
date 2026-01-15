@@ -252,6 +252,7 @@ export class PhysicsSystem {
 
   /**
    * Update boss during charge attack
+   * BUG-029 FIX: Now tracks player position during charge instead of using static target
    */
   private updateChargingBoss(
     state: GameState,
@@ -261,6 +262,15 @@ export class PhysicsSystem {
   ): void {
     const chargeSpeed = ability.chargeSpeed || 15;
     const chargeDamage = ability.chargeDamage || 40;
+
+    // BUG-029 FIX: Update charge target to track player's current position
+    if (enemy.targetPlayerId) {
+      const targetPlayer = state.players.get(enemy.targetPlayerId);
+      if (targetPlayer && !targetPlayer.dead) {
+        enemy.chargeTargetX = targetPlayer.x;
+        enemy.chargeTargetY = targetPlayer.y;
+      }
+    }
 
     // Move toward charge target
     const dx = enemy.chargeTargetX - enemy.x;

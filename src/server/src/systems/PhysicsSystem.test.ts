@@ -1083,6 +1083,63 @@ describe('PhysicsSystem', () => {
 
         expect(boss.isCharging).toBe(false);
       });
+
+      it('should track player position during charge (BUG-029 fix)', () => {
+        const playerId = 'player-1';
+        const player = createMockPlayer({ id: playerId, x: 50, y: 0 });
+        const boss = createMockEnemy({
+          type: 'boss_demon',
+          x: 0,
+          y: 0,
+          isCharging: true,
+          chargeTargetX: 50, // Initial target
+          chargeTargetY: 0,
+          targetPlayerId: playerId,
+          abilityCooldown: 3
+        });
+        const gameState = createMockGameState([player], [boss]);
+        populateSpatialHash(spatialHash, gameState);
+
+        // First update - target should still be at player's position
+        physicsSystem.update(gameState as any, dt);
+        expect(boss.chargeTargetX).toBe(50);
+        expect(boss.chargeTargetY).toBe(0);
+
+        // Move player to new position
+        player.x = 50;
+        player.y = 30;
+        spatialHash.clear();
+        populateSpatialHash(spatialHash, gameState);
+
+        // Second update - charge target should track to new position
+        physicsSystem.update(gameState as any, dt);
+        expect(boss.chargeTargetX).toBe(50);
+        expect(boss.chargeTargetY).toBe(30);
+      });
+
+      it('should continue toward last known position if target player dies during charge', () => {
+        const playerId = 'player-1';
+        const player = createMockPlayer({ id: playerId, x: 50, y: 0, dead: true });
+        const boss = createMockEnemy({
+          type: 'boss_demon',
+          x: 0,
+          y: 0,
+          isCharging: true,
+          chargeTargetX: 50,
+          chargeTargetY: 0,
+          targetPlayerId: playerId,
+          abilityCooldown: 3
+        });
+        const gameState = createMockGameState([player], [boss]);
+        populateSpatialHash(spatialHash, gameState);
+
+        physicsSystem.update(gameState as any, dt);
+
+        // Should continue to last known position when player is dead
+        expect(boss.chargeTargetX).toBe(50);
+        expect(boss.chargeTargetY).toBe(0);
+        expect(boss.isCharging).toBe(true);
+      });
     });
   });
 

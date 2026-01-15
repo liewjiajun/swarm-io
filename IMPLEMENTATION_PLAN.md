@@ -2,11 +2,11 @@
 
 ## Current Status: Phase 6 Complete - Production Ready
 
-**Last Updated:** 2026-01-15
-**Implementation Progress:** 118/85 tasks completed (138.8%)
-**Test Count:** 461 tests - ALL PASSING
+**Last Updated:** 2026-01-16
+**Implementation Progress:** 119/85 tasks completed (140%)
+**Test Count:** 473 tests - ALL PASSING
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
-**Critical Bugs:** 0 | **Medium Bugs:** 1 (BUG-029 design choice, non-blocking)
+**Critical Bugs:** 0 | **Medium Bugs:** 0
 
 ---
 
@@ -15,27 +15,44 @@
 | Metric | Value | Notes |
 |--------|-------|-------|
 | Total Tasks | 85 | Across 6 phases |
-| Completed | 118 | 138.8% (all phases complete + extras) |
+| Completed | 119 | 140% (all phases complete + extras) |
 | Critical Bugs | 0 | All verified and fixed |
-| Medium Bugs | 1 | BUG-029 (design choice - static charge targeting) |
-| Test Coverage | 461 tests | All passing |
+| Medium Bugs | 0 | All verified and fixed |
+| Test Coverage | 473 tests | All passing |
 | Code Quality | Good | Structured logging, TypeScript clean |
 
 ### Current Priorities
 
 | Priority | Task | Status |
 |----------|------|--------|
-| **#1** | **Visual Overhaul** - Sprite assets needed (P1.3-P1.9) | NOT STARTED |
-| **#2** | **Playtesting** - P2.8-P2.9 balance verification | NOT STARTED |
-| **#3-4** | Code Quality & Production Readiness | COMPLETE |
+| **#1** | **Visual Overhaul** - Claude to source/create sprite assets (P1.3-P1.9) | NOT STARTED |
+| **#2** | **Audio Overhaul** - Claude to source/create audio assets (P2.A1-P2.A8) | NOT STARTED |
+| **#3** | **Multiplayer Experience** - Nicknames, leaderboard, minimap (P3.1-P3.3) | NOT STARTED |
+| **#4** | **Multiplayer Mechanics** - Co-op features, revival, combos (P4.1-P4.6) | NOT STARTED |
+| **#5** | **Surprise Mechanics** - World events, secrets, hazards (P5.1-P5.7) | NOT STARTED |
+| **#6** | **Balance Playtesting** - Tune difficulty and bosses (P6.1-P6.2) | NOT STARTED |
 
 ---
 
 ## REMAINING TASKS
 
+> **⚠️ IMPORTANT: ASSET SOURCING POLICY**
+>
+> **THE USER WILL NOT SOURCE OR CREATE ANY ASSETS.** All visual sprites, audio files, and other assets must be sourced or created by Claude during implementation. Claude will:
+> - Search OpenGameArt.org, Itch.io, Kenney.nl for free/CC0 assets
+> - Use WebFetch to download suitable assets
+> - Generate pixel art programmatically if needed
+> - Create placeholder assets that can be improved later
+>
+> **Do not ask the user to find or create assets. This is Claude's responsibility.**
+
+---
+
 ### PRIORITY 1: VISUAL OVERHAUL [MANDATORY - BLOCKING RELEASE]
 
 **Current State:** Infrastructure complete (sprite loading, animation controller, CRT shader, color palette). ALL rendering is still procedural geometry - needs sprite assets.
+
+**Claude will source/create ALL of the following:**
 
 #### Asset Creation/Sourcing (NOT STARTED)
 - [ ] **P1.3** Source/create player sprites (idle 4-frame, walk 4-dir x 4-frame, attack, death)
@@ -50,29 +67,107 @@
 
 **Art Direction:** Game Boy Pokemon style with modern vibrant colors. 16x16 or 32x32 sprite bases scaled with nearest-neighbor filtering.
 
-**Asset Sourcing Options:**
-- OpenGameArt.org, Itch.io free assets, Kenney.nl, LPC sprites
-- AI-generated pixel art with manual cleanup
-- Custom creation in Aseprite/Piskel
+**Asset Sources (Claude to search):**
+- OpenGameArt.org - free game assets
+- Itch.io - indie game assets (filter by CC0/free)
+- Kenney.nl - public domain game assets
+- LPC (Liberated Pixel Cup) sprite sheets
 
-### PRIORITY 2: GAMEPLAY BALANCE - PLAYTESTING
+---
 
-- [ ] **P2.8** Playtest and tune enemy health/damage vs player DPS per wave
-- [ ] **P2.9** Verify boss difficulty spikes are appropriate
+### PRIORITY 2: AUDIO OVERHAUL [BLOCKING RELEASE]
 
-**Note:** Telemetry service (P2.10) is complete and collecting balance data via `/api/telemetry` endpoints.
+**Current State:** Audio infrastructure exists (AudioManager with Web Audio API). Current sounds may not be suitable for the game style.
 
-### OPEN BUG (Design Choice)
+**Claude will source/create ALL audio assets:**
 
-- [ ] **BUG-029** Charge ability uses static targeting
-  - **Location:** `PhysicsSystem.ts:217-272` (boss_demon charge)
-  - **Issue:** Boss demon captures player position once at charge start, doesn't track moving player
-  - **Impact:** Charge is predictable and avoidable; may be intentional for gameplay balance
-  - **Action:** Consider tracking or leading target position for harder difficulty mode
+- [ ] **P2.A1** Source/create background music (retro chiptune, looping)
+- [ ] **P2.A2** Source/create weapon sound effects (8 weapons)
+- [ ] **P2.A3** Source/create enemy death sounds (per enemy type)
+- [ ] **P2.A4** Source/create player damage/death sounds
+- [ ] **P2.A5** Source/create XP collection sounds
+- [ ] **P2.A6** Source/create level up fanfare
+- [ ] **P2.A7** Source/create boss encounter music/sounds
+- [ ] **P2.A8** Source/create UI sounds (menu clicks, upgrade selection)
+
+**Audio Direction:** 8-bit/chiptune style to match pixel art aesthetic. Consider:
+- OpenGameArt.org audio section
+- Freesound.org (CC0 filters)
+- BFXR/SFXR for retro sound generation
+- Chiptone for chiptune generation
+
+---
+
+### PRIORITY 3: MULTIPLAYER EXPERIENCE ENHANCEMENTS
+
+#### P3.1: Player Identity
+- [ ] **P3.1a** Add nickname input modal at game start (before joining room)
+- [ ] **P3.1b** Display player nicknames above sprites
+- [ ] **P3.1c** Store nickname in localStorage for returning players
+
+#### P3.2: Leaderboard Improvements
+- [ ] **P3.2a** Show top 10 players by score (not just survival time)
+- [ ] **P3.2b** Add kill count to leaderboard
+- [ ] **P3.2c** Highlight local player in leaderboard
+- [ ] **P3.2d** Add end-of-game leaderboard with stats summary
+
+#### P3.3: Minimap Enhancements
+- [ ] **P3.3a** Show all player positions on minimap (with nicknames on hover)
+- [ ] **P3.3b** Add enemy density heatmap to minimap
+- [ ] **P3.3c** Show boss locations with special icon
+- [ ] **P3.3d** Add zoom in/out controls for minimap
+
+---
+
+### PRIORITY 4: MULTIPLAYER GAME MECHANICS
+
+**Current mechanics are single-player focused. Add multiplayer-specific features:**
+
+- [ ] **P4.1** Cooperative XP sharing - players near each other share XP from kills
+- [ ] **P4.2** Revival mechanic - alive players can revive dead teammates within time limit
+- [ ] **P4.3** Team zones - areas where players buff each other's damage/defense
+- [ ] **P4.4** Combo system - sequential hits by different players multiply damage
+- [ ] **P4.5** Shared boss aggro - bosses target multiple players, requiring coordination
+- [ ] **P4.6** Trading/gifting upgrades between nearby players
+
+---
+
+### PRIORITY 5: SURPRISE GAME MECHANICS
+
+**Unexpected features to delight players:**
+
+- [ ] **P5.1** Random world events (meteor shower, enemy invasion wave, double XP zone)
+- [ ] **P5.2** Hidden power-ups that spawn rarely in random locations
+- [ ] **P5.3** Secret boss that spawns when all players reach certain level
+- [ ] **P5.4** Environmental hazards (lava pools, ice patches, teleporters)
+- [ ] **P5.5** "Jackpot" XP orbs that give massive XP but attract enemies
+- [ ] **P5.6** Shape-shifting enemy that mimics player abilities
+- [ ] **P5.7** Day/night cycle affecting enemy spawns and player abilities
+
+---
+
+### PRIORITY 6: GAMEPLAY BALANCE - PLAYTESTING
+
+- [ ] **P6.1** Playtest and tune enemy health/damage vs player DPS per wave
+- [ ] **P6.2** Verify boss difficulty spikes are appropriate
+
+**Note:** Telemetry service is complete and collecting balance data via `/api/telemetry` endpoints.
 
 ---
 
 ## CRITICAL BUG FIX LOGS (Lessons Learned)
+
+### BUG-029: Boss Demon Charge Used Static Targeting
+
+**Symptom:** Boss demon charge was easily avoidable by moving sideways.
+
+**Location:** `PhysicsSystem.ts:253-298` (updateChargingBoss)
+
+**Root Cause:** Charge captured player position once at start and never updated it during the charge.
+
+**Fix:** Now tracks player's current position during charge. If player dies mid-charge, continues to last known position.
+
+**Impact:** Boss demon charge is now more challenging and engaging - players must actively evade.
 
 ### BUG-032: Client-side Prediction Reconciliation Used Stale Interpolated State
 
@@ -268,7 +363,18 @@ npm run test:memory --players=20 --duration=30
 
 ## CHANGELOG SUMMARY
 
-**Recent (2026-01-15):**
+**Recent (2026-01-16):**
+- BUG-029 fixed: Boss demon charge now tracks player position dynamically instead of using static targeting
+- Added new priority structure for remaining work:
+  - P1: Visual Overhaul (Claude to source/create sprites)
+  - P2: Audio Overhaul (Claude to source/create audio)
+  - P3: Multiplayer Experience (nicknames, leaderboard, minimap)
+  - P4: Multiplayer Mechanics (co-op features, revival, combos)
+  - P5: Surprise Mechanics (world events, secrets, hazards)
+  - P6: Balance Playtesting
+- Added explicit policy: User will not source assets - Claude handles all asset sourcing/creation
+
+**2026-01-15:**
 - BUG-032 fixed: Client-side prediction reconciliation now uses fresh server state instead of stale interpolated state
 - BUG-033 fixed: Client reconciliation now stores actual delta time per input instead of hardcoded 60fps
 - BUG-034 fixed: Knife range now properly scales with level (+10% per level, 2 at lv1 to 3.4 at lv8)
