@@ -34,6 +34,7 @@ interface HUDElements {
   sfxVolumeSlider: HTMLInputElement;
   musicVolumeSlider: HTMLInputElement;
   muteCheckbox: HTMLInputElement;
+  crtCheckbox: HTMLInputElement;
   tutorialOverlay: HTMLElement;
   pauseOverlay: HTMLElement;
 }
@@ -46,6 +47,7 @@ interface AudioSettings {
 }
 
 type AudioSettingsCallback = (settings: AudioSettings) => void;
+type CRTSettingsCallback = (enabled: boolean) => void;
 
 interface PlayerState {
   id: string;
@@ -99,12 +101,14 @@ export class HUD {
   private container: HTMLElement;
   private elements!: HUDElements;
   private onAudioSettingsChange: AudioSettingsCallback | null = null;
+  private onCRTSettingsChange: CRTSettingsCallback | null = null;
   private currentSettings: AudioSettings = {
     masterVolume: 0.7,
     sfxVolume: 0.8,
     musicVolume: 0.5,
     muted: false
   };
+  private crtEnabled: boolean = false;
 
   constructor() {
     const uiContainer = document.getElementById('ui');
@@ -124,6 +128,20 @@ export class HUD {
    */
   setAudioSettingsCallback(callback: AudioSettingsCallback): void {
     this.onAudioSettingsChange = callback;
+  }
+
+  /**
+   * Sets the callback for CRT effect toggle (P1.10)
+   */
+  setCRTSettingsCallback(callback: CRTSettingsCallback): void {
+    this.onCRTSettingsChange = callback;
+  }
+
+  /**
+   * Gets the current CRT effect state
+   */
+  isCRTEnabled(): boolean {
+    return this.crtEnabled;
   }
 
   /**
@@ -212,6 +230,11 @@ export class HUD {
           <div class="settings-group mute-group">
             <label class="settings-label">Mute All</label>
             <input type="checkbox" class="settings-checkbox mute-checkbox">
+          </div>
+          <div class="settings-group crt-group">
+            <label class="settings-label">CRT Effect</label>
+            <input type="checkbox" class="settings-checkbox crt-checkbox">
+            <span class="settings-hint">Retro scanline effect</span>
           </div>
           <button class="settings-close-btn">CLOSE</button>
         </div>
@@ -675,8 +698,15 @@ export class HUD {
         text-align: right;
       }
 
-      .mute-group {
+      .mute-group, .crt-group {
         justify-content: flex-start;
+      }
+
+      .settings-hint {
+        font-size: 8px;
+        color: #888;
+        margin-left: 10px;
+        font-style: italic;
       }
 
       .settings-checkbox {
@@ -958,6 +988,7 @@ export class HUD {
       sfxVolumeSlider: this.container.querySelector('.sfx-volume') as HTMLInputElement,
       musicVolumeSlider: this.container.querySelector('.music-volume') as HTMLInputElement,
       muteCheckbox: this.container.querySelector('.mute-checkbox') as HTMLInputElement,
+      crtCheckbox: this.container.querySelector('.crt-checkbox') as HTMLInputElement,
       tutorialOverlay: this.container.querySelector('.tutorial-overlay') as HTMLElement,
       pauseOverlay: this.container.querySelector('.pause-overlay') as HTMLElement
     };
@@ -1234,6 +1265,14 @@ export class HUD {
     this.elements.muteCheckbox.addEventListener('change', (e) => {
       this.currentSettings.muted = (e.target as HTMLInputElement).checked;
       this.notifySettingsChange();
+    });
+
+    // CRT effect checkbox (P1.10)
+    this.elements.crtCheckbox.addEventListener('change', (e) => {
+      this.crtEnabled = (e.target as HTMLInputElement).checked;
+      if (this.onCRTSettingsChange) {
+        this.onCRTSettingsChange(this.crtEnabled);
+      }
     });
   }
 

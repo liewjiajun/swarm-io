@@ -109,6 +109,11 @@ export class Game {
       this.audio.setMusicVolume(settings.musicVolume);
       this.audio.setMuted(settings.muted);
     });
+
+    // Set callback to update Renderer CRT effect when toggled (P1.10)
+    this.hud.setCRTSettingsCallback((enabled) => {
+      this.renderer.setCRTEnabled(enabled);
+    });
   }
 
   async start() {
