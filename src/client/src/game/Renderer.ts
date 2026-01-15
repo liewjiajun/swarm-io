@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 import type { PlayerState, EnemyState, ProjectileState, XPOrbState } from '@swarm-io/shared';
+import { SpriteLoader } from './SpriteLoader';
+import { AnimationController, createSimpleAnimation, createWalkAnimations } from './AnimationController';
+import type { AnimationState } from './AnimationController';
 
 /**
  * DamageNumber - Floating damage text that animates upward and fades
@@ -79,7 +82,21 @@ export class Renderer {
   private xpOrbMeshLOD!: THREE.InstancedMesh;
   private enemyMeshesLOD: Map<string, THREE.InstancedMesh> = new Map();
 
+  // Sprite system (P1.1 and P1.2)
+  private spriteLoader: SpriteLoader;
+  private animationController: AnimationController;
+  private spriteMode: boolean = false;
+  private spriteModeReady: boolean = false;
+
+  // Animation states for entities
+  private playerAnimStates: Map<string, AnimationState> = new Map();
+  private enemyAnimStates: Map<string, AnimationState> = new Map();
+
   constructor(canvas: HTMLCanvasElement) {
+    // Initialize sprite system (P1.1 and P1.2)
+    this.spriteLoader = new SpriteLoader('/assets/sprites/');
+    this.animationController = new AnimationController();
+
     // Scene
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x1a1a2e);
@@ -280,6 +297,90 @@ export class Renderer {
   setCameraTarget(x: number, y: number) {
     this.cameraTarget.x = x;
     this.cameraTarget.y = y;
+  }
+
+  /**
+   * Initialize sprite-based rendering mode
+   * Loads the sprite atlas and sets up animations
+   * Falls back to procedural rendering if assets fail to load
+   *
+   * @returns Promise that resolves to true if sprite mode is ready
+   */
+  async initSpriteMode(): Promise<boolean> {
+    try {
+      console.log('[Renderer] Initializing sprite mode...');
+
+      // Try to load the main sprite atlas
+      await this.spriteLoader.loadAtlas('main', 'atlas.png', 'atlas.json');
+
+      // Configure animation controller with sprite loader
+      this.animationController.setSpriteLoader(this.spriteLoader, 'main');
+
+      // Define player animations
+      this.animationController.defineAnimations('player', 'idle', {
+        idle: createSimpleAnimation('player_idle', 4, 0.5, true),
+        ...createWalkAnimations('player', 4, 0.15),
+        attack: createSimpleAnimation('player_attack', 2, 0.1, false),
+        death: createSimpleAnimation('player_death', 4, 0.15, false),
+      });
+
+      // Define enemy animations (6 types + bosses)
+      const enemyTypes = ['bat', 'skeleton', 'zombie', 'ghost', 'slime', 'demon'];
+      for (const type of enemyTypes) {
+        this.animationController.defineAnimations(type, 'idle', {
+          idle: createSimpleAnimation(`${type}_idle`, 2, 0.4, true),
+          move: createSimpleAnimation(`${type}_move`, 2, 0.2, true),
+          death: createSimpleAnimation(`${type}_death`, 4, 0.1, false),
+        });
+        // Boss variants use same animations but scaled up
+        this.animationController.defineAnimations(`boss_${type}`, 'idle', {
+          idle: createSimpleAnimation(`${type}_idle`, 2, 0.3, true),
+          move: createSimpleAnimation(`${type}_move`, 2, 0.15, true),
+          death: createSimpleAnimation(`${type}_death`, 4, 0.1, false),
+        });
+      }
+
+      this.spriteMode = true;
+      this.spriteModeReady = true;
+      console.log('[Renderer] Sprite mode initialized successfully');
+      return true;
+    } catch (error) {
+      console.warn('[Renderer] Failed to initialize sprite mode, using procedural rendering:', error);
+      this.spriteMode = false;
+      this.spriteModeReady = false;
+      return false;
+    }
+  }
+
+  /**
+   * Check if sprite mode is active and ready
+   */
+  isSpriteMode(): boolean {
+    return this.spriteMode && this.spriteModeReady;
+  }
+
+  /**
+   * Force disable sprite mode (use procedural rendering)
+   */
+  disableSpriteMode(): void {
+    this.spriteMode = false;
+    console.log('[Renderer] Sprite mode disabled, using procedural rendering');
+  }
+
+  /**
+   * Get the sprite loader instance
+   * Useful for loading additional textures
+   */
+  getSpriteLoader(): SpriteLoader {
+    return this.spriteLoader;
+  }
+
+  /**
+   * Get the animation controller instance
+   * Useful for defining custom animations
+   */
+  getAnimationController(): AnimationController {
+    return this.animationController;
   }
 
   /**
@@ -962,7 +1063,7 @@ export class Renderer {
   }
 
   /**
-   * Clean up DOM elements on destroy
+   * Clean up DOM elements and resources on destroy
    */
   destroy(): void {
     if (this.damageContainer) {
@@ -977,5 +1078,11 @@ export class Renderer {
     this.lastEnemyHealth.clear();
     this.particles = [];
     this.lastXpOrbPositions.clear();
+
+    // Clean up sprite system
+    this.spriteLoader.clearCache();
+    this.animationController.clear();
+    this.playerAnimStates.clear();
+    this.enemyAnimStates.clear();
   }
 }
