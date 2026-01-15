@@ -244,7 +244,7 @@ async function runMemoryTest(config: MemoryTestConfig): Promise<void> {
   console.log(`[Memory Test] ${bots.size} players connected\n`);
 
   const startTime = Date.now();
-  const endTime = startTime + config.duration * 60 * 1000;
+  const _endTime = startTime + config.duration * 60 * 1000;
 
   // Snapshot interval (every 30 seconds)
   const snapshotInterval = setInterval(async () => {

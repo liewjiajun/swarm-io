@@ -3,9 +3,9 @@ import {
   TelemetryService,
   getTelemetryService,
   resetTelemetryService,
-  SessionData,
-  UpgradeChoiceData,
-  TelemetryStats
+  type SessionData as _SessionData,
+  type UpgradeChoiceData as _UpgradeChoiceData,
+  type TelemetryStats as _TelemetryStats
 } from './TelemetryService.js';
 
 describe('TelemetryService', () => {
