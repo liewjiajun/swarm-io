@@ -7,6 +7,7 @@ import { monitor } from '@colyseus/monitor';
 import express from 'express';
 import { createServer } from 'http';
 import { GameRoom } from './rooms/GameRoom.js';
+import { logger } from './utils/logger.js';
 
 // Create Express app
 const app = express();
@@ -103,7 +104,7 @@ app.get('/api/stats', (req, res) => {
 
 // Error handling middleware
 app.use((error: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error('[Server] Error:', error);
+  logger.error({ err: error, path: req.path }, 'Server error');
   res.status(500).json({
     error: 'Internal server error',
     timestamp: new Date().toISOString()
@@ -145,41 +146,41 @@ gameServer.listen(PORT).then(() => {
   console.log('  ✓ Real-time monitoring & stats');
 
 }).catch((error) => {
-  console.error('[Server] Failed to start:', error);
+  logger.fatal({ err: error }, 'Failed to start server');
   process.exit(1);
 });
 
 // Graceful shutdown handling
 process.on('SIGTERM', () => {
-  console.log('[Server] Received SIGTERM, shutting down gracefully...');
+  logger.info('Received SIGTERM, shutting down gracefully');
 
   gameServer.gracefullyShutdown().then(() => {
-    console.log('[Server] Server shut down gracefully');
+    logger.info('Server shut down gracefully');
     process.exit(0);
   }).catch((error) => {
-    console.error('[Server] Error during shutdown:', error);
+    logger.error({ err: error }, 'Error during shutdown');
     process.exit(1);
   });
 });
 
 process.on('SIGINT', () => {
-  console.log('[Server] Received SIGINT, shutting down gracefully...');
+  logger.info('Received SIGINT, shutting down gracefully');
 
   gameServer.gracefullyShutdown().then(() => {
-    console.log('[Server] Server shut down gracefully');
+    logger.info('Server shut down gracefully');
     process.exit(0);
   }).catch((error) => {
-    console.error('[Server] Error during shutdown:', error);
+    logger.error({ err: error }, 'Error during shutdown');
     process.exit(1);
   });
 });
 
 // Log unhandled errors
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('[Server] Unhandled Rejection at:', promise, 'reason:', reason);
+process.on('unhandledRejection', (reason, _promise) => {
+  logger.error({ err: reason }, 'Unhandled Rejection');
 });
 
 process.on('uncaughtException', (error) => {
-  console.error('[Server] Uncaught Exception:', error);
+  logger.fatal({ err: error }, 'Uncaught Exception');
   process.exit(1);
 });

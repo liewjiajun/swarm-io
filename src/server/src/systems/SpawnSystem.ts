@@ -1,6 +1,7 @@
 import { GameState } from '../state/GameState.js';
 import { GAME_CONSTANTS, WAVE_SCHEDULE, ENEMY_CONFIGS } from '@swarm-io/shared';
 import { randomPointOnCircle } from '@swarm-io/shared';
+import { spawnSystemLogger } from '../utils/logger.js';
 
 interface SpawnMetrics {
   totalSpawned: number;
@@ -24,7 +25,7 @@ export class SpawnSystem {
   };
 
   constructor() {
-    console.log('[SpawnSystem] Initialized with wave-based enemy spawning');
+    spawnSystemLogger.info('Initialized with wave-based enemy spawning');
   }
 
   update(gameState: GameState, deltaTime: number): void {
@@ -67,7 +68,7 @@ export class SpawnSystem {
       const oldWave = gameState.world.currentWave;
       gameState.world.currentWave = currentWave;
 
-      console.log(`[SpawnSystem] Wave progression: ${oldWave} → ${currentWave} (${gameTime.toFixed(1)}s)`);
+      spawnSystemLogger.info({ oldWave, currentWave, gameTime }, 'Wave progression');
     }
 
     // Update difficulty scaling
@@ -106,7 +107,7 @@ export class SpawnSystem {
       this.spawnMetrics.bossesSpawned++;
       this.spawnMetrics.totalSpawned++;
 
-      console.log(`[SpawnSystem] Boss spawned: ${wave.bossType} at (${spawnPos.x.toFixed(1)}, ${spawnPos.y.toFixed(1)}) for wave ${currentWave}`);
+      spawnSystemLogger.info({ bossType: wave.bossType, x: spawnPos.x, y: spawnPos.y, wave: currentWave }, 'Boss spawned');
     }
   }
 
@@ -116,7 +117,7 @@ export class SpawnSystem {
 
     // DEBUG: Log spawn system state periodically (every ~5 seconds of game time)
     if (Math.floor(currentTime) % 5 === 0 && Math.floor(currentTime) !== Math.floor(this.lastSpawnTime)) {
-      console.log(`[SpawnSystem DEBUG] gameTime: ${currentTime.toFixed(1)}s, players: ${playerCount}, enemies: ${gameState.enemies.size}`);
+      spawnSystemLogger.debug({ gameTime: currentTime, playerCount, enemyCount: gameState.enemies.size }, 'Spawn system state');
     }
 
     // Calculate spawn interval based on player count
@@ -240,7 +241,7 @@ export class SpawnSystem {
   }
 
   private logSecurityViolation(reason: string, data: any): void {
-    console.warn(`[SpawnSystem] Security violation: ${reason}`, data);
+    spawnSystemLogger.warn({ reason, ...data }, 'Security violation');
     this.spawnMetrics.validationErrors++;
   }
 
@@ -267,6 +268,6 @@ export class SpawnSystem {
       validationErrors: 0,
       lastSpawnTime: 0
     };
-    console.log('[SpawnSystem] Reset for new game');
+    spawnSystemLogger.info('Reset for new game');
   }
 }

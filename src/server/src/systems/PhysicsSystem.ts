@@ -2,6 +2,7 @@ import type { GameState } from '../state/GameState';
 import type { SpatialHash } from './SpatialHash';
 import { GAME_CONSTANTS, ENEMY_ATTACK_CONFIGS, BOSS_ABILITY_CONFIGS } from '@swarm-io/shared';
 import { direction, distance } from '@swarm-io/shared';
+import { physicsSystemLogger } from '../utils/logger.js';
 
 export class PhysicsSystem {
   constructor(private spatialHash: SpatialHash) {}
@@ -235,7 +236,7 @@ export class PhysicsSystem {
         minion.initialize(ability.summonType, 1);
       }
       enemy.abilityCooldown = ability.summonCooldown || 8;
-      console.log(`[PhysicsSystem] Boss ${enemy.type} summoned ${ability.summonCount} ${ability.summonType}s`);
+      physicsSystemLogger.debug({ bossType: enemy.type, summonCount: ability.summonCount, summonType: ability.summonType }, 'Boss summoned minions');
     }
 
     // Charge ability (boss_demon)
@@ -245,7 +246,7 @@ export class PhysicsSystem {
       enemy.chargeTargetX = target.x;
       enemy.chargeTargetY = target.y;
       enemy.abilityCooldown = ability.chargeCooldown || 5;
-      console.log(`[PhysicsSystem] Boss ${enemy.type} started charge attack`);
+      physicsSystemLogger.debug({ bossType: enemy.type }, 'Boss started charge attack');
     }
   }
 
@@ -285,7 +286,7 @@ export class PhysicsSystem {
         GAME_CONSTANTS.CHARGE_IMPACT_RADIUS,
         GAME_CONSTANTS.CHARGE_IMPACT_MAX_PIERCE
       );
-      console.log(`[PhysicsSystem] Boss ${enemy.type} charge impact at (${enemy.x.toFixed(1)}, ${enemy.y.toFixed(1)})`);
+      physicsSystemLogger.debug({ bossType: enemy.type, x: enemy.x, y: enemy.y }, 'Boss charge impact');
       return;
     }
 

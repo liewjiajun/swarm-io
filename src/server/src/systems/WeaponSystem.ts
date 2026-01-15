@@ -1,6 +1,7 @@
 import { GameState, PlayerSchema, EnemySchema } from '../state/GameState.js';
 import { WEAPON_CONFIGS } from '@swarm-io/shared';
 import { SpatialHash } from './SpatialHash.js';
+import { weaponSystemLogger } from '../utils/logger.js';
 
 interface WeaponMetrics {
   totalShots: number;
@@ -21,7 +22,7 @@ export class WeaponSystem {
   private spatialHash: SpatialHash | null = null;
 
   constructor() {
-    console.log('[WeaponSystem] Initialized with auto-firing weapon support');
+    weaponSystemLogger.info('Initialized with auto-firing weapon support');
   }
 
   update(gameState: GameState, spatialHash: SpatialHash, deltaTime: number): void {
@@ -485,7 +486,7 @@ export class WeaponSystem {
   }
 
   private logSecurityViolation(reason: string, data: any): void {
-    console.warn(`[WeaponSystem] Security violation: ${reason}`, data);
+    weaponSystemLogger.warn({ reason, ...data }, 'Security violation');
     this.weaponMetrics.securityViolations++;
   }
 
@@ -501,6 +502,6 @@ export class WeaponSystem {
       weaponCooldowns: {},
       securityViolations: 0
     };
-    console.log('[WeaponSystem] Reset for new game');
+    weaponSystemLogger.info('Reset for new game');
   }
 }

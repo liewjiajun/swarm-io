@@ -2,7 +2,7 @@
 
 ## Current Status: Phase 6 Complete - Comprehensive Audit Verified
 
-**Last Updated:** 2026-01-15 (P1.10-P1.11 Complete)
+**Last Updated:** 2026-01-15 (P3.1-P3.2 + P3.5 Complete - Server Structured Logging)
 **Implementation Progress:** 112/85 tasks completed (131.8%)
 **Test Count:** 440 tests (357 server + 73 shared + 10 client) - ALL PASSING
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
@@ -91,14 +91,19 @@
 
 ### PRIORITY 3: CODE QUALITY [MEDIUM - PRE-PRODUCTION]
 
-**Current State:** 148 console statements across 16 files (debug logs to remove). 2 `as any` casts (1 necessary, 1 refactorable). 0 TODOs/FIXMEs. 0 skipped tests.
+**Current State:** Server-side structured logging complete (P3.1, P3.2, P3.5). Client logs remain (P3.3, P3.4). 2 `as any` casts (1 necessary, 1 refactorable). 0 TODOs/FIXMEs. 0 skipped tests.
 
-#### Logging Cleanup (68 debug logs to remove)
-- [ ] **P3.1** Implement structured logging (winston/pino) to replace console statements
-- [ ] **P3.2** Convert GameRoom.ts logs (30) to structured logging
-- [ ] **P3.3** Convert NetworkClient.ts logs (24) to structured logging
-- [ ] **P3.4** Convert Game.ts logs (12) to structured logging
-- [ ] **P3.5** Convert system logs (PhysicsSystem, XPSystem, SpawnSystem, CombatSystem, WeaponSystem)
+#### Logging Cleanup
+- [x] **P3.1** Implement structured logging (winston/pino) to replace console statements ✅ COMPLETE
+  - **Implementation:** Created `src/server/src/utils/logger.ts` with pino logger
+  - **Features:** Log levels (debug/info/warn/error/fatal), JSON output for production, pino-pretty for development
+  - **Child loggers:** Pre-configured for each system (gameRoomLogger, combatSystemLogger, etc.)
+  - **Environment:** LOG_LEVEL configurable, silent in test environment
+- [x] **P3.2** Convert GameRoom.ts logs (21) to structured logging ✅ COMPLETE
+- [ ] **P3.3** Convert NetworkClient.ts logs (17) to structured logging (client-side)
+- [ ] **P3.4** Convert Game.ts logs (10) to structured logging (client-side)
+- [x] **P3.5** Convert system logs (PhysicsSystem, XPSystem, SpawnSystem, CombatSystem, WeaponSystem) ✅ COMPLETE
+  - **Files updated:** PhysicsSystem.ts (3 logs), XPSystem.ts (6 logs), SpawnSystem.ts (6 logs), CombatSystem.ts (4 logs), WeaponSystem.ts (3 logs), index.ts (7 logs)
 
 #### TypeScript Quality
 - [ ] **P3.6** Review 2 `as any` casts:
@@ -126,10 +131,11 @@
 |--------|--------|-------|
 | TODOs/FIXMEs | ✅ 0 found | Clean codebase |
 | Skipped Tests | ✅ 0 found | All 440 tests active and passing |
-| Unimplemented Methods | ⚠️ 1 found | InputManager.reconcile() never called (minor impact) |
+| Unimplemented Methods | ✅ FIXED | InputManager.reconcile() now called from Game.ts |
 | TypeScript Errors | ✅ 0 | Compiles cleanly |
 | `as any` Casts | ⚠️ 2 production, 85 test | 1 necessary (browser compat), 1 refactorable |
-| Console Statements | ⚠️ 108 across 14 files | 68 debug logs to remove for production |
+| Server Logging | ✅ Structured | 50 logs converted to pino (GameRoom, systems, index) |
+| Client Logging | ⚠️ Console | ~39 client logs remain (NetworkClient, Game.ts, Renderer.ts) |
 
 ### Issues Found (v3 - Verified)
 | Issue | Severity | Location | Status |
@@ -829,6 +835,7 @@ npm run test
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-01-15 | 2.47 | SERVER STRUCTURED LOGGING (P3.1, P3.2, P3.5) - Implemented pino-based structured logging for all server-side code. Created `src/server/src/utils/logger.ts` with configurable log levels (debug/info/warn/error/fatal), JSON output for production, and pino-pretty for development. Added child loggers for each system component (gameRoomLogger, combatSystemLogger, physicsSystemLogger, spawnSystemLogger, xpSystemLogger, weaponSystemLogger, securityLogger). Updated GameRoom.ts (21 logs), PhysicsSystem.ts (3 logs), XPSystem.ts (6 logs), SpawnSystem.ts (6 logs), CombatSystem.ts (4 logs), WeaponSystem.ts (3 logs), and index.ts (7 logs). Logs are silent during tests (NODE_ENV=test). All 440 tests passing. |
 | 2026-01-15 | 2.46 | CRT SETTINGS UI - Added CRT effect toggle checkbox to Settings modal in HUD.ts. Connected HUD callback to Renderer in Game.ts. Users can now enable/disable the retro CRT scanline effect from in-game settings. Added settings-hint CSS class for descriptive toggle labels. All 440 tests passing. |
 | 2026-01-15 | 2.45 | VISUAL INFRASTRUCTURE - P1.10 CRT SHADER: Implemented optional CRT/scanline post-processing effect in Renderer.ts using Three.js EffectComposer. Features scanlines, barrel distortion curvature, vignette edge darkening, RGB separation (chromatic aberration), and subtle screen flicker. Configurable via setCRTEnabled(), toggleCRT(), and configureCRT() methods. Disabled by default. P1.11 COLOR PALETTE: Added unified 32-color COLOR_PALETTE constant to shared/constants.ts organized into categories (4 background, 4 UI, 2 player, 9 enemy, 8 projectile, 3 XP, 2 effect). Added DEATH_PARTICLE_COLORS for consistent enemy death effects. Renderer now uses shared color constants. All 440 tests passing. |
 | 2026-01-15 | 2.44 | SPRITE SYSTEM INFRASTRUCTURE - Implemented SpriteLoader system in src/client/src/game/SpriteLoader.ts with texture atlas loading, caching, and UV coordinate calculation. Implemented AnimationController in src/client/src/game/AnimationController.ts with frame-based animation sequences, directional animations, and entity state management. Integrated sprite system into Renderer.ts with optional sprite mode (falls back to procedural rendering if assets unavailable). Created placeholder atlas structure at src/client/public/assets/sprites/atlas.json. P1.1 and P1.2 COMPLETE - infrastructure ready for sprite assets. All 440 tests passing. |

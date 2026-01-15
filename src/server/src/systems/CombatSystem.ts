@@ -1,6 +1,7 @@
 import { GameState, PlayerSchema, EnemySchema, ProjectileSchema } from '../state/GameState.js';
 import { SpatialHash } from './SpatialHash.js';
 import { GAME_CONSTANTS, WEAPON_CONFIGS, ENEMY_CONFIGS, BOSS_ABILITY_CONFIGS } from '@swarm-io/shared';
+import { combatSystemLogger } from '../utils/logger.js';
 
 interface CombatMetrics {
   totalDamageDealt: number;
@@ -34,7 +35,7 @@ export class CombatSystem {
   private recentDamageEvents: DamageEvent[] = [];
 
   constructor() {
-    console.log('[CombatSystem] Initialized with damage validation and collision detection');
+    combatSystemLogger.info('Initialized with damage validation and collision detection');
   }
 
   update(gameState: GameState, spatialHash: SpatialHash, deltaTime: number): void {
@@ -437,7 +438,7 @@ export class CombatSystem {
         splitEnemy.initialize(abilityConfig.splitType, 1);
       }
 
-      console.log(`[CombatSystem] Boss ${enemy.type} split into ${abilityConfig.splitCount} ${abilityConfig.splitType}s`);
+      combatSystemLogger.debug({ bossType: enemy.type, splitCount: abilityConfig.splitCount, splitType: abilityConfig.splitType }, 'Boss split');
     }
   }
 
@@ -446,7 +447,7 @@ export class CombatSystem {
   }
 
   private logSecurityViolation(reason: string, data: any): void {
-    console.warn(`[CombatSystem] Security violation: ${reason}`, data);
+    combatSystemLogger.warn({ reason, ...data }, 'Security violation');
     this.combatMetrics.securityViolations++;
   }
 
@@ -470,6 +471,6 @@ export class CombatSystem {
       damageValidationErrors: 0
     };
     this.recentDamageEvents = [];
-    console.log('[CombatSystem] Reset for new game');
+    combatSystemLogger.info('Reset for new game');
   }
 }

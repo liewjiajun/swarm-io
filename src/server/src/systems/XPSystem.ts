@@ -1,6 +1,7 @@
 import { GameState, PlayerSchema, XPOrbSchema } from '../state/GameState.js';
 import { SpatialHash } from './SpatialHash.js';
 import { GAME_CONSTANTS, UPGRADE_POOL, getXPForLevel, WEAPON_CONFIGS } from '@swarm-io/shared';
+import { xpSystemLogger } from '../utils/logger.js';
 
 interface XPMetrics {
   totalXPCollected: number;
@@ -31,7 +32,7 @@ export class XPSystem {
   };
 
   constructor() {
-    console.log('[XPSystem] Initialized with XP collection and leveling');
+    xpSystemLogger.info('Initialized with XP collection and leveling');
   }
 
   update(gameState: GameState, spatialHash: SpatialHash, _deltaTime: number): void {
@@ -127,7 +128,7 @@ export class XPSystem {
     this.xpMetrics.totalXPCollected += validatedValue;
     this.xpMetrics.orbsCollected++;
 
-    console.log(`[XPSystem] Player ${player.id} collected ${validatedValue} XP (total: ${player.xp})`);
+    xpSystemLogger.debug({ playerId: player.id, xpCollected: validatedValue, totalXp: player.xp }, 'Player collected XP');
   }
 
   private processLevelUps(gameState: GameState): void {
@@ -170,7 +171,7 @@ export class XPSystem {
 
       this.xpMetrics.levelsGained += (newLevel - oldLevel);
 
-      console.log(`[XPSystem] Player ${player.id} leveled up: ${oldLevel} → ${newLevel}`);
+      xpSystemLogger.info({ playerId: player.id, oldLevel, newLevel }, 'Player leveled up');
 
       // Note: Upgrade choice presentation and selection will be handled by GameRoom
       // through client messages. This system just generates the choices.
@@ -322,7 +323,7 @@ export class XPSystem {
     if (success) {
       player.pendingUpgrade = false;
       this.xpMetrics.upgradesApplied++;
-      console.log(`[XPSystem] Applied upgrade to player ${playerId}: ${upgradeChoice.type}/${upgradeChoice.weaponType || upgradeChoice.statType}`);
+      xpSystemLogger.debug({ playerId, upgradeType: upgradeChoice.type, target: upgradeChoice.weaponType || upgradeChoice.statType }, 'Applied upgrade');
     }
 
     return success;
@@ -406,7 +407,7 @@ export class XPSystem {
   }
 
   private logSecurityViolation(reason: string, data: any): void {
-    console.warn(`[XPSystem] Security violation: ${reason}`, data);
+    xpSystemLogger.warn({ reason, ...data }, 'Security violation');
     this.xpMetrics.securityViolations++;
   }
 
@@ -424,6 +425,6 @@ export class XPSystem {
       magnetizationEvents: 0,
       securityViolations: 0
     };
-    console.log('[XPSystem] Reset for new game');
+    xpSystemLogger.info('Reset for new game');
   }
 }

@@ -13,6 +13,7 @@ import { GAME_CONSTANTS, randomPointOnCircle } from '@swarm-io/shared';
 import { InputMessage, UpgradeMessage } from '@swarm-io/shared';
 import * as fs from 'fs';
 import * as path from 'path';
+import { gameRoomLogger, securityLogger } from '../utils/logger.js';
 
 interface PlayerInput {
   dx: number;
@@ -59,7 +60,7 @@ export class GameRoom extends Room<GameState> {
   private gameLoopInterval: Delayed | null = null;
 
   onCreate(options: any) {
-    console.log('[GameRoom] Room created with options:', options);
+    gameRoomLogger.info({ options }, 'Room created');
 
     // Initialize game state
     this.setState(new GameState());
@@ -78,7 +79,7 @@ export class GameRoom extends Room<GameState> {
     // Start the game loop at 60Hz
     this.startGameLoop();
 
-    console.log('[GameRoom] Game loop started at 60Hz');
+    gameRoomLogger.info('Game loop started at 60Hz');
   }
 
   /**
@@ -88,7 +89,7 @@ export class GameRoom extends Room<GameState> {
   private kickPlayer(playerId: string, reason: string): void {
     const client = this.clients.find(c => c.sessionId === playerId);
     if (client) {
-      console.log(`[SECURITY] Kicking player ${playerId}: ${reason}`);
+      securityLogger.warn({ playerId, reason }, 'Kicking player');
 
       // Record ban before kicking (P3.2)
       this.banPlayer(playerId, reason, this.getClientIP(client));
@@ -142,7 +143,7 @@ export class GameRoom extends Room<GameState> {
     }
 
     this.bannedSessions.set(sessionId, banEntry);
-    console.log(`[SECURITY] Banned session ${sessionId} for ${banEntry.duration / 1000}s (violations: ${banEntry.violations})`);
+    securityLogger.warn({ sessionId, durationSeconds: banEntry.duration / 1000, violations: banEntry.violations }, 'Banned session');
 
     // Also ban by IP if available
     if (ip && ip !== 'unknown') {
@@ -155,7 +156,7 @@ export class GameRoom extends Room<GameState> {
         );
       }
       this.bannedIPs.set(ip, { ...banEntry });
-      console.log(`[SECURITY] Banned IP ${ip} for ${banEntry.duration / 1000}s`);
+      securityLogger.warn({ ip, durationSeconds: banEntry.duration / 1000 }, 'Banned IP');
     }
 
     // Persist bans to file
@@ -226,10 +227,10 @@ export class GameRoom extends Room<GameState> {
         // Clean up expired bans
         this.cleanupExpiredBans();
 
-        console.log(`[SECURITY] Loaded ${this.bannedSessions.size} session bans, ${this.bannedIPs.size} IP bans`);
+        securityLogger.info({ sessionBans: this.bannedSessions.size, ipBans: this.bannedIPs.size }, 'Loaded bans');
       }
     } catch (error) {
-      console.error('[SECURITY] Failed to load bans:', error);
+      securityLogger.error({ err: error }, 'Failed to load bans');
     }
   }
 
@@ -252,7 +253,7 @@ export class GameRoom extends Room<GameState> {
 
       fs.writeFileSync(this.banFilePath, JSON.stringify(data, null, 2));
     } catch (error) {
-      console.error('[SECURITY] Failed to save bans:', error);
+      securityLogger.error({ err: error }, 'Failed to save bans');
     }
   }
 
@@ -278,7 +279,7 @@ export class GameRoom extends Room<GameState> {
     }
 
     if (cleaned > 0) {
-      console.log(`[SECURITY] Cleaned up ${cleaned} expired bans`);
+      securityLogger.debug({ count: cleaned }, 'Cleaned up expired bans');
       this.saveBans();
     }
   }
@@ -298,17 +299,15 @@ export class GameRoom extends Room<GameState> {
   }
 
   onJoin(client: Client, _options: any) {
-    console.log(`[GameRoom] Player ${client.sessionId} joining...`);
+    gameRoomLogger.info({ playerId: client.sessionId }, 'Player joining');
 
     try {
       // Check if player is banned (P3.2)
       const clientIP = this.getClientIP(client);
       const banStatus = this.isBanned(client.sessionId, clientIP);
       if (banStatus.banned) {
-        const remaining = banStatus.remaining
-          ? ` (${Math.ceil(banStatus.remaining / 1000)}s remaining)`
-          : ' (permanent)';
-        console.log(`[SECURITY] Rejected banned player ${client.sessionId}${remaining}: ${banStatus.reason}`);
+        const remainingSeconds = banStatus.remaining ? Math.ceil(banStatus.remaining / 1000) : null;
+        securityLogger.warn({ playerId: client.sessionId, remainingSeconds, reason: banStatus.reason }, 'Rejected banned player');
         client.send('banned', {
           reason: banStatus.reason,
           remaining: banStatus.remaining
@@ -334,7 +333,7 @@ export class GameRoom extends Room<GameState> {
       // Recalculate world size
       this.recalculateWorldSize();
 
-      console.log(`[GameRoom] Player ${client.sessionId} spawned at (${spawnPos.x.toFixed(1)}, ${spawnPos.y.toFixed(1)})`);
+      gameRoomLogger.info({ playerId: client.sessionId, x: spawnPos.x, y: spawnPos.y }, 'Player spawned');
 
       // Update world state
       this.state.world.playerCount = this.state.players.size;
@@ -349,13 +348,13 @@ export class GameRoom extends Room<GameState> {
       });
 
     } catch (error) {
-      console.error(`[GameRoom] Error during player join:`, error);
+      gameRoomLogger.error({ err: error, playerId: client.sessionId }, 'Error during player join');
       client.error(500, 'Failed to join game');
     }
   }
 
   onLeave(client: Client, consented?: boolean) {
-    console.log(`[GameRoom] Player ${client.sessionId} leaving... (consented: ${consented})`);
+    gameRoomLogger.info({ playerId: client.sessionId, consented }, 'Player leaving');
 
     try {
       // Remove player from game state
@@ -370,16 +369,16 @@ export class GameRoom extends Room<GameState> {
       // Recalculate world size
       this.recalculateWorldSize();
 
-      console.log(`[GameRoom] Player ${client.sessionId} removed. Players remaining: ${this.state.world.playerCount}`);
+      gameRoomLogger.info({ playerId: client.sessionId, playersRemaining: this.state.world.playerCount }, 'Player removed');
 
     } catch (error) {
-      console.error(`[GameRoom] Error during player leave:`, error);
+      gameRoomLogger.error({ err: error, playerId: client.sessionId }, 'Error during player leave');
     }
   }
 
 
   onDispose() {
-    console.log('[GameRoom] Room disposing...');
+    gameRoomLogger.info('Room disposing');
 
     // Stop game loop
     if (this.gameLoopInterval) {
@@ -393,7 +392,7 @@ export class GameRoom extends Room<GameState> {
     this.combatSystem.reset();
     this.xpSystem.reset();
 
-    console.log('[GameRoom] Room disposed');
+    gameRoomLogger.info('Room disposed');
   }
 
   private startGameLoop() {
@@ -431,7 +430,7 @@ export class GameRoom extends Room<GameState> {
       this.notifyPlayerDeaths();
 
     } catch (error) {
-      console.error('[GameRoom] Error in game loop:', error);
+      gameRoomLogger.error({ err: error }, 'Error in game loop');
     }
   }
 
@@ -540,7 +539,7 @@ export class GameRoom extends Room<GameState> {
             choices: player.pendingChoices
           });
 
-          console.log(`[GameRoom] Sent level_up to ${playerId} with ${player.pendingChoices.length} choices`);
+          gameRoomLogger.debug({ playerId, choiceCount: player.pendingChoices.length }, 'Sent level_up');
 
           // Clear choices after sending to prevent re-sending
           // Note: player.pendingUpgrade stays true until they choose an upgrade
@@ -573,7 +572,7 @@ export class GameRoom extends Room<GameState> {
               }
             });
 
-            console.log(`[GameRoom] Sent player_died to ${playerId} (killed by: ${player.killedBy})`);
+            gameRoomLogger.debug({ playerId, killedBy: player.killedBy }, 'Sent player_died');
 
             // BUG-020 FIX: Clear deathTime after sending notification to prevent duplicates
             // Previously this could fire multiple times within the 100ms window
@@ -587,19 +586,19 @@ export class GameRoom extends Room<GameState> {
   private handleInputMessage(client: Client, message: InputMessage) {
     const clientData = this.clientData.get(client.sessionId);
     if (!clientData) {
-      console.warn(`[GameRoom] No client data for input from ${client.sessionId}`);
+      gameRoomLogger.warn({ playerId: client.sessionId }, 'No client data for input');
       return;
     }
 
     // Validate input structure
     if (!message || !message.input || typeof message.input.dx !== 'number' || typeof message.input.dy !== 'number') {
-      console.warn(`[GameRoom] Invalid input from ${client.sessionId}:`, message);
+      gameRoomLogger.warn({ playerId: client.sessionId, message }, 'Invalid input');
       return;
     }
 
     // Prevent input buffer overflow
     if (clientData.inputBuffer.length >= 10) {
-      console.warn(`[GameRoom] Input buffer overflow for ${client.sessionId}, dropping oldest input`);
+      gameRoomLogger.debug({ playerId: client.sessionId }, 'Input buffer overflow, dropping oldest');
       clientData.inputBuffer.shift(); // Remove oldest input
     }
 
@@ -615,13 +614,13 @@ export class GameRoom extends Room<GameState> {
   private handleUpgradeMessage(client: Client, message: UpgradeMessage) {
     const player = this.state.players.get(client.sessionId);
     if (!player || !player.pendingUpgrade) {
-      console.warn(`[GameRoom] Invalid upgrade request from ${client.sessionId}`);
+      gameRoomLogger.warn({ playerId: client.sessionId }, 'Invalid upgrade request');
       return;
     }
 
     // Validate upgrade choice structure
     if (!message.choice || !message.choice.type) {
-      console.warn(`[GameRoom] Invalid upgrade choice from ${client.sessionId}:`, message);
+      gameRoomLogger.warn({ playerId: client.sessionId, message }, 'Invalid upgrade choice');
       return;
     }
 
@@ -635,14 +634,14 @@ export class GameRoom extends Room<GameState> {
         playerLevel: player.level
       });
     } else {
-      console.warn(`[GameRoom] Failed to apply upgrade for ${client.sessionId}:`, message.choice);
+      gameRoomLogger.warn({ playerId: client.sessionId, choice: message.choice }, 'Failed to apply upgrade');
     }
   }
 
   private handleRespawnMessage(client: Client) {
     const player = this.state.players.get(client.sessionId);
     if (!player || !player.dead) {
-      console.warn(`[GameRoom] Invalid respawn request from ${client.sessionId}`);
+      gameRoomLogger.warn({ playerId: client.sessionId }, 'Invalid respawn request');
       return;
     }
 
@@ -662,7 +661,7 @@ export class GameRoom extends Room<GameState> {
     // Respawn player
     player.respawn(spawnPos.x, spawnPos.y);
 
-    console.log(`[GameRoom] Player ${client.sessionId} respawned at (${spawnPos.x.toFixed(1)}, ${spawnPos.y.toFixed(1)})`);
+    gameRoomLogger.info({ playerId: client.sessionId, x: spawnPos.x, y: spawnPos.y }, 'Player respawned');
 
     // Send respawn confirmation
     client.send('respawn_complete', {
@@ -679,7 +678,7 @@ export class GameRoom extends Room<GameState> {
     this.state.world.playerCount = playerCount;
     this.state.world.recalculateSize(playerCount);
 
-    console.log(`[GameRoom] World size updated: ${this.state.world.worldRadius} (${playerCount} players)`);
+    gameRoomLogger.debug({ worldRadius: this.state.world.worldRadius, playerCount }, 'World size updated');
   }
 
   // Public methods for monitoring and debugging
