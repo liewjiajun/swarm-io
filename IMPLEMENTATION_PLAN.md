@@ -36,6 +36,11 @@
   - **Action:** Add boundary checks to destroy projectiles/enemies at worldRadius + margin
   - **Fix Applied:** Projectiles cleaned up at worldRadius + 50, enemies cleaned up at worldRadius + 100 to prevent memory leaks
 
+- [x] **BUG-031** NetworkClient memory leak - statePollingInterval not cleared on disconnect ✅ FIXED
+  - **Location:** `NetworkClient.ts:565` (disconnect method)
+  - **Issue:** The statePollingInterval was not cleared when disconnect() was called, causing a memory leak if user disconnected during the polling window
+  - **Fix Applied:** Added clearInterval(this.statePollingInterval) at the start of disconnect() method
+
 #### Verified NOT Bugs (From Initial Analysis)
 - ~~BUG-026~~ Dead entity cleanup IS working - `CombatSystem.cleanupDeadEntities()` called every frame (line 48)
 - ~~BUG-028~~ Split ability IS implemented - `CombatSystem.handleBossDeathAbility()` handles boss_slime (lines 425-441)
@@ -873,6 +878,7 @@ npm run test
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-01-15 | 2.54 | BUG FIXES - BUG-031 FIX: Fixed memory leak in NetworkClient.ts disconnect() method by clearing statePollingInterval. Code Quality: Fixed parseInt NaN handling in telemetry API endpoints with proper radix and isNaN check. |
 | 2026-01-15 | 2.53 | SPRITE MODE INITIALIZATION (P1.1/P1.2 Integration) - Added initSpriteMode() call to Game.ts start() method so sprite assets load while tutorial is displayed, with graceful fallback to procedural rendering if assets are missing. Sprite system infrastructure is now fully integrated and activated at game startup. |
 | 2026-01-15 | 2.52 | PRODUCTION READINESS (P4.3, P4.5, P4.6) - Implemented SSL/TLS support in server index.ts with configurable SSL_CERT_PATH, SSL_KEY_PATH, and SSL_CA_PATH environment variables. Server creates HTTPS server when certificates provided, falls back to HTTP for development. Created load testing script (src/server/scripts/load-test.ts) that simulates 150+ concurrent players with gradual ramp-up, connection latency tracking, and pass/fail criteria. Created memory leak testing script (src/server/scripts/memory-test.ts) for extended session testing with player churn, heap monitoring, and automated leak detection. Added npm scripts: test:load, test:memory. All 471 tests passing. |
 | 2026-01-15 | 2.51 | TELEMETRY SERVICE (P2.10) - Implemented TelemetryService in `src/server/src/services/TelemetryService.ts` for gameplay balance data collection. Tracks session data (survival time, kills, level reached, wave reached, weapons used) and upgrade choices (weapon vs stat, specific types). Added three API endpoints: GET `/api/telemetry` (aggregated stats including averages and totals), GET `/api/telemetry/sessions` (raw session data), GET `/api/telemetry/upgrades` (upgrade choice distribution). Added 29 comprehensive tests for TelemetryService. All 471 tests passing. |

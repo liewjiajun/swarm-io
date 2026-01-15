@@ -153,7 +153,8 @@ app.get('/api/telemetry', (req, res) => {
 // P2.10: API endpoint to get recent session data (for detailed analysis)
 app.get('/api/telemetry/sessions', (req, res) => {
   const telemetry = getTelemetryService();
-  const limit = Math.min(parseInt(req.query.limit as string) || 100, 1000);
+  const parsedLimit = parseInt(req.query.limit as string, 10);
+  const limit = Math.min(isNaN(parsedLimit) ? 100 : parsedLimit, 1000);
   res.json({
     sessions: telemetry.getRecentSessions(limit),
     timestamp: new Date().toISOString()
@@ -163,7 +164,8 @@ app.get('/api/telemetry/sessions', (req, res) => {
 // P2.10: API endpoint to get recent upgrade choices (for detailed analysis)
 app.get('/api/telemetry/upgrades', (req, res) => {
   const telemetry = getTelemetryService();
-  const limit = Math.min(parseInt(req.query.limit as string) || 100, 1000);
+  const parsedLimit = parseInt(req.query.limit as string, 10);
+  const limit = Math.min(isNaN(parsedLimit) ? 100 : parsedLimit, 1000);
   res.json({
     upgrades: telemetry.getRecentUpgradeChoices(limit),
     timestamp: new Date().toISOString()

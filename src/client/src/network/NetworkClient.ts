@@ -563,6 +563,12 @@ export class NetworkClient {
   }
 
   disconnect() {
+    // Clear state polling interval to prevent memory leak
+    if (this.statePollingInterval) {
+      clearInterval(this.statePollingInterval);
+      this.statePollingInterval = null;
+    }
+
     if (this.room) {
       this.room.leave();
       this.room = null;
