@@ -497,6 +497,27 @@ describe('WeaponSystem', () => {
 
       expect(gameState.addProjectile).toHaveBeenCalledTimes(3);
     });
+
+    it('should have increased range at higher levels', () => {
+      // Base garlic range is 2.5. At level 1: 2.5, at level 4: 2.5 * 1.3 = 3.25
+      // Enemy at distance 3.0 should NOT be hit at level 1, but SHOULD be hit at level 4
+      const player = createMockPlayer({ x: 0, y: 0 });
+      const enemy = createMockEnemy({ x: 3, y: 0 }); // Distance 3.0 from player
+
+      // Level 1: range = 2.5, enemy at 3.0 is out of range
+      const weaponLevel1 = createMockWeapon({ type: 'garlic', level: 1, cooldownRemaining: 0 });
+      player.weapons = [weaponLevel1];
+      const gameState1 = createMockGameState([player], [enemy]);
+      weaponSystem.update(gameState1, spatialHash, deltaTime);
+      expect(gameState1.addProjectile).not.toHaveBeenCalled();
+
+      // Level 4: range = 2.5 * (1 + 0.3) = 3.25, enemy at 3.0 is in range
+      const weaponLevel4 = createMockWeapon({ type: 'garlic', level: 4, cooldownRemaining: 0 });
+      player.weapons = [weaponLevel4];
+      const gameState2 = createMockGameState([player], [enemy]);
+      weaponSystem.update(gameState2, spatialHash, deltaTime);
+      expect(gameState2.addProjectile).toHaveBeenCalled();
+    });
   });
 
   describe('lightning weapon', () => {

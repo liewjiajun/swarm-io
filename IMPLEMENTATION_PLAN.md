@@ -4,7 +4,7 @@
 
 **Last Updated:** 2026-01-15 (P2.5 Complete - Garlic Level-Based Range Scaling)
 **Implementation Progress:** 117/85 tasks completed (137.6%)
-**Test Count:** 440 tests (357 server + 73 shared + 10 client) - ALL PASSING
+**Test Count:** 441 tests (358 server + 73 shared + 10 client) - ALL PASSING
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
 **Critical Bugs:** 0 | **Medium Bugs:** 1 (BUG-029 design choice, non-blocking)
 
@@ -849,7 +849,7 @@ npm run test
 
 | Date | Version | Changes |
 |------|---------|---------|
-| 2026-01-15 | 2.49 | GARLIC LEVEL-BASED RANGE SCALING (P2.5) - Added level-based range scaling to fireGarlic() in WeaponSystem.ts using formula `range = config.range * (1 + (weapon.level - 1) * 0.1)`. This matches the scaling used by Lightning, Whip, and Bible weapons for consistency. At level 1: 2.5 units, at level 8: 4.25 units. All 440 tests passing. |
+| 2026-01-15 | 2.49 | GARLIC LEVEL-BASED RANGE SCALING (P2.5) - Added level-based range scaling to fireGarlic() in WeaponSystem.ts using formula `range = config.range * (1 + (weapon.level - 1) * 0.1)`. This matches the scaling used by Lightning, Whip, and Bible weapons for consistency. At level 1: 2.5 units, at level 8: 4.25 units. Added test case to verify range scaling at different levels. All 441 tests passing. |
 | 2026-01-15 | 2.48 | CLIENT STRUCTURED LOGGING + PRODUCTION READINESS (P3.3, P3.4, P4.1, P4.2) - Created `src/client/src/utils/logger.ts` with browser-compatible structured logging utility. Features: log levels (debug/info/warn/error), structured data format with timestamps, component child loggers (networkLogger, gameLogger, etc.), configurable via localStorage.setItem('LOG_LEVEL', 'debug'). Converted NetworkClient.ts (24 logs) and Game.ts (11 logs) from console statements to structured logging. Verified P4.1 (health check at /health) and P4.2 (graceful shutdown with SIGTERM/SIGINT handlers) were already implemented. Updated P4.4 as verified (ban system persistence acceptable for MVP). All 440 tests passing. |
 | 2026-01-15 | 2.47 | SERVER STRUCTURED LOGGING (P3.1, P3.2, P3.5) - Implemented pino-based structured logging for all server-side code. Created `src/server/src/utils/logger.ts` with configurable log levels (debug/info/warn/error/fatal), JSON output for production, and pino-pretty for development. Added child loggers for each system component (gameRoomLogger, combatSystemLogger, physicsSystemLogger, spawnSystemLogger, xpSystemLogger, weaponSystemLogger, securityLogger). Updated GameRoom.ts (21 logs), PhysicsSystem.ts (3 logs), XPSystem.ts (6 logs), SpawnSystem.ts (6 logs), CombatSystem.ts (4 logs), WeaponSystem.ts (3 logs), and index.ts (7 logs). Logs are silent during tests (NODE_ENV=test). All 440 tests passing. |
 | 2026-01-15 | 2.46 | CRT SETTINGS UI - Added CRT effect toggle checkbox to Settings modal in HUD.ts. Connected HUD callback to Renderer in Game.ts. Users can now enable/disable the retro CRT scanline effect from in-game settings. Added settings-hint CSS class for descriptive toggle labels. All 440 tests passing. |
