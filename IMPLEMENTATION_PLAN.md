@@ -162,6 +162,7 @@ All 6 phases complete (87/85 tasks + 31 extras):
 - P2.1-P2.7, P2.10: Balance review + telemetry
 - P3.1-P3.6: Structured logging, TypeScript quality
 - P4.1-P4.6: Health check, graceful shutdown, SSL/TLS, load/memory testing
+- P4.7: Bundle optimization with lazy-loading and code splitting
 
 ---
 
@@ -226,6 +227,7 @@ npm run test:memory --players=20 --duration=30
 ## CHANGELOG SUMMARY
 
 **Recent (2026-01-15):**
+- Bundle optimization: lazy-loading post-processing, code splitting (89KB main bundle, was 646KB)
 - BUG-031 fixed (NetworkClient memory leak)
 - Sprite mode initialization integrated (P1.1/P1.2)
 - Production readiness complete (SSL/TLS, load testing, memory testing)

@@ -1,7 +1,6 @@
 import * as THREE from 'three';
-import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
-import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
+// Post-processing modules are lazily loaded to reduce initial bundle size
+// See setupPostProcessing() for dynamic imports when CRT effect is enabled
 import type { PlayerState, EnemyState, ProjectileState, XPOrbState } from '@swarm-io/shared';
 import { DEATH_PARTICLE_COLORS } from '@swarm-io/shared';
 import { SpriteLoader } from './SpriteLoader';
@@ -184,10 +183,12 @@ export class Renderer {
   private enemyAnimStates: Map<string, AnimationState> = new Map();
 
   // Post-processing (P1.10 CRT shader)
-  private composer: EffectComposer | null = null;
-  private crtPass: ShaderPass | null = null;
+  // Types are 'any' because modules are lazily loaded to reduce bundle size
+  private composer: any = null;
+  private crtPass: any = null;
   private crtEnabled: boolean = false;
   private crtTime: number = 0;
+  private postProcessingInitialized: boolean = false;
 
   constructor(canvas: HTMLCanvasElement) {
     // Initialize sprite system (P1.1 and P1.2)
@@ -225,35 +226,65 @@ export class Renderer {
     // Handle resize
     window.addEventListener('resize', () => this.onResize(canvas));
 
-    // Setup post-processing (P1.10 CRT effect)
-    this.setupPostProcessing(canvas);
+    // Post-processing is lazily initialized when CRT effect is enabled
+    // This reduces initial bundle size by ~20KB (EffectComposer, RenderPass, ShaderPass)
   }
 
   /**
    * Setup post-processing pipeline for CRT shader effect (P1.10)
+   * Lazily loads EffectComposer, RenderPass, and ShaderPass modules
    * Creates an EffectComposer with RenderPass and optional CRT ShaderPass
    */
-  private setupPostProcessing(canvas: HTMLCanvasElement): void {
-    // Create effect composer
-    this.composer = new EffectComposer(this.renderer);
+  private async setupPostProcessing(): Promise<void> {
+    if (this.postProcessingInitialized) return;
 
-    // First pass: render the scene normally
-    const renderPass = new RenderPass(this.scene, this.camera);
-    this.composer.addPass(renderPass);
+    try {
+      // Dynamically import post-processing modules to reduce initial bundle size
+      const [
+        { EffectComposer },
+        { RenderPass },
+        { ShaderPass }
+      ] = await Promise.all([
+        import('three/examples/jsm/postprocessing/EffectComposer.js'),
+        import('three/examples/jsm/postprocessing/RenderPass.js'),
+        import('three/examples/jsm/postprocessing/ShaderPass.js')
+      ]);
 
-    // Second pass: CRT shader effect (disabled by default)
-    this.crtPass = new ShaderPass(CRTShader);
-    this.crtPass.uniforms.resolution.value.set(canvas.clientWidth, canvas.clientHeight);
-    this.crtPass.enabled = this.crtEnabled;
-    this.composer.addPass(this.crtPass);
+      const canvas = this.renderer.domElement;
+
+      // Create effect composer
+      this.composer = new EffectComposer(this.renderer);
+
+      // First pass: render the scene normally
+      const renderPass = new RenderPass(this.scene, this.camera);
+      this.composer.addPass(renderPass);
+
+      // Second pass: CRT shader effect
+      this.crtPass = new ShaderPass(CRTShader);
+      this.crtPass.uniforms.resolution.value.set(canvas.clientWidth, canvas.clientHeight);
+      this.crtPass.enabled = this.crtEnabled;
+      this.composer.addPass(this.crtPass);
+
+      this.postProcessingInitialized = true;
+      console.log('[Renderer] Post-processing pipeline initialized (lazy-loaded)');
+    } catch (error) {
+      console.error('[Renderer] Failed to initialize post-processing:', error);
+    }
   }
 
   /**
    * Enable or disable CRT shader effect (P1.10)
+   * Lazily initializes post-processing pipeline on first enable
    * @param enabled - Whether to enable the CRT effect
    */
-  setCRTEnabled(enabled: boolean): void {
+  async setCRTEnabled(enabled: boolean): Promise<void> {
     this.crtEnabled = enabled;
+
+    // Lazy-load post-processing modules when CRT is first enabled
+    if (enabled && !this.postProcessingInitialized) {
+      await this.setupPostProcessing();
+    }
+
     if (this.crtPass) {
       this.crtPass.enabled = enabled;
     }
@@ -269,10 +300,11 @@ export class Renderer {
 
   /**
    * Toggle CRT effect on/off
-   * @returns The new state of the CRT effect
+   * Lazily initializes post-processing pipeline on first enable
+   * @returns Promise resolving to the new state of the CRT effect
    */
-  toggleCRT(): boolean {
-    this.setCRTEnabled(!this.crtEnabled);
+  async toggleCRT(): Promise<boolean> {
+    await this.setCRTEnabled(!this.crtEnabled);
     return this.crtEnabled;
   }
 
@@ -935,10 +967,11 @@ export class Renderer {
     this.renderer.setSize(canvas.clientWidth, canvas.clientHeight);
 
     // Update post-processing composer size (P1.10)
-    if (this.composer) {
+    // Only update if post-processing has been initialized (lazy-loaded)
+    if (this.postProcessingInitialized && this.composer) {
       this.composer.setSize(canvas.clientWidth, canvas.clientHeight);
     }
-    if (this.crtPass) {
+    if (this.postProcessingInitialized && this.crtPass) {
       this.crtPass.uniforms.resolution.value.set(canvas.clientWidth, canvas.clientHeight);
     }
   }
