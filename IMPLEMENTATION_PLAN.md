@@ -62,7 +62,8 @@
   - **Implementation:** Custom CRTShader in Renderer.ts using Three.js EffectComposer
   - **Features:** Scanlines, screen curvature (barrel distortion), vignette, RGB separation, flicker
   - **API:** setCRTEnabled(), toggleCRT(), configureCRT() for runtime control
-  - **Default:** Disabled by default, toggle via settings
+  - **Settings UI:** Toggle checkbox added to Settings modal (HUD.ts → Game.ts → Renderer.ts)
+  - **Default:** Disabled by default, toggleable from in-game settings
 - [x] **P1.11** Define 32-color palette for visual consistency ✅ COMPLETE
   - **Location:** COLOR_PALETTE in shared/src/constants.ts
   - **Colors:** 32 colors organized into categories (background, UI, player, enemy, projectile, XP, effect)
@@ -828,6 +829,7 @@ npm run test
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-01-15 | 2.46 | CRT SETTINGS UI - Added CRT effect toggle checkbox to Settings modal in HUD.ts. Connected HUD callback to Renderer in Game.ts. Users can now enable/disable the retro CRT scanline effect from in-game settings. Added settings-hint CSS class for descriptive toggle labels. All 440 tests passing. |
 | 2026-01-15 | 2.45 | VISUAL INFRASTRUCTURE - P1.10 CRT SHADER: Implemented optional CRT/scanline post-processing effect in Renderer.ts using Three.js EffectComposer. Features scanlines, barrel distortion curvature, vignette edge darkening, RGB separation (chromatic aberration), and subtle screen flicker. Configurable via setCRTEnabled(), toggleCRT(), and configureCRT() methods. Disabled by default. P1.11 COLOR PALETTE: Added unified 32-color COLOR_PALETTE constant to shared/constants.ts organized into categories (4 background, 4 UI, 2 player, 9 enemy, 8 projectile, 3 XP, 2 effect). Added DEATH_PARTICLE_COLORS for consistent enemy death effects. Renderer now uses shared color constants. All 440 tests passing. |
 | 2026-01-15 | 2.44 | SPRITE SYSTEM INFRASTRUCTURE - Implemented SpriteLoader system in src/client/src/game/SpriteLoader.ts with texture atlas loading, caching, and UV coordinate calculation. Implemented AnimationController in src/client/src/game/AnimationController.ts with frame-based animation sequences, directional animations, and entity state management. Integrated sprite system into Renderer.ts with optional sprite mode (falls back to procedural rendering if assets unavailable). Created placeholder atlas structure at src/client/public/assets/sprites/atlas.json. P1.1 and P1.2 COMPLETE - infrastructure ready for sprite assets. All 440 tests passing. |
 | 2026-01-15 | 2.43 | BUG-027 and BUG-030 FIX - Fixed client-side prediction reconciliation (added lastProcessedSequence to PlayerSchema, synced from GameRoom, called reconcile() in Game.ts). Fixed projectile/enemy boundary enforcement (projectiles cleaned up at worldRadius + 50, enemies cleaned up at worldRadius + 100 to prevent memory leaks). Also fixed HUD.ts typo (hideUpgradeModal → hideUpgradeUI). All 440 tests passing. |
