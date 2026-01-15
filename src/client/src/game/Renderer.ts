@@ -1,8 +1,99 @@
 import * as THREE from 'three';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import type { PlayerState, EnemyState, ProjectileState, XPOrbState } from '@swarm-io/shared';
+import { COLOR_PALETTE, DEATH_PARTICLE_COLORS } from '@swarm-io/shared';
 import { SpriteLoader } from './SpriteLoader';
 import { AnimationController, createSimpleAnimation, createWalkAnimations } from './AnimationController';
 import type { AnimationState } from './AnimationController';
+
+// =============================================================================
+// CRT SHADER - P1.10: OPTIONAL RETRO CRT/SCANLINE EFFECT
+// =============================================================================
+// Creates a retro CRT monitor aesthetic with:
+// - Horizontal scanlines
+// - Screen curvature (barrel distortion)
+// - Vignette darkening at edges
+// - Subtle RGB separation (chromatic aberration)
+
+const CRTShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    time: { value: 0 },
+    scanLineIntensity: { value: 0.15 },    // Intensity of scanlines (0-1)
+    curvatureAmount: { value: 0.03 },      // Screen curvature (0 = flat)
+    vignetteAmount: { value: 0.25 },       // Edge darkening (0-1)
+    rgbSeparation: { value: 0.002 },       // Chromatic aberration amount
+    flickerIntensity: { value: 0.02 },     // Screen flicker intensity
+    resolution: { value: new THREE.Vector2(1, 1) },
+  },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform float time;
+    uniform float scanLineIntensity;
+    uniform float curvatureAmount;
+    uniform float vignetteAmount;
+    uniform float rgbSeparation;
+    uniform float flickerIntensity;
+    uniform vec2 resolution;
+
+    varying vec2 vUv;
+
+    // Apply barrel distortion for CRT curvature
+    vec2 curveUV(vec2 uv) {
+      vec2 centered = uv * 2.0 - 1.0;
+      float dist = dot(centered, centered) * curvatureAmount;
+      centered *= 1.0 + dist;
+      return centered * 0.5 + 0.5;
+    }
+
+    void main() {
+      // Apply screen curvature
+      vec2 uv = curveUV(vUv);
+
+      // Check if outside screen bounds after curvature
+      if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
+        gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+        return;
+      }
+
+      // RGB separation (chromatic aberration)
+      vec2 offset = vec2(rgbSeparation, 0.0);
+      float r = texture2D(tDiffuse, uv + offset).r;
+      float g = texture2D(tDiffuse, uv).g;
+      float b = texture2D(tDiffuse, uv - offset).b;
+      vec3 color = vec3(r, g, b);
+
+      // Scanlines - horizontal lines that vary with vertical position
+      float scanLine = sin(uv.y * resolution.y * 2.0) * 0.5 + 0.5;
+      scanLine = pow(scanLine, 1.5);
+      color *= 1.0 - scanLineIntensity * (1.0 - scanLine);
+
+      // Screen flicker
+      float flicker = 1.0 + sin(time * 15.0) * flickerIntensity;
+      color *= flicker;
+
+      // Vignette - darken edges
+      vec2 vignetteUV = vUv * (1.0 - vUv);
+      float vignette = vignetteUV.x * vignetteUV.y * 15.0;
+      vignette = pow(vignette, vignetteAmount);
+      color *= vignette;
+
+      // Slight brightness boost to compensate for darkening effects
+      color *= 1.1;
+
+      gl_FragColor = vec4(color, 1.0);
+    }
+  `,
+};
 
 /**
  * DamageNumber - Floating damage text that animates upward and fades
@@ -92,6 +183,12 @@ export class Renderer {
   private playerAnimStates: Map<string, AnimationState> = new Map();
   private enemyAnimStates: Map<string, AnimationState> = new Map();
 
+  // Post-processing (P1.10 CRT shader)
+  private composer: EffectComposer | null = null;
+  private crtPass: ShaderPass | null = null;
+  private crtEnabled: boolean = false;
+  private crtTime: number = 0;
+
   constructor(canvas: HTMLCanvasElement) {
     // Initialize sprite system (P1.1 and P1.2)
     this.spriteLoader = new SpriteLoader('/assets/sprites/');
@@ -127,6 +224,86 @@ export class Renderer {
 
     // Handle resize
     window.addEventListener('resize', () => this.onResize(canvas));
+
+    // Setup post-processing (P1.10 CRT effect)
+    this.setupPostProcessing(canvas);
+  }
+
+  /**
+   * Setup post-processing pipeline for CRT shader effect (P1.10)
+   * Creates an EffectComposer with RenderPass and optional CRT ShaderPass
+   */
+  private setupPostProcessing(canvas: HTMLCanvasElement): void {
+    // Create effect composer
+    this.composer = new EffectComposer(this.renderer);
+
+    // First pass: render the scene normally
+    const renderPass = new RenderPass(this.scene, this.camera);
+    this.composer.addPass(renderPass);
+
+    // Second pass: CRT shader effect (disabled by default)
+    this.crtPass = new ShaderPass(CRTShader);
+    this.crtPass.uniforms.resolution.value.set(canvas.clientWidth, canvas.clientHeight);
+    this.crtPass.enabled = this.crtEnabled;
+    this.composer.addPass(this.crtPass);
+  }
+
+  /**
+   * Enable or disable CRT shader effect (P1.10)
+   * @param enabled - Whether to enable the CRT effect
+   */
+  setCRTEnabled(enabled: boolean): void {
+    this.crtEnabled = enabled;
+    if (this.crtPass) {
+      this.crtPass.enabled = enabled;
+    }
+    console.log(`[Renderer] CRT effect ${enabled ? 'enabled' : 'disabled'}`);
+  }
+
+  /**
+   * Check if CRT effect is currently enabled
+   */
+  isCRTEnabled(): boolean {
+    return this.crtEnabled;
+  }
+
+  /**
+   * Toggle CRT effect on/off
+   * @returns The new state of the CRT effect
+   */
+  toggleCRT(): boolean {
+    this.setCRTEnabled(!this.crtEnabled);
+    return this.crtEnabled;
+  }
+
+  /**
+   * Configure CRT shader parameters
+   * @param params - Object with optional CRT parameters to adjust
+   */
+  configureCRT(params: {
+    scanLineIntensity?: number;
+    curvatureAmount?: number;
+    vignetteAmount?: number;
+    rgbSeparation?: number;
+    flickerIntensity?: number;
+  }): void {
+    if (!this.crtPass) return;
+
+    if (params.scanLineIntensity !== undefined) {
+      this.crtPass.uniforms.scanLineIntensity.value = params.scanLineIntensity;
+    }
+    if (params.curvatureAmount !== undefined) {
+      this.crtPass.uniforms.curvatureAmount.value = params.curvatureAmount;
+    }
+    if (params.vignetteAmount !== undefined) {
+      this.crtPass.uniforms.vignetteAmount.value = params.vignetteAmount;
+    }
+    if (params.rgbSeparation !== undefined) {
+      this.crtPass.uniforms.rgbSeparation.value = params.rgbSeparation;
+    }
+    if (params.flickerIntensity !== undefined) {
+      this.crtPass.uniforms.flickerIntensity.value = params.flickerIntensity;
+    }
   }
 
   /**
@@ -473,8 +650,18 @@ export class Renderer {
     // Update damage number animations
     this.updateDamageNumbers();
 
-    // Render
-    this.renderer.render(this.scene, this.camera);
+    // Update CRT time uniform for animation effects
+    if (this.crtEnabled && this.crtPass) {
+      this.crtTime += dt;
+      this.crtPass.uniforms.time.value = this.crtTime;
+    }
+
+    // Render using post-processing composer or direct render
+    if (this.composer) {
+      this.composer.render();
+    } else {
+      this.renderer.render(this.scene, this.camera);
+    }
   }
 
   private updatePlayers(players: Map<string, PlayerState>, localPlayerId: string) {
@@ -746,6 +933,14 @@ export class Renderer {
     this.camera.updateProjectionMatrix();
 
     this.renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+
+    // Update post-processing composer size (P1.10)
+    if (this.composer) {
+      this.composer.setSize(canvas.clientWidth, canvas.clientHeight);
+    }
+    if (this.crtPass) {
+      this.crtPass.uniforms.resolution.value.set(canvas.clientWidth, canvas.clientHeight);
+    }
   }
 
   /**
@@ -1006,20 +1201,8 @@ export class Renderer {
    * Creates a larger burst with more particles
    */
   spawnDeathExplosion(x: number, z: number, enemyType: string): void {
-    // Color based on enemy type
-    const colors: Record<string, number> = {
-      bat: 0xff6b6b,
-      skeleton: 0xcccccc,
-      zombie: 0x4ecdc4,
-      ghost: 0xaaaaff,
-      slime: 0x95e1d3,
-      demon: 0xff4444,
-      boss_slime: 0x00ff88,
-      boss_skeleton: 0xffffff,
-      boss_demon: 0xff0000,
-    };
-
-    const color = colors[enemyType] || 0xff0000;
+    // Use shared color palette for consistency (P1.11)
+    const color = DEATH_PARTICLE_COLORS[enemyType] || 0xff0000;
     const isBoss = enemyType.startsWith('boss_');
     const particleCount = isBoss ? 30 : 12;
 
@@ -1084,5 +1267,9 @@ export class Renderer {
     this.animationController.clear();
     this.playerAnimStates.clear();
     this.enemyAnimStates.clear();
+
+    // Clean up post-processing (P1.10)
+    this.composer = null;
+    this.crtPass = null;
   }
 }

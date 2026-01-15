@@ -2,7 +2,7 @@
 
 ## Current Status: Phase 6 Complete - Comprehensive Audit Verified
 
-**Last Updated:** 2026-01-15 (Comprehensive Audit v3 - VERIFIED)
+**Last Updated:** 2026-01-15 (P1.10-P1.11 Complete)
 **Implementation Progress:** 112/85 tasks completed (131.8%)
 **Test Count:** 440 tests (357 server + 73 shared + 10 client) - ALL PASSING
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
@@ -58,8 +58,15 @@
 
 #### Integration
 - [ ] **P1.9** Replace all InstancedMesh with sprite-based rendering
-- [ ] **P1.10** Add optional CRT/scanline shader effect
-- [ ] **P1.11** Define 32-color palette for visual consistency
+- [x] **P1.10** Add optional CRT/scanline shader effect ✅ COMPLETE
+  - **Implementation:** Custom CRTShader in Renderer.ts using Three.js EffectComposer
+  - **Features:** Scanlines, screen curvature (barrel distortion), vignette, RGB separation, flicker
+  - **API:** setCRTEnabled(), toggleCRT(), configureCRT() for runtime control
+  - **Default:** Disabled by default, toggle via settings
+- [x] **P1.11** Define 32-color palette for visual consistency ✅ COMPLETE
+  - **Location:** COLOR_PALETTE in shared/src/constants.ts
+  - **Colors:** 32 colors organized into categories (background, UI, player, enemy, projectile, XP, effect)
+  - **Also added:** DEATH_PARTICLE_COLORS for consistent enemy death effects
 
 ### PRIORITY 2: GAMEPLAY BALANCE [HIGH]
 
@@ -83,7 +90,7 @@
 
 ### PRIORITY 3: CODE QUALITY [MEDIUM - PRE-PRODUCTION]
 
-**Current State:** 108 console statements (68 debug logs to remove). 2 `as any` casts (1 necessary, 1 refactorable). 0 TODOs/FIXMEs. 0 skipped tests.
+**Current State:** 148 console statements across 16 files (debug logs to remove). 2 `as any` casts (1 necessary, 1 refactorable). 0 TODOs/FIXMEs. 0 skipped tests.
 
 #### Logging Cleanup (68 debug logs to remove)
 - [ ] **P3.1** Implement structured logging (winston/pino) to replace console statements
@@ -821,6 +828,7 @@ npm run test
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-01-15 | 2.45 | VISUAL INFRASTRUCTURE - P1.10 CRT SHADER: Implemented optional CRT/scanline post-processing effect in Renderer.ts using Three.js EffectComposer. Features scanlines, barrel distortion curvature, vignette edge darkening, RGB separation (chromatic aberration), and subtle screen flicker. Configurable via setCRTEnabled(), toggleCRT(), and configureCRT() methods. Disabled by default. P1.11 COLOR PALETTE: Added unified 32-color COLOR_PALETTE constant to shared/constants.ts organized into categories (4 background, 4 UI, 2 player, 9 enemy, 8 projectile, 3 XP, 2 effect). Added DEATH_PARTICLE_COLORS for consistent enemy death effects. Renderer now uses shared color constants. All 440 tests passing. |
 | 2026-01-15 | 2.44 | SPRITE SYSTEM INFRASTRUCTURE - Implemented SpriteLoader system in src/client/src/game/SpriteLoader.ts with texture atlas loading, caching, and UV coordinate calculation. Implemented AnimationController in src/client/src/game/AnimationController.ts with frame-based animation sequences, directional animations, and entity state management. Integrated sprite system into Renderer.ts with optional sprite mode (falls back to procedural rendering if assets unavailable). Created placeholder atlas structure at src/client/public/assets/sprites/atlas.json. P1.1 and P1.2 COMPLETE - infrastructure ready for sprite assets. All 440 tests passing. |
 | 2026-01-15 | 2.43 | BUG-027 and BUG-030 FIX - Fixed client-side prediction reconciliation (added lastProcessedSequence to PlayerSchema, synced from GameRoom, called reconcile() in Game.ts). Fixed projectile/enemy boundary enforcement (projectiles cleaned up at worldRadius + 50, enemies cleaned up at worldRadius + 100 to prevent memory leaks). Also fixed HUD.ts typo (hideUpgradeModal → hideUpgradeUI). All 440 tests passing. |
 | 2026-01-15 | 2.42 | COMPREHENSIVE AUDIT v3 - Identified 5 new bugs from deep code analysis: BUG-026 (dead entity cleanup incomplete), BUG-027 (input reconciliation never called), BUG-028 (boss_slime split not implemented), BUG-029 (boss_demon static charge targeting), BUG-030 (no boundary enforcement for projectiles/enemies). Reorganized priority list with Priority 0 for critical bugs. Updated code quality metrics: 108 console statements (68 debug logs), 2 `as any` casts. Visual status confirmed: ALL procedural geometry, no sprites/atlas/animations. |

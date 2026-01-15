@@ -1,6 +1,73 @@
 import type { WeaponConfig, EnemyConfig, UpgradeDefinition } from './types';
 
 // =============================================================================
+// VISUAL PALETTE - P1.11: 32-COLOR PALETTE FOR VISUAL CONSISTENCY
+// =============================================================================
+// Unified color palette inspired by Game Boy Pokemon style with vibrant colors
+// All colors should use this palette for visual consistency
+
+export const COLOR_PALETTE = {
+  // Background colors (4)
+  BG_DARK: 0x1a1a2e,         // Scene background - deep navy
+  BG_MEDIUM: 0x2d2d44,       // Ground color - dark purple-gray
+  BG_LIGHT: 0x3d3d5c,        // Grid lines - medium purple-gray
+  BG_VOID: 0x0a0a14,         // Arena boundary void - near black
+
+  // UI accent colors (4)
+  UI_PRIMARY: 0x4ecdc4,      // Primary UI accent - teal
+  UI_SECONDARY: 0x1abc9c,    // Secondary UI accent - dark teal
+  UI_GOLD: 0xffd700,         // Gold accents - leaderboard, upgrades
+  UI_DANGER: 0xff6b6b,       // Danger/health - coral red
+
+  // Player colors (2)
+  PLAYER_LOCAL: 0x00ff00,    // Local player - bright green
+  PLAYER_OTHER: 0x0088ff,    // Other players - sky blue
+
+  // Enemy colors (9)
+  ENEMY_BAT: 0x8b4513,       // Bat - brown
+  ENEMY_SKELETON: 0xffffff,  // Skeleton - white
+  ENEMY_ZOMBIE: 0x228b22,    // Zombie - forest green
+  ENEMY_GHOST: 0x87ceeb,     // Ghost - sky blue (ethereal)
+  ENEMY_SLIME: 0x32cd32,     // Slime - lime green
+  ENEMY_DEMON: 0xff4500,     // Demon - orange-red
+  BOSS_SLIME: 0x00ff00,      // Boss Slime - bright green
+  BOSS_SKELETON: 0xffd700,   // Boss Skeleton - gold
+  BOSS_DEMON: 0x8b0000,      // Boss Demon - dark red
+
+  // Projectile colors (8)
+  PROJ_KNIFE: 0xc0c0c0,      // Knife slash - silver
+  PROJ_WAND: 0x9b59b6,       // Magic wand - purple
+  PROJ_BIBLE: 0xffd700,      // Bible orb - gold
+  PROJ_LIGHTNING: 0x00ffff,  // Lightning - cyan
+  PROJ_AXE: 0x8b4513,        // Axe - brown
+  PROJ_FIREBALL: 0xff4500,   // Fireball - orange-red
+  PROJ_WHIP: 0xa52a2a,       // Whip - dark red
+  PROJ_GARLIC: 0x90ee90,     // Garlic - light green
+
+  // XP orb colors (3)
+  XP_SMALL: 0x00ff88,        // Small XP orb - teal-green
+  XP_MEDIUM: 0x00ffff,       // Medium XP orb - cyan
+  XP_LARGE: 0xffff00,        // Large XP orb - gold/yellow
+
+  // Effect colors (2)
+  EFFECT_EXPLOSION: 0xff6600, // Explosion - orange
+  EFFECT_ENEMY_PROJ: 0xff0000, // Enemy projectile - red
+} as const;
+
+// Death particle colors by enemy type
+export const DEATH_PARTICLE_COLORS: Record<string, number> = {
+  bat: 0xff6b6b,
+  skeleton: 0xcccccc,
+  zombie: 0x4ecdc4,
+  ghost: 0xaaaaff,
+  slime: 0x95e1d3,
+  demon: 0xff4444,
+  boss_slime: 0x00ff88,
+  boss_skeleton: 0xffffff,
+  boss_demon: 0xff0000,
+};
+
+// =============================================================================
 // GAME BALANCE CONSTANTS
 // =============================================================================
 
