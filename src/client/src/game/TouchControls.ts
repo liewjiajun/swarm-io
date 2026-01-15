@@ -10,6 +10,10 @@
  * - Auto-detects mobile devices
  */
 
+import { createChildLogger } from '../utils/logger';
+
+const touchLogger = createChildLogger('TouchControls');
+
 export interface TouchInput {
   dx: number;
   dy: number;
@@ -79,7 +83,7 @@ export class TouchControls {
       this.hide();
     }
 
-    console.log(`[TouchControls] Initialized. Mobile detected: ${this.isMobileDevice}`);
+    touchLogger.info({ isMobile: this.isMobileDevice }, 'Initialized');
   }
 
   /**
@@ -389,7 +393,7 @@ export class TouchControls {
   forceEnable(): void {
     this.isMobileDevice = true;
     this.show();
-    console.log('[TouchControls] Force enabled');
+    touchLogger.info('Force enabled');
   }
 
   /**

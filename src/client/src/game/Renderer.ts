@@ -6,6 +6,7 @@ import { DEATH_PARTICLE_COLORS } from '@swarm-io/shared';
 import { SpriteLoader } from './SpriteLoader';
 import { AnimationController, createSimpleAnimation, createWalkAnimations } from './AnimationController';
 import type { AnimationState } from './AnimationController';
+import { rendererLogger } from '../utils/logger';
 
 // =============================================================================
 // CRT SHADER - P1.10: OPTIONAL RETRO CRT/SCANLINE EFFECT
@@ -266,9 +267,9 @@ export class Renderer {
       this.composer.addPass(this.crtPass);
 
       this.postProcessingInitialized = true;
-      console.log('[Renderer] Post-processing pipeline initialized (lazy-loaded)');
+      rendererLogger.info('Post-processing pipeline initialized (lazy-loaded)');
     } catch (error) {
-      console.error('[Renderer] Failed to initialize post-processing:', error);
+      rendererLogger.error({ error: String(error) }, 'Failed to initialize post-processing');
     }
   }
 
@@ -288,7 +289,7 @@ export class Renderer {
     if (this.crtPass) {
       this.crtPass.enabled = enabled;
     }
-    console.log(`[Renderer] CRT effect ${enabled ? 'enabled' : 'disabled'}`);
+    rendererLogger.info({ enabled }, 'CRT effect toggled');
   }
 
   /**
@@ -517,7 +518,7 @@ export class Renderer {
    */
   async initSpriteMode(): Promise<boolean> {
     try {
-      console.log('[Renderer] Initializing sprite mode...');
+      rendererLogger.info('Initializing sprite mode...');
 
       // Try to load the main sprite atlas
       await this.spriteLoader.loadAtlas('main', 'atlas.png', 'atlas.json');
@@ -551,10 +552,10 @@ export class Renderer {
 
       this.spriteMode = true;
       this.spriteModeReady = true;
-      console.log('[Renderer] Sprite mode initialized successfully');
+      rendererLogger.info('Sprite mode initialized successfully');
       return true;
     } catch (error) {
-      console.warn('[Renderer] Failed to initialize sprite mode, using procedural rendering:', error);
+      rendererLogger.warn({ error: String(error) }, 'Failed to initialize sprite mode, using procedural rendering');
       this.spriteMode = false;
       this.spriteModeReady = false;
       return false;
@@ -573,7 +574,7 @@ export class Renderer {
    */
   disableSpriteMode(): void {
     this.spriteMode = false;
-    console.log('[Renderer] Sprite mode disabled, using procedural rendering');
+    rendererLogger.info('Sprite mode disabled, using procedural rendering');
   }
 
   /**
@@ -708,7 +709,7 @@ export class Renderer {
 
     // Debug: Log player count on first render
     if (this.playerSprites.size === 0 && players.size > 0) {
-      console.log('[Renderer] Creating sprites for', players.size, 'players');
+      rendererLogger.debug({ playerCount: players.size }, 'Creating sprites for players');
     }
 
     // Update/create player sprites
@@ -718,7 +719,7 @@ export class Renderer {
 
       let sprite = this.playerSprites.get(id);
       if (!sprite) {
-        console.log('[Renderer] Creating player sprite at', player.x.toFixed(1), player.y.toFixed(1));
+        rendererLogger.debug({ x: player.x.toFixed(1), y: player.y.toFixed(1) }, 'Creating player sprite');
         sprite = this.createPlayerSprite(id === localPlayerId);
         this.playerSprites.set(id, sprite);
         this.scene.add(sprite);

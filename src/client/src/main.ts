@@ -1,4 +1,5 @@
 import { Game } from './game';
+import { logger } from './utils/logger';
 
 async function main() {
   try {
@@ -10,15 +11,15 @@ async function main() {
     const game = new Game(canvas);
     await game.start();
 
-    console.log('SWARM.IO client started successfully');
+    logger.info('SWARM.IO client started successfully');
 
     // Handle page unload
     window.addEventListener('beforeunload', () => {
       game.stop();
     });
   } catch (error) {
-    console.error('Failed to start SWARM.IO client:', error);
+    logger.error({ error: String(error) }, 'Failed to start SWARM.IO client');
   }
 }
 
-main().catch(console.error);
+main().catch((error) => logger.error({ error: String(error) }, 'Unhandled error in main'));

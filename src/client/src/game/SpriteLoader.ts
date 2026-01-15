@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { spriteLogger } from '../utils/logger';
 
 /**
  * SpriteLoader - Texture atlas loading and sprite material management system
@@ -166,7 +167,7 @@ export class SpriteLoader {
         undefined, // onProgress
         (error) => {
           this.loadingPromises.delete(fullPath);
-          console.warn(`[SpriteLoader] Failed to load texture: ${fullPath}`, error);
+          spriteLogger.warn({ path: fullPath, error: String(error) }, 'Failed to load texture');
           reject(error);
         }
       );
@@ -215,11 +216,11 @@ export class SpriteLoader {
       };
 
       this.atlasCache.set(name, atlas);
-      console.log(`[SpriteLoader] Loaded atlas "${name}" with ${Object.keys(data.frames).length} frames`);
+      spriteLogger.debug({ atlasName: name, frameCount: Object.keys(data.frames).length }, 'Loaded atlas');
 
       return atlas;
     } catch (error) {
-      console.error(`[SpriteLoader] Failed to load atlas "${name}":`, error);
+      spriteLogger.error({ atlasName: name, error: String(error) }, 'Failed to load atlas');
       throw error;
     }
   }
@@ -233,13 +234,13 @@ export class SpriteLoader {
   getSpriteUVs(atlasName: string, spriteName: string): SpriteUVs | null {
     const atlas = this.atlasCache.get(atlasName);
     if (!atlas) {
-      console.warn(`[SpriteLoader] Atlas "${atlasName}" not loaded`);
+      spriteLogger.warn({ atlasName }, 'Atlas not loaded');
       return null;
     }
 
     const spriteData = atlas.data.frames[spriteName];
     if (!spriteData) {
-      console.warn(`[SpriteLoader] Sprite "${spriteName}" not found in atlas "${atlasName}"`);
+      spriteLogger.warn({ atlasName, spriteName }, 'Sprite not found in atlas');
       return null;
     }
 
@@ -292,7 +293,7 @@ export class SpriteLoader {
   ): THREE.SpriteMaterial | null {
     const atlas = this.atlasCache.get(atlasName);
     if (!atlas) {
-      console.warn(`[SpriteLoader] Atlas "${atlasName}" not loaded`);
+      spriteLogger.warn({ atlasName }, 'Atlas not loaded for sprite material');
       return null;
     }
 
@@ -395,7 +396,7 @@ export class SpriteLoader {
     this.textureCache.clear();
     this.atlasCache.clear();
     this.loadingPromises.clear();
-    console.log('[SpriteLoader] Cache cleared');
+    spriteLogger.debug('Cache cleared');
   }
 
   /**

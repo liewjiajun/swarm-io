@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { SpriteLoader, SpriteUVs } from './SpriteLoader';
+import { animationLogger } from '../utils/logger';
 
 /**
  * AnimationController - Frame-based sprite animation system
@@ -118,7 +119,7 @@ export class AnimationController {
    */
   registerEntityAnimations(entityType: string, animations: EntityAnimations): void {
     this.entityAnimations.set(entityType, animations);
-    console.log(`[AnimationController] Registered ${animations.animations.size} animations for "${entityType}"`);
+    animationLogger.debug({ entityType, animationCount: animations.animations.size }, 'Registered entity animations');
   }
 
   /**
@@ -491,7 +492,7 @@ export class AnimationController {
    */
   clear(): void {
     this.entityAnimations.clear();
-    console.log('[AnimationController] All animations cleared');
+    animationLogger.debug('All animations cleared');
   }
 }
 

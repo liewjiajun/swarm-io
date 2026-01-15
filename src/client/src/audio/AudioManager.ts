@@ -1,4 +1,5 @@
 import type { WeaponType } from '@swarm-io/shared';
+import { audioLogger } from '../utils/logger';
 
 /**
  * AudioManager - Handles all game audio using Web Audio API
@@ -42,7 +43,7 @@ export class AudioManager {
 
   constructor() {
     this.setupAudioUnlock();
-    console.log('[AudioManager] Initialized, waiting for user interaction to unlock audio');
+    audioLogger.info('Initialized, waiting for user interaction to unlock audio');
   }
 
   /**
@@ -57,11 +58,11 @@ export class AudioManager {
 
       if (this.audioContext && this.audioContext.state === 'suspended') {
         this.audioContext.resume().then(() => {
-          console.log('[AudioManager] Audio context resumed successfully');
+          audioLogger.info('Audio context resumed successfully');
           this.isUnlocked = true;
           this.processPendingSounds();
         }).catch(err => {
-          console.warn('[AudioManager] Failed to resume audio context:', err);
+          audioLogger.warn({ error: String(err) }, 'Failed to resume audio context');
         });
       } else if (this.audioContext) {
         this.isUnlocked = true;
@@ -99,9 +100,9 @@ export class AudioManager {
       this.musicGainNode.gain.value = this.musicVolume;
       this.musicGainNode.connect(this.masterGainNode);
 
-      console.log('[AudioManager] Audio context initialized');
+      audioLogger.info('Audio context initialized');
     } catch (error) {
-      console.error('[AudioManager] Failed to create audio context:', error);
+      audioLogger.error({ error: String(error) }, 'Failed to create audio context');
     }
   }
 
@@ -109,7 +110,7 @@ export class AudioManager {
    * Process any sounds that were queued before audio was unlocked
    */
   private processPendingSounds(): void {
-    console.log(`[AudioManager] Processing ${this.pendingSounds.length} pending sounds`);
+    audioLogger.debug({ count: this.pendingSounds.length }, 'Processing pending sounds');
     const sounds = [...this.pendingSounds];
     this.pendingSounds = [];
     sounds.forEach(playFn => playFn());
@@ -344,7 +345,7 @@ export class AudioManager {
     this.sfxGainNode = null;
     this.musicGainNode = null;
     this.pendingSounds = [];
-    console.log('[AudioManager] Destroyed');
+    audioLogger.info('Destroyed');
   }
 }
 
