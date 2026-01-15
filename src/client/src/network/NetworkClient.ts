@@ -1,5 +1,6 @@
 import { Client, Room } from 'colyseus.js';
 import type { PlayerInput } from '@swarm-io/shared';
+import { networkLogger as logger } from '../utils/logger';
 
 // P3.3: WebSocket URL validation error
 class URLValidationError extends Error {
@@ -122,7 +123,7 @@ export class NetworkClient {
     this.validateServerUrl(serverUrl);
 
     this.client = new Client(serverUrl);
-    console.log('[NetworkClient] Initialized with server URL:', serverUrl);
+    logger.info({ serverUrl }, 'Initialized');
   }
 
   /**
@@ -170,7 +171,7 @@ export class NetworkClient {
       }
     }
 
-    console.log('[NetworkClient] URL validation passed:', url);
+    logger.debug({ url }, 'URL validation passed');
   }
 
   /**
@@ -189,9 +190,9 @@ export class NetworkClient {
     if (this.inputTimestamps.length >= this.MAX_INPUTS_PER_SECOND) {
       this.inputsDropped++;
       if (this.inputsDropped % 10 === 1) {
-        console.warn(
-          `[NetworkClient] Rate limited: ${this.inputsDropped} inputs dropped ` +
-          `(limit: ${this.MAX_INPUTS_PER_SECOND}/sec)`
+        logger.warn(
+          { inputsDropped: this.inputsDropped, limit: this.MAX_INPUTS_PER_SECOND },
+          'Rate limited - inputs dropped'
         );
       }
       return false;
@@ -204,7 +205,7 @@ export class NetworkClient {
 
   async connect(): Promise<void> {
     if (this.isReconnecting) {
-      console.log('[NetworkClient] Already reconnecting, skipping...');
+      logger.debug('Already reconnecting, skipping');
       return;
     }
 
@@ -213,11 +214,11 @@ export class NetworkClient {
       const storedSession = localStorage.getItem('swarm_session');
       if (storedSession) {
         try {
-          console.log('[NetworkClient] Attempting to reconnect with stored session...');
+          logger.info('Attempting to reconnect with stored session');
           this.room = await this.client.reconnect(storedSession);
-          console.log('[NetworkClient] Reconnected to room:', this.room.id);
+          logger.info({ roomId: this.room.id }, 'Reconnected to room');
         } catch (reconnectError) {
-          console.log('[NetworkClient] Reconnection failed, clearing stale session and joining fresh:', reconnectError);
+          logger.info({ error: String(reconnectError) }, 'Reconnection failed, clearing stale session and joining fresh');
           localStorage.removeItem('swarm_session');
           this.room = await this.client.joinOrCreate('game');
         }
@@ -225,7 +226,7 @@ export class NetworkClient {
         this.room = await this.client.joinOrCreate('game');
       }
 
-      console.log('[NetworkClient] Connected to room:', this.room.id);
+      logger.info({ roomId: this.room.id }, 'Connected to room');
 
       // Store session for reconnection
       if (this.room.reconnectionToken) {
@@ -238,7 +239,7 @@ export class NetworkClient {
       this.setupDisconnectHandler();
 
     } catch (error) {
-      console.error('[NetworkClient] Failed to connect:', error);
+      logger.error({ error: String(error) }, 'Failed to connect');
       await this.handleReconnect();
     }
   }
@@ -272,7 +273,7 @@ export class NetworkClient {
     // This ensures we eventually get the player data even if there's a timing issue
     this.startStatePolling(state);
 
-    console.log('[NetworkClient] State handlers setup complete');
+    logger.debug('State handlers setup complete');
   }
 
   private startStatePolling(state: any) {
@@ -337,49 +338,49 @@ export class NetworkClient {
     if (!this.room) return;
 
     this.room.onMessage('player_died', (data) => {
-      console.log('[NetworkClient] Player died:', data);
+      logger.info({ playerId: data.playerId, killedBy: data.killedBy, finalScore: data.finalScore }, 'Player died');
       this.playerDiedCallbacks.forEach(cb => cb(data));
     });
 
     this.room.onMessage('level_up', (data) => {
-      console.log('[NetworkClient] Level up:', data);
+      logger.info({ newLevel: data.newLevel, choiceCount: data.choices?.length }, 'Level up');
       this.levelUpCallbacks.forEach(cb => cb(data));
     });
 
     this.room.onMessage('game_info', (data) => {
-      console.log('[NetworkClient] Game info received:', data);
+      logger.debug({ data }, 'Game info received');
     });
 
     this.room.onMessage('upgrade_applied', (data) => {
-      console.log('[NetworkClient] Upgrade applied:', data);
+      logger.info({ upgrade: data }, 'Upgrade applied');
     });
 
     this.room.onMessage('respawn_complete', (data) => {
-      console.log('[NetworkClient] Respawn complete:', data);
+      logger.info({ data }, 'Respawn complete');
     });
 
     // P3.2: Handle kick/ban notifications from server
     this.room.onMessage('kicked', (data) => {
-      console.error('[NetworkClient] Kicked from server:', data.reason);
+      logger.error({ reason: data.reason }, 'Kicked from server');
       localStorage.removeItem('swarm_session'); // Clear session to prevent auto-reconnect
     });
 
     this.room.onMessage('banned', (data) => {
       const remaining = data.remaining
-        ? ` Time remaining: ${Math.ceil(data.remaining / 1000)}s`
-        : '';
-      console.error(`[NetworkClient] Banned from server: ${data.reason}.${remaining}`);
+        ? Math.ceil(data.remaining / 1000)
+        : null;
+      logger.error({ reason: data.reason, remainingSeconds: remaining }, 'Banned from server');
       localStorage.removeItem('swarm_session'); // Clear session to prevent auto-reconnect
     });
 
-    console.log('[NetworkClient] Message handlers setup complete');
+    logger.debug('Message handlers setup complete');
   }
 
   private setupDisconnectHandler() {
     if (!this.room) return;
 
     this.room.onLeave((code) => {
-      console.log('[NetworkClient] Disconnected from room, code:', code);
+      logger.info({ code }, 'Disconnected from room');
 
       // Only attempt reconnection for unexpected disconnects
       // 1000 = normal close, 4000 = kicked, 4001 = banned
@@ -395,7 +396,7 @@ export class NetworkClient {
     // Max reconnection attempts before giving up
     const MAX_RECONNECT_ATTEMPTS = 5;
     if (this.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-      console.error('[NetworkClient] Max reconnection attempts reached, giving up');
+      logger.error({ attempts: this.reconnectAttempts }, 'Max reconnection attempts reached, giving up');
       localStorage.removeItem('swarm_session');
       throw new Error('Failed to connect after multiple attempts');
     }
@@ -407,7 +408,7 @@ export class NetworkClient {
     ];
 
     this.reconnectAttempts++;
-    console.log(`[NetworkClient] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
+    logger.info({ delayMs: delay, attempt: this.reconnectAttempts, maxAttempts: MAX_RECONNECT_ATTEMPTS }, 'Reconnecting');
 
     await new Promise(resolve => setTimeout(resolve, delay));
 
@@ -535,10 +536,10 @@ export class NetworkClient {
   }
 
   sendRespawn() {
-    console.log('[NetworkClient] sendRespawn called, room:', !!this.room);
+    logger.debug({ hasRoom: !!this.room }, 'sendRespawn called');
     if (!this.room) return;
     this.room.send('respawn', { type: 'respawn' });
-    console.log('[NetworkClient] Respawn message sent to server');
+    logger.info('Respawn message sent to server');
   }
 
   onStateChange(callback: StateChangeCallback) {
@@ -566,7 +567,7 @@ export class NetworkClient {
       this.room.leave();
       this.room = null;
       localStorage.removeItem('swarm_session');
-      console.log('[NetworkClient] Disconnected');
+      logger.info('Disconnected');
     }
   }
 }

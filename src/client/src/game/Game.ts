@@ -5,6 +5,7 @@ import { NetworkClient, SerializedGameState } from '../network';
 import { HUD } from '../ui';
 import { AudioManager } from '../audio';
 import type { PlayerInput, WeaponType } from '@swarm-io/shared';
+import { gameLogger as logger } from '../utils/logger';
 
 export class Game {
   private renderer: Renderer;
@@ -75,7 +76,7 @@ export class Game {
       () => this.resume(),
       () => {} // Settings callback is handled by HUD
     );
-    console.log('[Game] Paused');
+    logger.debug('Paused');
   }
 
   /**
@@ -87,7 +88,7 @@ export class Game {
     this.paused = false;
     this.hud.hidePause();
     this.lastUpdateTime = performance.now(); // Reset delta time to prevent time jump
-    console.log('[Game] Resumed');
+    logger.debug('Resumed');
   }
 
   /**
@@ -117,7 +118,7 @@ export class Game {
   }
 
   async start() {
-    console.log('[Game] Starting SWARM.IO client...');
+    logger.info('Starting SWARM.IO client');
 
     // Show tutorial for first-time players
     this.hud.showTutorialIfFirstTime(() => {
@@ -139,7 +140,7 @@ export class Game {
       this.localPlayerId = this.network.sessionId;
       this.connected = true;
 
-      console.log('[Game] Connected with player ID:', this.localPlayerId);
+      logger.info({ playerId: this.localPlayerId }, 'Connected');
 
       // Start game loop
       this.running = true;
@@ -147,7 +148,7 @@ export class Game {
       this.gameLoop();
 
     } catch (error) {
-      console.error('[Game] Failed to connect to server:', error);
+      logger.error({ error: String(error) }, 'Failed to connect to server');
       // Fall back to mock state for testing
       this.setupMockState();
       this.running = true;
@@ -177,7 +178,7 @@ export class Game {
     // Handle player death
     this.network.onPlayerDied((data) => {
       if (data.playerId === this.localPlayerId) {
-        console.log('[Game] Local player died. Final score:', data.finalScore);
+        logger.info({ finalScore: data.finalScore }, 'Local player died');
         // Play death sound
         this.audio.playDeathSound();
         // Get player stats from the last known state
@@ -194,7 +195,7 @@ export class Game {
 
     // Handle level up with upgrade choices
     this.network.onLevelUp((data) => {
-      console.log('[Game] Level up! New level:', data.newLevel);
+      logger.info({ newLevel: data.newLevel, choiceCount: data.choices.length }, 'Level up');
       // Play level up sound and flash
       this.audio.playLevelUpSound();
       this.renderer.triggerLevelUpFlash();
@@ -208,7 +209,7 @@ export class Game {
       });
     });
 
-    console.log('[Game] Network handlers setup complete');
+    logger.debug('Network handlers setup complete');
   }
 
   private convertToRenderState(state: SerializedGameState): any {
@@ -303,7 +304,7 @@ export class Game {
 
   private setupMockState() {
     // Create a simple mock state for testing the renderer without network
-    console.log('[Game] Using mock state (offline mode)');
+    logger.info('Using mock state (offline mode)');
     this.localPlayerId = 'test-player';
 
     const mockState = {
@@ -520,14 +521,14 @@ export class Game {
     this.input.destroy();
     this.hud.destroy();
     this.audio.destroy();
-    console.log('[Game] Stopped');
+    logger.info('Stopped');
   }
 
   // Public method to handle respawn
   respawn() {
-    console.log('[Game] Respawn requested, connected:', this.connected);
+    logger.debug({ connected: this.connected }, 'Respawn requested');
     if (this.connected) {
-      console.log('[Game] Sending respawn message to server');
+      logger.info('Sending respawn message to server');
       this.network.sendRespawn();
     }
   }
