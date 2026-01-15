@@ -60,11 +60,12 @@
 - [ ] **P1.7** Create environment tiles (arena floor, boundary effect) - NOT STARTED
 - [ ] **P1.8** Create pixel art UI frames (health/XP bars, weapon icons, modals) - NOT STARTED
 
-#### Integration (NOT STARTED)
-- [ ] **P1.9** Replace all InstancedMesh with sprite-based rendering
-  - SpriteLoader and AnimationController infrastructure exists
-  - Renderer.ts still uses 100% procedural geometry
-  - Need to connect sprite atlas to rendering methods
+#### Integration (IN PROGRESS)
+- [x] **P1.9** Player sprite-based rendering implemented
+  - When sprite mode active, players use atlas textures with animations
+  - Animation system tracks velocity from position changes for walk direction
+  - Smooth fallback to procedural rendering if sprites unavailable
+  - Remaining: Enemy/projectile/XP orb sprites (currently use procedural geometry)
 
 **Art Direction:** Game Boy Pokemon style with modern vibrant colors. 16x16 or 32x32 sprite bases scaled with nearest-neighbor filtering.
 
@@ -365,6 +366,11 @@ npm run test:memory --players=20 --duration=30
 ## CHANGELOG SUMMARY
 
 **Recent (2026-01-16):**
+- **P1.9 In Progress**: Integrated sprite rendering for players in Renderer.ts
+  - Players now use atlas textures with walk/idle animations when sprite mode active
+  - Animation direction determined by tracking position changes (velocity calculation)
+  - Falls back to procedural colored sprites if atlas unavailable
+  - Enemies/projectiles/XP orbs still use procedural geometry (future work)
 - **P1.3-P1.6 Complete**: Created sprite generation script (`scripts/generate-sprites.ts`)
   - Generates 512x512 atlas.png with 46 sprites using sharp library
   - Player: 20 sprites (4 idle frames + 16 walk frames in 4 directions)

@@ -183,6 +183,9 @@ export class Renderer {
   private playerAnimStates: Map<string, AnimationState> = new Map();
   private enemyAnimStates: Map<string, AnimationState> = new Map();
 
+  // Previous positions for velocity calculation (animation purposes)
+  private playerPrevPositions: Map<string, { x: number; y: number }> = new Map();
+
   // Post-processing (P1.10 CRT shader)
   // Types are 'any' because modules are lazily loaded to reduce bundle size
   private composer: any = null;
@@ -708,6 +711,8 @@ export class Renderer {
       if (!currentIds.has(id)) {
         this.scene.remove(sprite);
         this.playerSprites.delete(id);
+        this.playerAnimStates.delete(id);
+        this.playerPrevPositions.delete(id);
       }
     });
 
@@ -716,21 +721,56 @@ export class Renderer {
       rendererLogger.debug({ playerCount: players.size }, 'Creating sprites for players');
     }
 
+    // Calculate delta time for animation updates
+    const dt = 1 / 60; // Approximate frame time
+
     // Update/create player sprites
     players.forEach((player, id) => {
-      // For Phase 3, we assume all players are alive
-      // Dead player handling will be added in Phase 4 with proper state management
-
       let sprite = this.playerSprites.get(id);
       if (!sprite) {
         rendererLogger.debug({ x: player.x.toFixed(1), y: player.y.toFixed(1) }, 'Creating player sprite');
         sprite = this.createPlayerSprite(id === localPlayerId);
         this.playerSprites.set(id, sprite);
         this.scene.add(sprite);
+
+        // Initialize animation state for sprite mode
+        if (this.isSpriteMode()) {
+          const animState = this.animationController.createState('player');
+          this.playerAnimStates.set(id, animState);
+        }
+        // Initialize previous position
+        this.playerPrevPositions.set(id, { x: player.x, y: player.y });
       }
 
       sprite.visible = true;
       sprite.position.set(player.x, 0.5, player.y);
+
+      // Update animation if in sprite mode
+      if (this.isSpriteMode()) {
+        const animState = this.playerAnimStates.get(id);
+        if (animState) {
+          // Calculate velocity from position change (for animation direction)
+          const prevPos = this.playerPrevPositions.get(id);
+          const velocityX = prevPos ? (player.x - prevPos.x) / dt : 0;
+          const velocityY = prevPos ? (player.y - prevPos.y) / dt : 0;
+
+          // Determine animation based on velocity
+          const isMoving = Math.abs(velocityX) > 0.1 || Math.abs(velocityY) > 0.1;
+          if (isMoving) {
+            const direction = this.animationController.getDirectionFromVelocity(velocityX, velocityY);
+            this.animationController.setAnimation(animState, 'player', `walk_${direction}`);
+          } else {
+            this.animationController.setAnimation(animState, 'player', 'idle');
+          }
+          this.animationController.update(animState, 'player', dt);
+
+          // Apply animation frame to sprite
+          this.animationController.applyToSprite(sprite, animState, 'player');
+        }
+      }
+
+      // Store current position for next frame's velocity calculation
+      this.playerPrevPositions.set(id, { x: player.x, y: player.y });
 
       // Visual feedback for invulnerability
       if (player.invulnerableTime > 0) {
@@ -742,10 +782,31 @@ export class Renderer {
   }
 
   private createPlayerSprite(isLocal: boolean): THREE.Sprite {
-    const material = new THREE.SpriteMaterial({
-      color: isLocal ? 0x00ff00 : 0x0088ff,
-      transparent: true,
-    });
+    let material: THREE.SpriteMaterial;
+
+    if (this.isSpriteMode()) {
+      // Use atlas sprite texture
+      const atlasMaterial = this.spriteLoader.createAtlasSpriteMaterial('main', 'player_idle_0');
+      if (atlasMaterial) {
+        material = atlasMaterial;
+        material.transparent = true;
+        // Tint based on local/other player
+        material.color.setHex(isLocal ? 0xffffff : 0x88ccff);
+      } else {
+        // Fallback to colored sprite
+        material = new THREE.SpriteMaterial({
+          color: isLocal ? 0x00ff00 : 0x0088ff,
+          transparent: true,
+        });
+      }
+    } else {
+      // Procedural colored sprite
+      material = new THREE.SpriteMaterial({
+        color: isLocal ? 0x00ff00 : 0x0088ff,
+        transparent: true,
+      });
+    }
+
     const sprite = new THREE.Sprite(material);
     sprite.scale.set(2, 2, 1); // Larger sprite for better visibility
     return sprite;
@@ -1305,6 +1366,7 @@ export class Renderer {
     this.animationController.clear();
     this.playerAnimStates.clear();
     this.enemyAnimStates.clear();
+    this.playerPrevPositions.clear();
 
     // Clean up post-processing (P1.10)
     this.composer = null;
