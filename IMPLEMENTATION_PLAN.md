@@ -4,7 +4,7 @@
 
 **Last Updated:** 2026-01-15 (P2.1-P2.7 Complete - Gameplay Balance Review)
 **Implementation Progress:** 118/85 tasks completed (138.8%)
-**Test Count:** 442 tests (359 server + 73 shared + 10 client) - ALL PASSING
+**Test Count:** 471 tests (388 server + 73 shared + 10 client) - ALL PASSING
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
 **Critical Bugs:** 0 | **Medium Bugs:** 1 (BUG-029 design choice, non-blocking)
 
@@ -97,7 +97,12 @@
 #### Playtesting
 - [ ] **P2.8** Playtest and tune enemy health/damage vs player DPS per wave
 - [ ] **P2.9** Verify boss difficulty spikes are appropriate
-- [ ] **P2.10** Add telemetry for balance data (survival time, popular upgrades)
+- [x] **P2.10** Add telemetry for balance data (survival time, popular upgrades) ✅ COMPLETE
+  - **Implementation:** Created TelemetryService in `src/server/src/services/TelemetryService.ts`
+  - **Session Tracking:** Survival time, kills, level reached, wave reached, weapons used
+  - **Upgrade Tracking:** Weapon vs stat choices, specific upgrade types selected
+  - **API Endpoints:** GET `/api/telemetry` (aggregated stats), GET `/api/telemetry/sessions`, GET `/api/telemetry/upgrades`
+  - **Tests:** 29 new tests added for TelemetryService
 
 ### PRIORITY 3: CODE QUALITY [MEDIUM - PRE-PRODUCTION]
 
@@ -519,7 +524,7 @@ These are intentional deviations but could be aligned if desired:
 | Critical Bugs | 0 | BUG-026 and BUG-028 verified NOT bugs |
 | Medium Bugs | 1 | BUG-029 (design choice - static charge targeting) |
 | Low Bugs | 0 | All resolved |
-| Test Gaps | 0 | All 442 tests passing |
+| Test Gaps | 0 | All 471 tests passing |
 | Code Quality | ✅ Good | Structured logging + TypeScript `as any` review complete |
 
 ### 🚨 CURRENT PRIORITIES
@@ -528,7 +533,7 @@ These are intentional deviations but could be aligned if desired:
 |----------|------|--------|----------|
 | **#0** | **Bug Fixes** - BUG-027 and BUG-030 fixed. Only BUG-029 remains (design choice) | ✅ COMPLETE | DONE |
 | **#1** | **Visual Overhaul** - Retro pixel art (Game Boy Pokemon style + vibrant colors) | NOT STARTED | ASAP - MANDATORY |
-| **#2** | **Gameplay Balance** - P2.1-P2.7 complete (formulas reviewed). P2.8-P2.10 (playtesting) remain | ✅ MOSTLY COMPLETE | Parallel |
+| **#2** | **Gameplay Balance** - P2.1-P2.7 complete (formulas reviewed). P2.8-P2.9 (playtesting) remain. P2.10 (telemetry) COMPLETE | ✅ MOSTLY COMPLETE | Parallel |
 | **#3** | **Code Quality** - P3.1-P3.6 complete. Structured logging + `as any` review done | ✅ COMPLETE | DONE |
 | **#4** | **Production Readiness** - P4.1-P4.2 complete. SSL (P4.3) and load testing (P4.5-P4.6) remain | IN PROGRESS | Pre-release |
 
@@ -857,6 +862,7 @@ npm run test
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-01-15 | 2.51 | TELEMETRY SERVICE (P2.10) - Implemented TelemetryService in `src/server/src/services/TelemetryService.ts` for gameplay balance data collection. Tracks session data (survival time, kills, level reached, wave reached, weapons used) and upgrade choices (weapon vs stat, specific types). Added three API endpoints: GET `/api/telemetry` (aggregated stats including averages and totals), GET `/api/telemetry/sessions` (raw session data), GET `/api/telemetry/upgrades` (upgrade choice distribution). Added 29 comprehensive tests for TelemetryService. All 471 tests passing. |
 | 2026-01-15 | 2.50 | GAMEPLAY BALANCE REVIEW (P2.1-P2.7) - Fixed Wand speed bug (P2.3): was using `config.range` (15) for velocity instead of `config.projectileSpeed` (12). Changed fireWand() to use projectileSpeed. Added test to verify correct speed. Reviewed and documented all weapon balance deviations (P2.1-P2.4) as intentional design decisions for better game feel. Reviewed progression balance (P2.6-P2.7): keeping 4 upgrade choices (vs spec 3) for more player agency, keeping multiplicative speed boost to prevent exploits. All 442 tests passing. |
 | 2026-01-15 | 2.49 | GARLIC LEVEL-BASED RANGE SCALING (P2.5) - Added level-based range scaling to fireGarlic() in WeaponSystem.ts using formula `range = config.range * (1 + (weapon.level - 1) * 0.1)`. This matches the scaling used by Lightning, Whip, and Bible weapons for consistency. At level 1: 2.5 units, at level 8: 4.25 units. Added test case to verify range scaling at different levels. All 441 tests passing. |
 | 2026-01-15 | 2.48 | CLIENT STRUCTURED LOGGING + PRODUCTION READINESS (P3.3, P3.4, P4.1, P4.2) - Created `src/client/src/utils/logger.ts` with browser-compatible structured logging utility. Features: log levels (debug/info/warn/error), structured data format with timestamps, component child loggers (networkLogger, gameLogger, etc.), configurable via localStorage.setItem('LOG_LEVEL', 'debug'). Converted NetworkClient.ts (24 logs) and Game.ts (11 logs) from console statements to structured logging. Verified P4.1 (health check at /health) and P4.2 (graceful shutdown with SIGTERM/SIGINT handlers) were already implemented. Updated P4.4 as verified (ban system persistence acceptable for MVP). All 440 tests passing. |

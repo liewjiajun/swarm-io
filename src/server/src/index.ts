@@ -8,6 +8,7 @@ import express from 'express';
 import { createServer } from 'http';
 import { GameRoom } from './rooms/GameRoom.js';
 import { logger } from './utils/logger.js';
+import { getTelemetryService } from './services/TelemetryService.js';
 
 // Create Express app
 const app = express();
@@ -102,6 +103,36 @@ app.get('/api/stats', (req, res) => {
   });
 });
 
+// P2.10: API endpoint to get telemetry data for balance analysis
+app.get('/api/telemetry', (req, res) => {
+  const telemetry = getTelemetryService();
+  res.json({
+    stats: telemetry.getStats(),
+    collectionDuration: telemetry.getCollectionDuration(),
+    timestamp: new Date().toISOString()
+  });
+});
+
+// P2.10: API endpoint to get recent session data (for detailed analysis)
+app.get('/api/telemetry/sessions', (req, res) => {
+  const telemetry = getTelemetryService();
+  const limit = Math.min(parseInt(req.query.limit as string) || 100, 1000);
+  res.json({
+    sessions: telemetry.getRecentSessions(limit),
+    timestamp: new Date().toISOString()
+  });
+});
+
+// P2.10: API endpoint to get recent upgrade choices (for detailed analysis)
+app.get('/api/telemetry/upgrades', (req, res) => {
+  const telemetry = getTelemetryService();
+  const limit = Math.min(parseInt(req.query.limit as string) || 100, 1000);
+  res.json({
+    upgrades: telemetry.getRecentUpgradeChoices(limit),
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Error handling middleware
 app.use((error: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   logger.error({ err: error, path: req.path }, 'Server error');
@@ -125,16 +156,17 @@ const PORT = parseInt(process.env.PORT || '2567', 10);
 // Start server
 gameServer.listen(PORT).then(() => {
   console.log(`
-╔═══════════════════════════════════════════════╗
-║              SWARM.IO SERVER                  ║
-║           Multiplayer Game Server             ║
-╠═══════════════════════════════════════════════╣
-║ 🚀 Server started on port ${PORT}                ║
-║ 🎮 Game endpoint: ws://localhost:${PORT}/game     ║
-║ 📊 Monitor: http://localhost:${PORT}/colyseus     ║
-║ 🩺 Health: http://localhost:${PORT}/health        ║
-║ 📈 Stats: http://localhost:${PORT}/api/stats      ║
-╚═══════════════════════════════════════════════╝
+╔═══════════════════════════════════════════════════╗
+║              SWARM.IO SERVER                      ║
+║           Multiplayer Game Server                 ║
+╠═══════════════════════════════════════════════════╣
+║ Server started on port ${PORT}                       ║
+║ Game endpoint: ws://localhost:${PORT}/game            ║
+║ Monitor: http://localhost:${PORT}/colyseus            ║
+║ Health: http://localhost:${PORT}/health               ║
+║ Stats: http://localhost:${PORT}/api/stats             ║
+║ Telemetry: http://localhost:${PORT}/api/telemetry     ║
+╚═══════════════════════════════════════════════════╝
   `);
 
   console.log('[Server] Game features enabled:');

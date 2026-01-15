@@ -14,6 +14,7 @@ import { InputMessage, UpgradeMessage } from '@swarm-io/shared';
 import * as fs from 'fs';
 import * as path from 'path';
 import { gameRoomLogger, securityLogger } from '../utils/logger.js';
+import { getTelemetryService } from '../services/TelemetryService.js';
 
 interface PlayerInput {
   dx: number;
@@ -574,6 +575,21 @@ export class GameRoom extends Room<GameState> {
 
             gameRoomLogger.debug({ playerId, killedBy: player.killedBy }, 'Sent player_died');
 
+            // P2.10: Record session telemetry for balance analysis
+            const telemetry = getTelemetryService();
+            const weaponsUsed: string[] = [];
+            player.weapons.forEach(weapon => {
+              weaponsUsed.push(weapon.type);
+            });
+            telemetry.recordSession({
+              playerId: player.id,
+              survivalTime: player.timeAlive,
+              kills: player.kills,
+              levelReached: player.level,
+              waveReached: this.state.world.currentWave,
+              weaponsUsed
+            });
+
             // BUG-020 FIX: Clear deathTime after sending notification to prevent duplicates
             // Previously this could fire multiple times within the 100ms window
             player.deathTime = 0;
@@ -628,6 +644,15 @@ export class GameRoom extends Room<GameState> {
     const success = this.xpSystem.applyUpgrade(this.state, client.sessionId, message.choice);
 
     if (success) {
+      // P2.10: Record upgrade choice telemetry for balance analysis
+      const telemetry = getTelemetryService();
+      telemetry.recordUpgradeChoice({
+        playerId: client.sessionId,
+        type: message.choice.type,
+        target: message.choice.weaponType || message.choice.statType || 'unknown',
+        playerLevel: player.level
+      });
+
       // Send confirmation to client
       client.send('upgrade_applied', {
         choice: message.choice,
