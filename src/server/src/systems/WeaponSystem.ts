@@ -131,6 +131,9 @@ export class WeaponSystem {
     // Calculate number of projectiles (1 + level scaling)
     const projectileCount = Math.min(1 + Math.floor(weapon.level / 2), 5); // Max 5 slashes
 
+    // Calculate scaled range (per spec 05-weapon-combat.md line 80: +10% per level)
+    const scaledRange = this.calculateWeaponRange(config, weapon.level);
+
     // Create fan pattern spread
     const baseAngle = Math.atan2(player.facingY, player.facingX);
     const spreadAngle = Math.PI / 6; // 30 degree spread total
@@ -140,8 +143,8 @@ export class WeaponSystem {
         (i / (projectileCount - 1) - 0.5) * spreadAngle;
       const angle = baseAngle + offset;
 
-      // Calculate projectile velocity
-      const speed = config.range * 5; // 5 units per second for 0.2s lifetime
+      // Calculate projectile velocity (range determines travel distance in 0.2s)
+      const speed = scaledRange * 5; // 5 units per second for 0.2s lifetime
       const velocityX = Math.cos(angle) * speed;
       const velocityY = Math.sin(angle) * speed;
 
@@ -155,7 +158,7 @@ export class WeaponSystem {
         velocityY,         // velocityY
         damage,            // damage
         0.2,              // lifetime (0.2 seconds)
-        config.range,      // radius
+        scaledRange,       // radius (scaled with level)
         999               // piercing (unlimited)
       );
 
@@ -489,6 +492,16 @@ export class WeaponSystem {
     const multiplier = Math.max(minMultiplier, 1 - reduction);
 
     return config.cooldown * multiplier;
+  }
+
+  /**
+   * Calculates scaled weapon range based on level.
+   * Range increases by +10% per level per spec (05-weapon-combat.md line 80).
+   */
+  private calculateWeaponRange(config: any, level: number): number {
+    // Range scales by +10% per level
+    const baseRange = config.baseRange || config.range;
+    return baseRange * (1 + (level - 1) * 0.1);
   }
 
   private logSecurityViolation(reason: string, data: any): void {

@@ -1,10 +1,18 @@
 import type { PlayerInput, PlayerState } from '@swarm-io/shared';
 import { TouchControls } from './TouchControls';
 
+/**
+ * Stored pending input for client-side prediction reconciliation.
+ * Includes the input, its sequence number, and the delta time when it was applied.
+ */
+interface PendingInput {
+  input: PlayerInput;
+  dt: number;  // Actual frame delta time when this input was applied
+}
+
 export class InputManager {
   private keys = new Set<string>();
-  private sequence = 0;
-  private pendingInputs: { input: PlayerInput; time: number }[] = [];
+  private pendingInputs: PendingInput[] = [];
   private touchControls: TouchControls;
 
   constructor() {
@@ -22,7 +30,11 @@ export class InputManager {
     });
   }
 
-  getInput(): PlayerInput {
+  /**
+   * Gets raw input from keyboard or touch controls.
+   * Does NOT store the input - use storePendingInput() when sending to server.
+   */
+  getRawInput(): { dx: number; dy: number } {
     let dx = 0;
     let dy = 0;
 
@@ -47,21 +59,30 @@ export class InputManager {
       }
     }
 
-    const input: PlayerInput = {
-      dx,
-      dy,
-      sequence: this.sequence++,
-    };
+    return { dx, dy };
+  }
 
-    // Store for reconciliation
-    this.pendingInputs.push({ input, time: performance.now() });
+  /**
+   * @deprecated Use getRawInput() instead. This method is kept for backward compatibility.
+   */
+  getInput(): PlayerInput {
+    const { dx, dy } = this.getRawInput();
+    return { dx, dy, sequence: 0 };  // Sequence is managed by Game.ts
+  }
 
-    // Limit buffer size
+  /**
+   * Stores a pending input for reconciliation.
+   * Called by Game.ts when an input is actually sent to the server.
+   * @param input The input with the correct server sequence
+   * @param dt The actual frame delta time when this input was applied
+   */
+  storePendingInput(input: PlayerInput, dt: number): void {
+    this.pendingInputs.push({ input, dt });
+
+    // Limit buffer size to prevent memory issues
     if (this.pendingInputs.length > 60) {
       this.pendingInputs.shift();
     }
-
-    return input;
   }
 
   /**
@@ -92,31 +113,51 @@ export class InputManager {
     this.touchControls.destroy();
   }
 
-  applyPrediction(player: PlayerState, input: PlayerInput, dt: number) {
+  /**
+   * Applies client-side prediction to the local player for responsive movement.
+   * Called every frame with raw input to make movement feel immediate.
+   *
+   * @param player The local player state to update
+   * @param input Raw input with dx/dy movement direction
+   * @param dt Frame delta time in seconds
+   */
+  applyPrediction(player: PlayerState, input: { dx: number; dy: number }, dt: number): void {
     // Apply input immediately to local player for responsiveness
     player.x += input.dx * player.speed * dt;
     player.y += input.dy * player.speed * dt;
   }
 
-  reconcile(serverPlayer: PlayerState, lastProcessedSequence: number) {
-    // Remove acknowledged inputs
+  /**
+   * Reconciles client prediction with authoritative server state.
+   * Uses fresh server position as starting point and re-applies unacknowledged inputs.
+   *
+   * @param serverX Fresh authoritative X position from server
+   * @param serverY Fresh authoritative Y position from server
+   * @param playerSpeed Player's current speed for re-applying inputs
+   * @param lastProcessedSequence Last input sequence processed by server
+   * @returns The reconciled position after re-applying unacknowledged inputs
+   */
+  reconcile(
+    serverX: number,
+    serverY: number,
+    playerSpeed: number,
+    lastProcessedSequence: number
+  ): { x: number; y: number } {
+    // Remove acknowledged inputs (server has processed these)
     this.pendingInputs = this.pendingInputs.filter(
       pending => pending.input.sequence > lastProcessedSequence
     );
 
-    // Server position is authoritative
-    let x = serverPlayer.x;
-    let y = serverPlayer.y;
+    // Start from authoritative server position
+    let x = serverX;
+    let y = serverY;
 
-    // Re-apply unacknowledged inputs
+    // Re-apply unacknowledged inputs using their actual delta times
     for (const pending of this.pendingInputs) {
-      const dt = 1 / 60; // Assume 60fps
-      x += pending.input.dx * serverPlayer.speed * dt;
-      y += pending.input.dy * serverPlayer.speed * dt;
+      x += pending.input.dx * playerSpeed * pending.dt;
+      y += pending.input.dy * playerSpeed * pending.dt;
     }
 
-    // Update local prediction
-    serverPlayer.x = x;
-    serverPlayer.y = y;
+    return { x, y };
   }
 }

@@ -174,14 +174,24 @@ export class Game {
       // BUG-019 FIX: Removed high-frequency log that was causing 10,000+ messages
       this.interpolator.pushState(this.convertToRenderState(state), performance.now());
 
-      // BUG-027 FIX: Call reconcile() to correct client prediction based on server state
-      // This removes acknowledged inputs and re-applies unacknowledged ones
+      // BUG-027 FIX (IMPROVED): Reconcile client prediction with authoritative server state
+      // Key fix: Use FRESH server state (localPlayerState.x/y), not interpolated state
+      // This ensures we start from the authoritative position the server sent
       const localPlayerState = state.players.get(this.localPlayerId);
       if (localPlayerState && localPlayerState.lastProcessedSequence > 0) {
-        // Get the local player from interpolator for reconciliation
+        // Reconcile using fresh server position and re-apply unacknowledged inputs
+        const reconciledPos = this.input.reconcile(
+          localPlayerState.x,
+          localPlayerState.y,
+          localPlayerState.speed,
+          localPlayerState.lastProcessedSequence
+        );
+
+        // Update the local player in the interpolator with reconciled position
         const localPlayer = this.interpolator.getLocalPlayer(this.localPlayerId);
         if (localPlayer) {
-          this.input.reconcile(localPlayer, localPlayerState.lastProcessedSequence);
+          localPlayer.x = reconciledPos.x;
+          localPlayer.y = reconciledPos.y;
         }
       }
     });
@@ -375,8 +385,8 @@ export class Game {
   }
 
   private update(dt: number) {
-    // Process input
-    const rawInput = this.input.getInput();
+    // Get raw input from keyboard/touch (does not store or assign sequence)
+    const rawInput = this.input.getRawInput();
 
     // BUG-011 FIX: Throttle input sending to 30Hz to match server rate limit
     // This prevents creating inputs that NetworkClient will immediately drop
@@ -392,6 +402,11 @@ export class Game {
 
         // Send input to server
         this.network.sendInput(input);
+
+        // Store pending input for reconciliation with actual delta time
+        // This ensures reconciliation uses the same dt as the original prediction
+        this.input.storePendingInput(input, dt);
+
         this.lastInputSendTime = now;
       }
     }

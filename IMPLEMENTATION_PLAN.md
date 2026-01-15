@@ -74,6 +74,42 @@
 
 ## CRITICAL BUG FIX LOGS (Lessons Learned)
 
+### BUG-032: Client-side Prediction Reconciliation Used Stale Interpolated State
+
+**Symptom:** Potential jitter in client prediction due to stale position data.
+
+**Location:** `Game.ts:171-197`, `InputManager.ts:122-154`
+
+**Root Cause:** Reconciliation was using interpolated state from `getLocalPlayer()` instead of fresh server state.
+
+**Fix:** Now uses fresh server position (`localPlayerState.x/y`) directly for reconciliation starting point.
+
+**Impact:** Eliminates potential jitter from stale position data in client prediction.
+
+### BUG-033: Client Reconciliation Used Hardcoded 60fps Delta Time
+
+**Symptom:** Inaccurate reconciliation when frame rate varies from 60fps.
+
+**Location:** `InputManager.ts:79-86, 132-154`
+
+**Root Cause:** Reconciliation assumed 1/60 dt for all inputs regardless of actual frame rate.
+
+**Fix:** Now stores actual delta time with each pending input and uses it during reconciliation.
+
+**Impact:** More accurate reconciliation when frame rate varies.
+
+### BUG-034: Knife Range Did Not Scale With Level
+
+**Symptom:** Knife range remained fixed instead of scaling +10% per level per spec.
+
+**Location:** `WeaponSystem.ts:127-167, 494-502`
+
+**Root Cause:** Knife used fixed `config.range` instead of level-scaled range (spec: +10% per level).
+
+**Fix:** Added `calculateWeaponRange()` method and updated `fireKnife` to use scaled range.
+
+**Impact:** Knife range now properly increases with level (2 at lv1, 3.4 at lv8).
+
 ### BUG-012: Colyseus State Sync Failure
 
 **Symptom:** Client connected but received empty state. Players never rendered.
@@ -233,6 +269,9 @@ npm run test:memory --players=20 --duration=30
 ## CHANGELOG SUMMARY
 
 **Recent (2026-01-15):**
+- BUG-032 fixed: Client-side prediction reconciliation now uses fresh server state instead of stale interpolated state
+- BUG-033 fixed: Client reconciliation now stores actual delta time per input instead of hardcoded 60fps
+- BUG-034 fixed: Knife range now properly scales with level (+10% per level, 2 at lv1 to 3.4 at lv8)
 - Implemented slime splitting on death: regular slimes now split into 2 mini_slimes when killed (P2 spec compliance)
 - Added mini_slime enemy type: smaller slime (8hp, 4 damage, 0.3 size) that doesn't split
 - Fixed axe weapon description inconsistency in types.ts (was 'Boomerang projectile', now 'Piercing throw')
