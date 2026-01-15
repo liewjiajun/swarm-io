@@ -227,6 +227,9 @@ npm run test:memory --players=20 --duration=30
 ## CHANGELOG SUMMARY
 
 **Recent (2026-01-15):**
+- Client structured logging migration: migrated all console.log/warn/error to structured logging utility
+  - Updated: AudioManager, AnimationController, SpriteLoader, Renderer, TouchControls, main.ts
+  - Tag: 0.4.25
 - Bundle optimization: lazy-loading post-processing, code splitting (89KB main bundle, was 646KB)
 - BUG-031 fixed (NetworkClient memory leak)
 - Sprite mode initialization integrated (P1.1/P1.2)
