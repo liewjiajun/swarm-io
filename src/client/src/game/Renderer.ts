@@ -3,7 +3,7 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import type { PlayerState, EnemyState, ProjectileState, XPOrbState } from '@swarm-io/shared';
-import { COLOR_PALETTE, DEATH_PARTICLE_COLORS } from '@swarm-io/shared';
+import { DEATH_PARTICLE_COLORS } from '@swarm-io/shared';
 import { SpriteLoader } from './SpriteLoader';
 import { AnimationController, createSimpleAnimation, createWalkAnimations } from './AnimationController';
 import type { AnimationState } from './AnimationController';
