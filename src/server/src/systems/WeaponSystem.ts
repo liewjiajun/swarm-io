@@ -192,13 +192,16 @@ export class WeaponSystem {
     // Create spread pattern
     const spreadAngle = projectileCount > 1 ? Math.PI / 8 : 0; // 22.5 degree spread
 
+    // Use projectileSpeed from config (default 12 per spec)
+    const speed = config.projectileSpeed || 12;
+
     for (let i = 0; i < projectileCount; i++) {
       const offset = projectileCount === 1 ? 0 :
         (i / (projectileCount - 1) - 0.5) * spreadAngle;
       const angle = targetAngle + offset;
 
-      const velocityX = Math.cos(angle) * config.range;
-      const velocityY = Math.sin(angle) * config.range;
+      const velocityX = Math.cos(angle) * speed;
+      const velocityY = Math.sin(angle) * speed;
 
       gameState.addProjectile(
         'bullet',          // type

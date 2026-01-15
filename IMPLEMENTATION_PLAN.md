@@ -2,9 +2,9 @@
 
 ## Current Status: Phase 6 Complete - Comprehensive Audit Verified
 
-**Last Updated:** 2026-01-15 (P2.5 Complete - Garlic Level-Based Range Scaling)
-**Implementation Progress:** 117/85 tasks completed (137.6%)
-**Test Count:** 441 tests (358 server + 73 shared + 10 client) - ALL PASSING
+**Last Updated:** 2026-01-15 (P2.1-P2.7 Complete - Gameplay Balance Review)
+**Implementation Progress:** 118/85 tasks completed (138.8%)
+**Test Count:** 442 tests (359 server + 73 shared + 10 client) - ALL PASSING
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
 **Critical Bugs:** 0 | **Medium Bugs:** 1 (BUG-029 design choice, non-blocking)
 
@@ -74,17 +74,25 @@
 **Note:** Current weapon formulas are intentional deviations for better game feel. Review for final tuning.
 
 #### Weapon Balance (Spec Deviations)
-- [ ] **P2.1** Review Knife formula: current `1+floor(level/2)` max 5, spec `1+floor(level/3)` max 4
-- [ ] **P2.2** Review Wand projectile count: current `1+floor((level-1)/2)` max 4, spec `1+floor(level/4)`
-- [ ] **P2.3** Review Wand speed: current `config.range` (15), spec `projectileSpeed` (12)
-- [ ] **P2.4** Review Wand piercing: current `weapon.level`, spec `1` (single hit)
+- [x] **P2.1** Review Knife formula: current `1+floor(level/2)` max 5, spec `1+floor(level/3)` max 4 ✅ REVIEWED
+  - **Decision:** Keep current - faster scaling makes starter weapon feel more rewarding
+- [x] **P2.2** Review Wand projectile count: current `1+floor((level-1)/2)` max 4, spec `1+floor(level/4)` ✅ REVIEWED
+  - **Decision:** Keep current - faster scaling makes leveling feel more impactful
+- [x] **P2.3** Review Wand speed: current `config.range` (15), spec `projectileSpeed` (12) ✅ FIXED
+  - **Bug Found:** Wand was using `config.range` (15) instead of `config.projectileSpeed` (12) for velocity
+  - **Fix Applied:** Changed to use `config.projectileSpeed || 12` in fireWand() method
+  - **Test Added:** Wand speed test verifies velocity uses projectileSpeed, not range
+- [x] **P2.4** Review Wand piercing: current `weapon.level`, spec `1` (single hit) ✅ REVIEWED
+  - **Decision:** Keep current - level-based piercing rewards weapon investment
 - [x] **P2.5** Add missing Garlic level-based range scaling ✅ COMPLETE
   - **Fix Applied:** Added `range = config.range * (1 + (weapon.level - 1) * 0.1)` to fireGarlic() in WeaponSystem.ts
   - **Consistency:** Now matches formula used by Lightning, Whip, and Bible weapons
 
 #### Progression Balance
-- [ ] **P2.6** Review upgrade choices: current 4, spec 3
-- [ ] **P2.7** Review speed boost: current 10% multiplicative, spec +0.5 absolute
+- [x] **P2.6** Review upgrade choices: current 4, spec 3 ✅ REVIEWED
+  - **Decision:** Keep 4 choices - more options give players more agency and strategic depth
+- [x] **P2.7** Review speed boost: current 10% multiplicative, spec +0.5 absolute ✅ REVIEWED
+  - **Decision:** Keep multiplicative - prevents infinite speed exploit with enough upgrades
 
 #### Playtesting
 - [ ] **P2.8** Playtest and tune enemy health/damage vs player DPS per wave
@@ -849,6 +857,7 @@ npm run test
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-01-15 | 2.50 | GAMEPLAY BALANCE REVIEW (P2.1-P2.7) - Fixed Wand speed bug (P2.3): was using `config.range` (15) for velocity instead of `config.projectileSpeed` (12). Changed fireWand() to use projectileSpeed. Added test to verify correct speed. Reviewed and documented all weapon balance deviations (P2.1-P2.4) as intentional design decisions for better game feel. Reviewed progression balance (P2.6-P2.7): keeping 4 upgrade choices (vs spec 3) for more player agency, keeping multiplicative speed boost to prevent exploits. All 442 tests passing. |
 | 2026-01-15 | 2.49 | GARLIC LEVEL-BASED RANGE SCALING (P2.5) - Added level-based range scaling to fireGarlic() in WeaponSystem.ts using formula `range = config.range * (1 + (weapon.level - 1) * 0.1)`. This matches the scaling used by Lightning, Whip, and Bible weapons for consistency. At level 1: 2.5 units, at level 8: 4.25 units. Added test case to verify range scaling at different levels. All 441 tests passing. |
 | 2026-01-15 | 2.48 | CLIENT STRUCTURED LOGGING + PRODUCTION READINESS (P3.3, P3.4, P4.1, P4.2) - Created `src/client/src/utils/logger.ts` with browser-compatible structured logging utility. Features: log levels (debug/info/warn/error), structured data format with timestamps, component child loggers (networkLogger, gameLogger, etc.), configurable via localStorage.setItem('LOG_LEVEL', 'debug'). Converted NetworkClient.ts (24 logs) and Game.ts (11 logs) from console statements to structured logging. Verified P4.1 (health check at /health) and P4.2 (graceful shutdown with SIGTERM/SIGINT handlers) were already implemented. Updated P4.4 as verified (ban system persistence acceptable for MVP). All 440 tests passing. |
 | 2026-01-15 | 2.47 | SERVER STRUCTURED LOGGING (P3.1, P3.2, P3.5) - Implemented pino-based structured logging for all server-side code. Created `src/server/src/utils/logger.ts` with configurable log levels (debug/info/warn/error/fatal), JSON output for production, and pino-pretty for development. Added child loggers for each system component (gameRoomLogger, combatSystemLogger, physicsSystemLogger, spawnSystemLogger, xpSystemLogger, weaponSystemLogger, securityLogger). Updated GameRoom.ts (21 logs), PhysicsSystem.ts (3 logs), XPSystem.ts (6 logs), SpawnSystem.ts (6 logs), CombatSystem.ts (4 logs), WeaponSystem.ts (3 logs), and index.ts (7 logs). Logs are silent during tests (NODE_ENV=test). All 440 tests passing. |

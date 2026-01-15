@@ -372,6 +372,25 @@ describe('WeaponSystem', () => {
       // Level 5: min(1 + floor((5-1)/2), 4) = min(3, 4) = 3 projectiles
       expect(gameState.addProjectile).toHaveBeenCalledTimes(3);
     });
+
+    it('should use projectileSpeed (12) for velocity instead of range', () => {
+      // BUG FIX: Wand was incorrectly using config.range (15) for speed instead of projectileSpeed (12)
+      const weapon = createMockWeapon({ type: 'wand', level: 1, cooldownRemaining: 0 });
+      const player = createMockPlayer({ x: 0, y: 0, facingX: 1, facingY: 0, weapons: [weapon] });
+      const gameState = createMockGameState([player], []);
+
+      weaponSystem.update(gameState, spatialHash, deltaTime);
+
+      // With facing (1, 0), velocity should be (projectileSpeed, 0) = (12, 0)
+      const call = gameState.addProjectile.mock.calls[0];
+      const velocityX = call[4];
+      const velocityY = call[5];
+      const speed = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
+
+      // Should use projectileSpeed (12), NOT range (15)
+      expect(speed).toBeCloseTo(WEAPON_CONFIGS.wand.projectileSpeed || 12, 2);
+      expect(speed).not.toBeCloseTo(WEAPON_CONFIGS.wand.range, 2);
+    });
   });
 
   describe('bible weapon', () => {
