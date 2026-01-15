@@ -25,7 +25,7 @@
 
 | Priority | Task | Status |
 |----------|------|--------|
-| **#1** | **Visual Overhaul** - Sprite integration (P1.7-P1.9) | P1.9 DONE, P1.7-P1.8 remaining |
+| **#1** | **Visual Overhaul** - Sprite integration (P1.7-P1.9) | P1.7, P1.9 DONE, P1.8 remaining |
 | **#2** | **Audio Overhaul** - Claude to source/create audio assets (P2.A1-P2.A8) | NOT STARTED |
 | **#3** | **Multiplayer Experience** - Nicknames, leaderboard, minimap (P3.1-P3.3) | NOT STARTED |
 | **#4** | **Multiplayer Mechanics** - Co-op features, revival, combos (P4.1-P4.6) | NOT STARTED |
@@ -57,7 +57,7 @@
 - [x] **P1.4** Enemy sprites (6 types x 2 idle frames: bat, skeleton, zombie, ghost, slime, demon) - Generated
 - [x] **P1.5** Projectile sprites (11 types: slash, bullet, orb, lightning, axe x2, fireball x2, whip, garlic) - Generated
 - [x] **P1.6** XP orb sprites (3 sizes: small 16x16, medium 24x24, large 32x32) - Generated
-- [ ] **P1.7** Create environment tiles (arena floor, boundary effect) - NOT STARTED
+- [x] **P1.7** Create environment tiles (arena floor, boundary effect) - COMPLETE
 - [ ] **P1.8** Create pixel art UI frames (health/XP bars, weapon icons, modals) - NOT STARTED
 
 #### Integration (COMPLETE)
@@ -367,6 +367,18 @@ npm run test:memory --players=20 --duration=30
 ## CHANGELOG SUMMARY
 
 **Recent (2026-01-16):**
+- **P1.7 COMPLETE**: Environment tiles and boundary effects
+  - Updated `scripts/generate-sprites.ts` with new environment tiles:
+    - floor_tile (32x32): Pixel art stone floor pattern
+    - floor_tile_alt (32x32): Alternative floor pattern for variety
+    - boundary_edge_0/1 (32x32): Animated boundary warning with stripes
+    - boundary_corner (32x32): Corner piece for arena boundaries
+  - Updated atlas.json with coordinates for new environment sprites
+  - Updated Renderer.ts:
+    - createGround() now loads floor_tile texture from atlas as repeating texture
+    - Added createBoundaryRing() with shader-based danger zone ring around arena edge
+    - Added updateBoundaryRing() for animated pulsing effect and dynamic worldRadius sizing
+    - Custom shader with red danger gradient and animated yellow warning stripes
 - **P1.9 COMPLETE**: Full sprite-based rendering for all entities
   - Players: Atlas textures with walk/idle animations and velocity-based direction
   - Enemies: Sprite rendering with 2-frame idle animation, boss pulsing, mini_slime fallback to slime sprites

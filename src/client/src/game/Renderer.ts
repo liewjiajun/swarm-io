@@ -136,6 +136,8 @@ export class Renderer {
 
   // Ground plane
   private ground!: THREE.Mesh;
+  private boundaryRing!: THREE.Mesh;
+  private floorTexture: THREE.Texture | null = null;
 
   // Reusable objects
   private dummy = new THREE.Object3D();
@@ -385,21 +387,183 @@ export class Renderer {
     document.body.appendChild(this.screenFlash);
   }
 
+  /**
+   * Creates the ground plane with tiled floor texture (P1.7)
+   * Uses floor_tile sprite from atlas for pixel art aesthetic
+   * Falls back to solid color if texture loading fails
+   */
   private createGround() {
-    const geometry = new THREE.PlaneGeometry(2000, 2000);
-    const material = new THREE.MeshStandardMaterial({
+    const geometry = new THREE.PlaneGeometry(2000, 2000, 1, 1);
+
+    // Default material (fallback while texture loads or if loading fails)
+    const defaultMaterial = new THREE.MeshStandardMaterial({
       color: 0x2d2d44,
       roughness: 0.8,
     });
-    this.ground = new THREE.Mesh(geometry, material);
+    this.ground = new THREE.Mesh(geometry, defaultMaterial);
     this.ground.rotation.x = -Math.PI / 2;
     this.ground.position.y = 0;
     this.scene.add(this.ground);
 
-    // Grid helper for visual reference
+    // Try to load the floor tile texture from atlas (P1.7)
+    this.loadFloorTexture();
+
+    // Grid helper for visual reference (subtle grid overlay)
     const grid = new THREE.GridHelper(2000, 100, 0x3d3d5c, 0x3d3d5c);
     grid.position.y = 0.01;
     this.scene.add(grid);
+
+    // Create boundary warning ring (P1.7)
+    this.createBoundaryRing(500); // Default world radius
+  }
+
+  /**
+   * Loads the floor tile texture and applies it to the ground (P1.7)
+   * Extracts the floor tile region from the sprite atlas
+   */
+  private loadFloorTexture(): void {
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load(
+      '/assets/sprites/atlas.png',
+      (texture) => {
+        // Create a canvas to extract just the floor tile from atlas
+        const canvas = document.createElement('canvas');
+        const tileSize = 32;
+        canvas.width = tileSize;
+        canvas.height = tileSize;
+        const ctx = canvas.getContext('2d')!;
+
+        // Create an image from the texture to draw on canvas
+        const img = new Image();
+        img.onload = () => {
+          // Extract floor_tile from atlas (x: 0, y: 160, w: 32, h: 32)
+          ctx.drawImage(img, 0, 160, tileSize, tileSize, 0, 0, tileSize, tileSize);
+
+          // Create texture from the extracted tile
+          const floorTexture = new THREE.CanvasTexture(canvas);
+          floorTexture.wrapS = THREE.RepeatWrapping;
+          floorTexture.wrapT = THREE.RepeatWrapping;
+          floorTexture.magFilter = THREE.NearestFilter; // Pixel art - no smoothing
+          floorTexture.minFilter = THREE.NearestFilter;
+
+          // Calculate repeat based on world size and tile size
+          // Each tile is 32 pixels, we want each tile to cover ~2 world units
+          const tileWorldSize = 2;
+          const repeatCount = 2000 / tileWorldSize;
+          floorTexture.repeat.set(repeatCount, repeatCount);
+
+          this.floorTexture = floorTexture;
+
+          // Update ground material with texture
+          const material = new THREE.MeshStandardMaterial({
+            map: floorTexture,
+            roughness: 0.9,
+          });
+
+          this.ground.material = material;
+          rendererLogger.info('Floor tile texture loaded successfully (P1.7)');
+        };
+        img.src = texture.image.src;
+      },
+      undefined,
+      (error) => {
+        rendererLogger.warn({ error: String(error) }, 'Failed to load floor texture, using fallback color');
+      }
+    );
+  }
+
+  /**
+   * Creates a boundary warning ring around the arena edge (P1.7)
+   * Visual indicator that pulses to warn players of the danger zone
+   */
+  private createBoundaryRing(worldRadius: number): void {
+    // Create a ring geometry at the world edge
+    const innerRadius = worldRadius - 15; // Start warning 15 units from edge
+    const outerRadius = worldRadius + 5;  // Extend slightly beyond
+
+    const ringGeometry = new THREE.RingGeometry(innerRadius, outerRadius, 64, 1);
+
+    // Create material with red danger gradient
+    const ringMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        time: { value: 0 },
+        innerRadius: { value: innerRadius },
+        outerRadius: { value: outerRadius },
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        varying float vRadius;
+        void main() {
+          vUv = uv;
+          vec4 worldPos = modelMatrix * vec4(position, 1.0);
+          vRadius = length(worldPos.xz);
+          gl_Position = projectionMatrix * viewMatrix * worldPos;
+        }
+      `,
+      fragmentShader: `
+        uniform float time;
+        uniform float innerRadius;
+        uniform float outerRadius;
+        varying float vRadius;
+
+        void main() {
+          // Calculate progress from inner to outer (0 = inner/safe, 1 = outer/danger)
+          float progress = (vRadius - innerRadius) / (outerRadius - innerRadius);
+          progress = clamp(progress, 0.0, 1.0);
+
+          // Pulsing effect
+          float pulse = sin(time * 3.0) * 0.3 + 0.7;
+
+          // Red danger color with gradient alpha
+          float alpha = progress * 0.6 * pulse;
+
+          // Warning stripes pattern
+          float stripeFreq = 0.3;
+          float stripe = step(0.5, fract((vRadius + time * 5.0) * stripeFreq));
+          float stripeAlpha = stripe * 0.2 * progress;
+
+          vec3 dangerColor = vec3(1.0, 0.2, 0.1);
+          vec3 stripeColor = vec3(1.0, 0.8, 0.0);
+
+          vec3 finalColor = mix(dangerColor, stripeColor, stripeAlpha);
+          float finalAlpha = alpha + stripeAlpha;
+
+          gl_FragColor = vec4(finalColor, finalAlpha);
+        }
+      `,
+      transparent: true,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    });
+
+    this.boundaryRing = new THREE.Mesh(ringGeometry, ringMaterial);
+    this.boundaryRing.rotation.x = -Math.PI / 2;
+    this.boundaryRing.position.y = 0.02; // Slightly above ground
+    this.scene.add(this.boundaryRing);
+  }
+
+  /**
+   * Updates the boundary ring animation and size (P1.7)
+   * Called each frame to animate the pulsing effect
+   */
+  private updateBoundaryRing(time: number, worldRadius?: number): void {
+    if (!this.boundaryRing) return;
+
+    const material = this.boundaryRing.material as THREE.ShaderMaterial;
+    if (material.uniforms) {
+      material.uniforms.time.value = time;
+    }
+
+    // Update ring size if world radius changed
+    if (worldRadius && material.uniforms) {
+      const currentInner = material.uniforms.innerRadius.value;
+      const expectedInner = worldRadius - 15;
+      if (Math.abs(currentInner - expectedInner) > 1) {
+        // Recreate ring with new size
+        this.scene.remove(this.boundaryRing);
+        this.createBoundaryRing(worldRadius);
+      }
+    }
   }
 
   private createEntityPools() {
@@ -695,6 +859,11 @@ export class Renderer {
 
     // Update damage number animations
     this.updateDamageNumbers();
+
+    // Update boundary ring animation (P1.7)
+    const gameTime = performance.now() / 1000;
+    const worldRadius = state.worldRadius || 500;
+    this.updateBoundaryRing(gameTime, worldRadius);
 
     // Update CRT time uniform for animation effects
     if (this.crtEnabled && this.crtPass) {
