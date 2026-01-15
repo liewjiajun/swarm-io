@@ -25,7 +25,7 @@
 
 | Priority | Task | Status |
 |----------|------|--------|
-| **#1** | **Visual Overhaul** - Sprite integration (P1.7-P1.9) | IN PROGRESS (P1.3-P1.6 done) |
+| **#1** | **Visual Overhaul** - Sprite integration (P1.7-P1.9) | P1.9 DONE, P1.7-P1.8 remaining |
 | **#2** | **Audio Overhaul** - Claude to source/create audio assets (P2.A1-P2.A8) | NOT STARTED |
 | **#3** | **Multiplayer Experience** - Nicknames, leaderboard, minimap (P3.1-P3.3) | NOT STARTED |
 | **#4** | **Multiplayer Mechanics** - Co-op features, revival, combos (P4.1-P4.6) | NOT STARTED |
@@ -60,12 +60,13 @@
 - [ ] **P1.7** Create environment tiles (arena floor, boundary effect) - NOT STARTED
 - [ ] **P1.8** Create pixel art UI frames (health/XP bars, weapon icons, modals) - NOT STARTED
 
-#### Integration (IN PROGRESS)
-- [x] **P1.9** Player sprite-based rendering implemented
-  - When sprite mode active, players use atlas textures with animations
-  - Animation system tracks velocity from position changes for walk direction
+#### Integration (COMPLETE)
+- [x] **P1.9** Full sprite-based rendering implemented
+  - Players: Atlas textures with walk/idle animations, velocity-based direction
+  - Enemies: Sprite rendering with 2-frame idle animation, boss scaling, mini_slime support
+  - Projectiles: Type-specific sprites with animation frames for axe/fireball
+  - XP Orbs: Size-based sprites (small/medium/large) with bobbing animation
   - Smooth fallback to procedural rendering if sprites unavailable
-  - Remaining: Enemy/projectile/XP orb sprites (currently use procedural geometry)
 
 **Art Direction:** Game Boy Pokemon style with modern vibrant colors. 16x16 or 32x32 sprite bases scaled with nearest-neighbor filtering.
 
@@ -366,11 +367,14 @@ npm run test:memory --players=20 --duration=30
 ## CHANGELOG SUMMARY
 
 **Recent (2026-01-16):**
-- **P1.9 In Progress**: Integrated sprite rendering for players in Renderer.ts
-  - Players now use atlas textures with walk/idle animations when sprite mode active
-  - Animation direction determined by tracking position changes (velocity calculation)
-  - Falls back to procedural colored sprites if atlas unavailable
-  - Enemies/projectiles/XP orbs still use procedural geometry (future work)
+- **P1.9 COMPLETE**: Full sprite-based rendering for all entities
+  - Players: Atlas textures with walk/idle animations and velocity-based direction
+  - Enemies: Sprite rendering with 2-frame idle animation, boss pulsing, mini_slime fallback to slime sprites
+  - Projectiles: Type-specific sprites (slash, bullet, orb, lightning, axe, fireball, whip, garlic) with animation frames
+  - XP Orbs: Size-based sprites (small/medium/large) from atlas with bobbing animation
+  - All entities fall back to procedural rendering if sprites unavailable
+  - Added sprite Maps for tracking entity sprites (xpOrbSprites, enemySprites, projectileSprites)
+  - Proper cleanup in destroy() method
 - **P1.3-P1.6 Complete**: Created sprite generation script (`scripts/generate-sprites.ts`)
   - Generates 512x512 atlas.png with 46 sprites using sharp library
   - Player: 20 sprites (4 idle frames + 16 walk frames in 4 directions)

@@ -185,6 +185,12 @@ export class Renderer {
 
   // Previous positions for velocity calculation (animation purposes)
   private playerPrevPositions: Map<string, { x: number; y: number }> = new Map();
+  private enemyPrevPositions: Map<string, { x: number; y: number }> = new Map();
+
+  // Sprite-based entity rendering (P1.9)
+  private xpOrbSprites: Map<string, THREE.Sprite> = new Map();
+  private enemySprites: Map<string, THREE.Sprite> = new Map();
+  private projectileSprites: Map<string, THREE.Sprite> = new Map();
 
   // Post-processing (P1.10 CRT shader)
   // Types are 'any' because modules are lazily loaded to reduce bundle size
@@ -813,6 +819,134 @@ export class Renderer {
   }
 
   private updateEnemies(enemies: Map<string, EnemyState>) {
+    if (this.isSpriteMode()) {
+      this.updateEnemiesSprite(enemies);
+    } else {
+      this.updateEnemiesProcedural(enemies);
+    }
+  }
+
+  /**
+   * Get the base sprite name for an enemy type (handles boss_ prefix and mini_slime)
+   */
+  private getEnemySpriteBaseName(type: string): string {
+    // Remove boss_ prefix for sprite lookup
+    let baseName = type.replace('boss_', '');
+    // mini_slime uses slime sprites (scaled down)
+    if (baseName === 'mini_slime') {
+      baseName = 'slime';
+    }
+    return baseName;
+  }
+
+  /**
+   * Update enemies using sprite-based rendering (P1.9)
+   * Uses enemy type sprites with idle animation
+   */
+  private updateEnemiesSprite(enemies: Map<string, EnemyState>) {
+    const dt = 1 / 60; // Approximate frame time
+
+    // Remove sprites for dead enemies
+    const currentIds = new Set(enemies.keys());
+    this.enemySprites.forEach((sprite, id) => {
+      if (!currentIds.has(id)) {
+        this.scene.remove(sprite);
+        this.enemySprites.delete(id);
+        this.enemyAnimStates.delete(id);
+        this.enemyPrevPositions.delete(id);
+      }
+    });
+
+    const time = Date.now() / 1000;
+
+    // Update/create enemy sprites
+    enemies.forEach((enemy, id) => {
+      // Skip enemies outside view (frustum culling)
+      if (!this.isInView(enemy.x, enemy.y)) {
+        const existingSprite = this.enemySprites.get(id);
+        if (existingSprite) {
+          existingSprite.visible = false;
+        }
+        return;
+      }
+
+      let sprite = this.enemySprites.get(id);
+      const baseName = this.getEnemySpriteBaseName(enemy.type);
+      const isBoss = enemy.type.startsWith('boss_');
+      const isMiniSlime = enemy.type === 'mini_slime';
+
+      if (!sprite) {
+        // Create new sprite for this enemy
+        const spriteName = `${baseName}_idle_0`;
+        const material = this.spriteLoader.createAtlasSpriteMaterial('main', spriteName);
+        if (material) {
+          material.transparent = true;
+          sprite = new THREE.Sprite(material);
+          this.enemySprites.set(id, sprite);
+          this.scene.add(sprite);
+
+          // Initialize animation state
+          const animState = this.animationController.createState(enemy.type);
+          this.enemyAnimStates.set(id, animState);
+          // Initialize previous position
+          this.enemyPrevPositions.set(id, { x: enemy.x, y: enemy.y });
+        } else {
+          // Fallback handled by procedural rendering
+          return;
+        }
+      }
+
+      sprite.visible = true;
+
+      // Calculate velocity for animation direction
+      const prevPos = this.enemyPrevPositions.get(id);
+      const velocityX = prevPos ? (enemy.x - prevPos.x) / dt : 0;
+      const velocityY = prevPos ? (enemy.y - prevPos.y) / dt : 0;
+      const isMoving = Math.abs(velocityX) > 0.1 || Math.abs(velocityY) > 0.1;
+
+      // Update animation state
+      const animState = this.enemyAnimStates.get(id);
+      if (animState) {
+        this.animationController.setAnimation(animState, enemy.type, isMoving ? 'move' : 'idle');
+        this.animationController.update(animState, enemy.type, dt);
+
+        // Apply animation frame - manually handle since we're using simple 2-frame animation
+        const frameIndex = Math.floor(time * 3) % 2; // 3 fps animation, 2 frames
+        const spriteName = `${baseName}_idle_${frameIndex}`;
+        const uvs = this.spriteLoader.getSpriteUVs('main', spriteName);
+        if (uvs && sprite.material instanceof THREE.SpriteMaterial && sprite.material.map) {
+          sprite.material.map.offset.set(uvs.u0, uvs.v0);
+          sprite.material.map.repeat.set(uvs.u1 - uvs.u0, uvs.v1 - uvs.v0);
+        }
+      }
+
+      // Store current position for next frame
+      this.enemyPrevPositions.set(id, { x: enemy.x, y: enemy.y });
+
+      // Scale based on enemy type
+      let scale = 2.0; // Base scale
+      if (isBoss) {
+        scale = 6.0; // Bosses are much larger
+        // Boss pulsing animation
+        const pulseOffset = enemy.x * 0.1 + enemy.y * 0.1;
+        const pulse = 1 + Math.sin((time + pulseOffset) * 2) * 0.08;
+        scale *= pulse;
+      } else if (isMiniSlime) {
+        scale = 1.2; // Mini slimes are smaller
+      }
+
+      sprite.scale.set(scale, scale, 1);
+      sprite.position.set(enemy.x, 1.0, enemy.y);
+    });
+
+    // Hide procedural meshes when using sprites
+    this.enemyMeshes.forEach(mesh => mesh.count = 0);
+  }
+
+  /**
+   * Update enemies using procedural InstancedMesh rendering (fallback)
+   */
+  private updateEnemiesProcedural(enemies: Map<string, EnemyState>) {
     // Reset all counts
     this.enemyMeshes.forEach(mesh => mesh.count = 0);
 
@@ -931,6 +1065,116 @@ export class Renderer {
   }
 
   private updateProjectiles(projectiles: Map<string, ProjectileState>) {
+    if (this.isSpriteMode()) {
+      this.updateProjectilesSprite(projectiles);
+    } else {
+      this.updateProjectilesProcedural(projectiles);
+    }
+  }
+
+  // Map server projectile types to atlas sprite names
+  private static readonly PROJECTILE_SPRITE_NAMES: Record<string, string> = {
+    slash: 'projectile_slash',
+    bullet: 'projectile_bullet',
+    orb: 'projectile_orb',
+    lightning_bolt: 'projectile_lightning',
+    axe_spin: 'projectile_axe',      // Has animation frames _0, _1
+    fireball: 'projectile_fireball', // Has animation frames _0, _1
+    explosion: 'projectile_fireball', // Reuse fireball sprite
+    whip_strike: 'projectile_whip',
+    garlic_aura: 'projectile_garlic',
+    demon_fireball: 'projectile_fireball', // Reuse fireball sprite for enemy attacks
+  };
+
+  // Projectiles with animation frames
+  private static readonly PROJECTILE_HAS_ANIMATION: Set<string> = new Set([
+    'axe_spin', 'fireball', 'demon_fireball', 'explosion'
+  ]);
+
+  /**
+   * Get the sprite name for a projectile type
+   */
+  private getProjectileSpriteName(type: string): string {
+    const baseName = Renderer.PROJECTILE_SPRITE_NAMES[type] || 'projectile_bullet';
+
+    // Add animation frame for projectiles that have multiple frames
+    if (Renderer.PROJECTILE_HAS_ANIMATION.has(type)) {
+      const frameIndex = Math.floor(Date.now() / 100) % 2; // 10 fps animation
+      return `${baseName}_${frameIndex}`;
+    }
+
+    return baseName;
+  }
+
+  /**
+   * Update projectiles using sprite-based rendering (P1.9)
+   */
+  private updateProjectilesSprite(projectiles: Map<string, ProjectileState>) {
+    // Remove sprites for destroyed projectiles
+    const currentIds = new Set(projectiles.keys());
+    this.projectileSprites.forEach((sprite, id) => {
+      if (!currentIds.has(id)) {
+        this.scene.remove(sprite);
+        this.projectileSprites.delete(id);
+      }
+    });
+
+    // Update/create projectile sprites
+    projectiles.forEach((projectile, id) => {
+      // Skip projectiles outside view (frustum culling)
+      if (!this.isInView(projectile.x, projectile.y, projectile.radius)) {
+        const existingSprite = this.projectileSprites.get(id);
+        if (existingSprite) {
+          existingSprite.visible = false;
+        }
+        return;
+      }
+
+      let sprite = this.projectileSprites.get(id);
+      const spriteName = this.getProjectileSpriteName(projectile.type);
+
+      if (!sprite) {
+        // Create new sprite for this projectile
+        const material = this.spriteLoader.createAtlasSpriteMaterial('main', spriteName);
+        if (material) {
+          material.transparent = true;
+          sprite = new THREE.Sprite(material);
+          this.projectileSprites.set(id, sprite);
+          this.scene.add(sprite);
+        } else {
+          // Fallback handled by procedural rendering
+          return;
+        }
+      }
+
+      sprite.visible = true;
+
+      // Update sprite texture for animated projectiles
+      if (Renderer.PROJECTILE_HAS_ANIMATION.has(projectile.type)) {
+        const uvs = this.spriteLoader.getSpriteUVs('main', spriteName);
+        if (uvs && sprite.material instanceof THREE.SpriteMaterial && sprite.material.map) {
+          sprite.material.map.offset.set(uvs.u0, uvs.v0);
+          sprite.material.map.repeat.set(uvs.u1 - uvs.u0, uvs.v1 - uvs.v0);
+        }
+      }
+
+      // Scale based on projectile type
+      const visualSize = this.getProjectileVisualSize(projectile.type);
+      const scale = visualSize * 2.5; // Slightly larger for visibility
+      sprite.scale.set(scale, scale, 1);
+
+      sprite.position.set(projectile.x, 1.0, projectile.y);
+    });
+
+    // Hide procedural meshes when using sprites
+    this.projectileMesh.count = 0;
+    this.projectileMeshLOD.count = 0;
+  }
+
+  /**
+   * Update projectiles using procedural InstancedMesh rendering (fallback)
+   */
+  private updateProjectilesProcedural(projectiles: Map<string, ProjectileState>) {
     // Filter and sort projectiles with frustum culling and LOD
     let indexHi = 0;  // High detail (close to camera)
     let indexLo = 0;  // Low detail (far from camera)
@@ -989,6 +1233,75 @@ export class Renderer {
   }
 
   private updateXPOrbs(orbs: Map<string, XPOrbState>) {
+    if (this.isSpriteMode()) {
+      this.updateXPOrbsSprite(orbs);
+    } else {
+      this.updateXPOrbsProcedural(orbs);
+    }
+  }
+
+  /**
+   * Update XP orbs using sprite-based rendering (P1.9)
+   * Uses xp_orb_small/medium/large sprites from atlas
+   */
+  private updateXPOrbsSprite(orbs: Map<string, XPOrbState>) {
+    // Remove sprites for collected orbs
+    const currentIds = new Set(orbs.keys());
+    this.xpOrbSprites.forEach((sprite, id) => {
+      if (!currentIds.has(id)) {
+        this.scene.remove(sprite);
+        this.xpOrbSprites.delete(id);
+      }
+    });
+
+    // Update/create orb sprites
+    orbs.forEach((orb, id) => {
+      // Skip orbs outside view (frustum culling)
+      if (!this.isInView(orb.x, orb.y, 0.5)) {
+        const existingSprite = this.xpOrbSprites.get(id);
+        if (existingSprite) {
+          existingSprite.visible = false;
+        }
+        return;
+      }
+
+      let sprite = this.xpOrbSprites.get(id);
+      const spriteName = `xp_orb_${orb.size}`;
+
+      if (!sprite) {
+        // Create new sprite for this orb
+        const material = this.spriteLoader.createAtlasSpriteMaterial('main', spriteName);
+        if (material) {
+          material.transparent = true;
+          sprite = new THREE.Sprite(material);
+          this.xpOrbSprites.set(id, sprite);
+          this.scene.add(sprite);
+        } else {
+          // Fallback to procedural if sprite not available
+          return;
+        }
+      }
+
+      sprite.visible = true;
+
+      // Scale based on orb size
+      const scale = orb.size === 'large' ? 2.0 : orb.size === 'medium' ? 1.5 : 1.0;
+      sprite.scale.set(scale, scale, 1);
+
+      // Bob up and down animation
+      const bobOffset = Math.sin(Date.now() * 0.005 + orb.x) * 0.2;
+      sprite.position.set(orb.x, 0.5 + bobOffset, orb.y);
+    });
+
+    // Hide procedural meshes when using sprites
+    this.xpOrbMesh.count = 0;
+    this.xpOrbMeshLOD.count = 0;
+  }
+
+  /**
+   * Update XP orbs using procedural InstancedMesh rendering (fallback)
+   */
+  private updateXPOrbsProcedural(orbs: Map<string, XPOrbState>) {
     // Filter and sort XP orbs with frustum culling and LOD
     let indexHi = 0;  // High detail
     let indexLo = 0;  // Low detail
@@ -1367,6 +1680,15 @@ export class Renderer {
     this.playerAnimStates.clear();
     this.enemyAnimStates.clear();
     this.playerPrevPositions.clear();
+    this.enemyPrevPositions.clear();
+
+    // Clean up entity sprites (P1.9)
+    this.xpOrbSprites.forEach(sprite => this.scene.remove(sprite));
+    this.xpOrbSprites.clear();
+    this.enemySprites.forEach(sprite => this.scene.remove(sprite));
+    this.enemySprites.clear();
+    this.projectileSprites.forEach(sprite => this.scene.remove(sprite));
+    this.projectileSprites.clear();
 
     // Clean up post-processing (P1.10)
     this.composer = null;
