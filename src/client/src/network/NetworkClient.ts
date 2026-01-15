@@ -47,6 +47,7 @@ interface SerializedPlayer {
   invulnerableTime: number;
   dead: boolean;
   pendingUpgrade: boolean;
+  lastProcessedSequence: number; // BUG-027 FIX: For client-side prediction reconciliation
   weapons: { type: string; level: number }[];
 }
 
@@ -459,6 +460,7 @@ export class NetworkClient {
         invulnerableTime: player.invulnerableTime,
         dead: player.dead,
         pendingUpgrade: player.pendingUpgrade,
+        lastProcessedSequence: player.lastProcessedSequence || 0, // BUG-027 FIX
         weapons: Array.from(player.weapons?.$items?.values() || player.weapons || []).map((w: any) => ({
           type: w.type,
           level: w.level,

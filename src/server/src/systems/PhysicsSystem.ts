@@ -7,7 +7,25 @@ export class PhysicsSystem {
   constructor(private spatialHash: SpatialHash) {}
 
   update(state: GameState, dt: number) {
-    // Update enemy movement (AI)
+    // Get world radius early for boundary checks (BUG-030 FIX)
+    const worldRadius = state.world.worldRadius;
+
+    // Update enemy movement (AI) with boundary enforcement
+    const enemiesToRemove: string[] = [];
+    state.enemies.forEach((enemy, id) => {
+      // BUG-030 FIX: Clean up enemies that go beyond world boundary + margin
+      const enemyDist = Math.sqrt(enemy.x * enemy.x + enemy.y * enemy.y);
+      const enemyBoundary = worldRadius + GAME_CONSTANTS.ENEMY_BOUNDARY_MARGIN;
+      if (enemyDist > enemyBoundary) {
+        enemiesToRemove.push(id);
+        return; // Skip AI update for this enemy
+      }
+    });
+
+    // Clean up out-of-bounds enemies
+    enemiesToRemove.forEach(id => state.removeEnemy(id));
+
+    // Now run AI updates for remaining enemies
     state.enemies.forEach((enemy) => {
       this.updateEnemyAI(state, enemy, dt);
     });
@@ -52,6 +70,14 @@ export class PhysicsSystem {
       if (projectile.lifetime <= 0) {
         expiredProjectiles.push(id);
       }
+
+      // BUG-030 FIX: Clean up projectiles that go beyond world boundary + margin
+      // This prevents memory leaks from projectiles that miss their targets
+      const projDist = Math.sqrt(projectile.x * projectile.x + projectile.y * projectile.y);
+      const projBoundary = worldRadius + GAME_CONSTANTS.PROJECTILE_BOUNDARY_MARGIN;
+      if (projDist > projBoundary) {
+        expiredProjectiles.push(id);
+      }
     });
 
     // Clean up expired projectiles and return to pool
@@ -72,8 +98,7 @@ export class PhysicsSystem {
       }
     });
 
-    // World boundary enforcement
-    const worldRadius = state.world.worldRadius;
+    // World boundary enforcement for players
     state.players.forEach((player) => {
       if (player.dead) return;
 

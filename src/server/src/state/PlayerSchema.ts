@@ -23,6 +23,7 @@ export class PlayerSchema extends Schema {
   pendingUpgrade!: boolean;
   armor!: number;
   magnetRange!: number;
+  lastProcessedSequence!: number; // For client-side prediction reconciliation
   weapons!: ArraySchema<WeaponSchema>;
 
   // Not synchronized - server only (can use regular initializers)
@@ -52,6 +53,7 @@ export class PlayerSchema extends Schema {
     this.pendingUpgrade = false;
     this.armor = 0;
     this.magnetRange = GAME_CONSTANTS.XP_MAGNET_RADIUS;
+    this.lastProcessedSequence = 0;
     this.weapons = new ArraySchema<WeaponSchema>();
   }
 
@@ -89,13 +91,8 @@ export class PlayerSchema extends Schema {
     }
 
     this.xp += amount;
-
-    while (this.xp >= this.xpToNextLevel) {
-      this.xp -= this.xpToNextLevel;
-      this.level++;
-      this.xpToNextLevel = getXPForLevel(this.level);
-      this.pendingUpgrade = true;
-    }
+    // Note: Level-up logic is handled by XPSystem.processLevelUps() to ensure
+    // pendingChoices are generated properly. Don't handle level-ups here.
   }
 
   takeDamage(amount: number, sourceId: string, isPvP: boolean = false) {
@@ -127,9 +124,15 @@ export class PlayerSchema extends Schema {
     this.dead = false;
     this.x = x;
     this.y = y;
-    this.health = this.maxHealth;
     this.invulnerableTime = GAME_CONSTANTS.PLAYER_INVULN_TIME;
     this.killedBy = '';
+
+    // Reset all stats to initial values
+    this.maxHealth = 100;
+    this.health = this.maxHealth;
+    this.speed = 5;
+    this.armor = 0;
+    this.magnetRange = GAME_CONSTANTS.XP_MAGNET_RADIUS;
 
     // Reset to level 1 with starting weapon only
     this.level = 1;
@@ -138,6 +141,10 @@ export class PlayerSchema extends Schema {
     this.kills = 0;
     this.timeAlive = 0;
     this.hostility = 0;
+
+    // Clear any pending upgrade state
+    this.pendingUpgrade = false;
+    this.pendingChoices = [];
 
     this.weapons.clear();
     this.addWeapon('knife');
@@ -170,5 +177,6 @@ defineTypes(PlayerSchema, {
   pendingUpgrade: 'boolean',
   armor: 'number',
   magnetRange: 'number',
+  lastProcessedSequence: 'number',
   weapons: [WeaponSchema]
 });

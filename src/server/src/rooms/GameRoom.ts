@@ -446,9 +446,11 @@ export class GameRoom extends Room<GameState> {
       if (clientData.inputBuffer.length > 0) {
         const input = clientData.inputBuffer.shift()!;
 
-        // Update sequence tracking
+        // Update sequence tracking (BUG-027 FIX: sync to player schema for client reconciliation)
         if (input.sequence > clientData.lastProcessedSequence) {
           clientData.lastProcessedSequence = input.sequence;
+          // Sync to player schema so client receives it for prediction reconciliation
+          player.lastProcessedSequence = clientData.lastProcessedSequence;
         }
 
         // Process input through input system
@@ -643,6 +645,15 @@ export class GameRoom extends Room<GameState> {
       console.warn(`[GameRoom] Invalid respawn request from ${client.sessionId}`);
       return;
     }
+
+    // Clean up any projectiles owned by this player (e.g., Bible orbs)
+    const toRemove: string[] = [];
+    this.state.projectiles.forEach((proj, id) => {
+      if (proj.ownerId === client.sessionId) {
+        toRemove.push(id);
+      }
+    });
+    toRemove.forEach(id => this.state.removeProjectile(id));
 
     // Generate new spawn position
     const spawnRadius = Math.min(100, this.state.world.worldRadius * 0.2);

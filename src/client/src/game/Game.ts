@@ -156,6 +156,17 @@ export class Game {
     this.network.onStateChange((state: SerializedGameState) => {
       // BUG-019 FIX: Removed high-frequency log that was causing 10,000+ messages
       this.interpolator.pushState(this.convertToRenderState(state), performance.now());
+
+      // BUG-027 FIX: Call reconcile() to correct client prediction based on server state
+      // This removes acknowledged inputs and re-applies unacknowledged ones
+      const localPlayerState = state.players.get(this.localPlayerId);
+      if (localPlayerState && localPlayerState.lastProcessedSequence > 0) {
+        // Get the local player from interpolator for reconciliation
+        const localPlayer = this.interpolator.getLocalPlayer(this.localPlayerId);
+        if (localPlayer) {
+          this.input.reconcile(localPlayer, localPlayerState.lastProcessedSequence);
+        }
+      }
     });
 
     // Handle player death

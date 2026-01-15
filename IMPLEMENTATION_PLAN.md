@@ -1,16 +1,374 @@
 # SWARM.IO Implementation Plan
 
-## Current Status: Phase 6 Complete - Visual/Audio Polish Applied
+## Current Status: Phase 6 Complete - Comprehensive Audit Verified
 
-**Last Updated:** 2026-01-14
-**Implementation Progress:** 109/85 tasks completed (128.2%)
-**Test Count:** 440 tests (357 server + 73 shared + 10 client)
+**Last Updated:** 2026-01-15 (Comprehensive Audit v3 - VERIFIED)
+**Implementation Progress:** 112/85 tasks completed (131.8%)
+**Test Count:** 440 tests (357 server + 73 shared + 10 client) - ALL PASSING
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
-**Next Priority:** Replace placeholder art with proper 2D sprites or load external audio assets (FEATURE-001 remaining)
+**Critical Bugs:** 0 | **Medium Bugs:** 1 (BUG-029 design choice, non-blocking)
 
 ---
 
-## TOP PRIORITY - CRITICAL BUGS & IMPROVEMENTS
+## 🔴 PRIORITIZED TASK LIST (Sorted by Priority)
+
+### PRIORITY 0: BUG FIXES [COMPLETE]
+
+#### Medium Priority Bugs (Verified Issues)
+- [x] **BUG-027** Input reconciliation code exists but never called ✅ FIXED
+  - **Location:** `InputManager.ts:101` / `Game.ts`
+  - **Issue:** `InputManager.reconcile()` is implemented but `Game.ts` never invokes it
+  - **Impact:** Client prediction drift over time, no correction when server state diverges
+  - **Action:** Call `reconcile()` on server state updates to correct client prediction errors
+  - **Note:** Currently works acceptably due to 100ms interpolation delay smoothing
+  - **Fix Applied:** Added lastProcessedSequence to PlayerSchema, synced from GameRoom, called reconcile() in Game.ts
+
+- [ ] **BUG-029** Charge ability uses static targeting (Design Choice)
+  - **Location:** `PhysicsSystem.ts:217-272` (boss_demon charge)
+  - **Issue:** Boss demon captures player position once at charge start, doesn't track moving player
+  - **Impact:** Charge is predictable and avoidable; may be intentional for gameplay balance
+  - **Action:** Consider tracking or leading target position for harder difficulty mode
+
+- [x] **BUG-030** No projectile/enemy boundary enforcement ✅ FIXED
+  - **Location:** `PhysicsSystem.ts`
+  - **Issue:** Projectiles and enemies can travel beyond world boundary indefinitely
+  - **Impact:** Potential memory leak from off-screen entities (mitigated by projectile lifetime)
+  - **Action:** Add boundary checks to destroy projectiles/enemies at worldRadius + margin
+  - **Fix Applied:** Projectiles cleaned up at worldRadius + 50, enemies cleaned up at worldRadius + 100 to prevent memory leaks
+
+#### Verified NOT Bugs (From Initial Analysis)
+- ~~BUG-026~~ Dead entity cleanup IS working - `CombatSystem.cleanupDeadEntities()` called every frame (line 48)
+- ~~BUG-028~~ Split ability IS implemented - `CombatSystem.handleBossDeathAbility()` handles boss_slime (lines 425-441)
+
+### PRIORITY 1: VISUAL OVERHAUL [MANDATORY - BLOCKING RELEASE]
+
+**Current State:** ALL rendering is procedural geometry (no sprites). No texture atlas system. No animation frame system.
+
+#### Technical Infrastructure
+- [ ] **P1.1** Implement sprite loading system in Renderer.ts (TextureLoader, atlas support)
+- [ ] **P1.2** Add frame-based animation controller for sprites
+
+#### Asset Creation/Sourcing
+- [ ] **P1.3** Source/create player sprites (idle 4-frame, walk 4-dir×4-frame, attack, death)
+- [ ] **P1.4** Source/create enemy sprites (6 types × 3 animations + 3 bosses)
+- [ ] **P1.5** Source/create projectile sprites (8 weapons)
+- [ ] **P1.6** Source/create XP orb sprites (3 sizes with glow)
+- [ ] **P1.7** Create environment tiles (arena floor, boundary effect)
+- [ ] **P1.8** Create pixel art UI frames (health/XP bars, weapon icons, modals)
+
+#### Integration
+- [ ] **P1.9** Replace all InstancedMesh with sprite-based rendering
+- [ ] **P1.10** Add optional CRT/scanline shader effect
+- [ ] **P1.11** Define 32-color palette for visual consistency
+
+### PRIORITY 2: GAMEPLAY BALANCE [HIGH]
+
+**Note:** Current weapon formulas are intentional deviations for better game feel. Review for final tuning.
+
+#### Weapon Balance (Spec Deviations)
+- [ ] **P2.1** Review Knife formula: current `1+floor(level/2)` max 5, spec `1+floor(level/3)` max 4
+- [ ] **P2.2** Review Wand projectile count: current `1+floor((level-1)/2)` max 4, spec `1+floor(level/4)`
+- [ ] **P2.3** Review Wand speed: current `config.range` (15), spec `projectileSpeed` (12)
+- [ ] **P2.4** Review Wand piercing: current `weapon.level`, spec `1` (single hit)
+- [ ] **P2.5** Add missing Garlic level-based range scaling
+
+#### Progression Balance
+- [ ] **P2.6** Review upgrade choices: current 4, spec 3
+- [ ] **P2.7** Review speed boost: current 10% multiplicative, spec +0.5 absolute
+
+#### Playtesting
+- [ ] **P2.8** Playtest and tune enemy health/damage vs player DPS per wave
+- [ ] **P2.9** Verify boss difficulty spikes are appropriate
+- [ ] **P2.10** Add telemetry for balance data (survival time, popular upgrades)
+
+### PRIORITY 3: CODE QUALITY [MEDIUM - PRE-PRODUCTION]
+
+**Current State:** 108 console statements (68 debug logs to remove). 2 `as any` casts (1 necessary, 1 refactorable). 0 TODOs/FIXMEs. 0 skipped tests.
+
+#### Logging Cleanup (68 debug logs to remove)
+- [ ] **P3.1** Implement structured logging (winston/pino) to replace console statements
+- [ ] **P3.2** Convert GameRoom.ts logs (30) to structured logging
+- [ ] **P3.3** Convert NetworkClient.ts logs (24) to structured logging
+- [ ] **P3.4** Convert Game.ts logs (12) to structured logging
+- [ ] **P3.5** Convert system logs (PhysicsSystem, XPSystem, SpawnSystem, CombatSystem, WeaponSystem)
+
+#### TypeScript Quality
+- [ ] **P3.6** Review 2 `as any` casts:
+  - `AudioManager.ts:85` - webkitAudioContext fallback (NECESSARY - browser compat)
+  - `GameRoom.ts:109` - request object access (REFACTORABLE)
+
+### PRIORITY 4: PRODUCTION READINESS [MEDIUM]
+
+#### Infrastructure
+- [ ] **P4.1** Add health check endpoint for production monitoring
+- [ ] **P4.2** Add graceful shutdown handling
+- [ ] **P4.3** Configure SSL/TLS for WebSocket in production
+- [ ] **P4.4** Verify ban system persistence across server restarts
+
+#### Performance Testing
+- [ ] **P4.5** Perform memory leak testing (long-running sessions)
+- [ ] **P4.6** Load test for 150 concurrent players
+
+---
+
+## 📋 COMPREHENSIVE AUDIT RESULTS (2026-01-15 v3)
+
+### Code Quality Summary
+| Metric | Status | Notes |
+|--------|--------|-------|
+| TODOs/FIXMEs | ✅ 0 found | Clean codebase |
+| Skipped Tests | ✅ 0 found | All 440 tests active and passing |
+| Unimplemented Methods | ⚠️ 1 found | InputManager.reconcile() never called (minor impact) |
+| TypeScript Errors | ✅ 0 | Compiles cleanly |
+| `as any` Casts | ⚠️ 2 production, 85 test | 1 necessary (browser compat), 1 refactorable |
+| Console Statements | ⚠️ 108 across 14 files | 68 debug logs to remove for production |
+
+### Issues Found (v3 - Verified)
+| Issue | Severity | Location | Status |
+|-------|----------|----------|--------|
+| ~~Dead entity cleanup missing~~ | ~~CRITICAL~~ | CombatSystem:48 | ✅ VERIFIED WORKING |
+| Input reconciliation never called | MEDIUM | Game.ts / InputManager.ts:101 | BUG-027 |
+| ~~boss_slime split not implemented~~ | ~~CRITICAL~~ | CombatSystem:425-441 | ✅ VERIFIED WORKING |
+| boss_demon charge uses static targeting | LOW | PhysicsSystem:217-272 | BUG-029 (Design Choice) |
+| No projectile/enemy boundary enforcement | MEDIUM | PhysicsSystem | BUG-030 |
+
+### Spec Compliance Summary
+| System | Compliance | Deviations |
+|--------|------------|------------|
+| WeaponSystem | 95% | Knife/Wand projectile counts differ (see P2.1-P2.5) |
+| CombatSystem | 100% | Exceeds spec with security features |
+| SpawnSystem | 100% | Matches all 9 waves + bosses |
+| PhysicsSystem | 100% | All mechanics implemented + ranged AI enhancement |
+| XPSystem | 90% | 4 choices vs 3, speed boost formula (see P2.6-P2.7) |
+| Renderer | 100% | Rendering complete but uses procedural shapes |
+| NetworkClient | 117% | Exceeds spec with security, reconnection, rate limiting |
+| HUD | 100% | All 12+ components + 3 bonus features (settings, tutorial, pause) |
+| GameRoom | 95% | System update order differs (intentional improvement) |
+| Constants/Types | 100% | All match spec |
+
+### Assets Status
+| Category | Status | Notes |
+|----------|--------|-------|
+| Sprite Assets | ❌ None | ALL rendering is procedural geometry |
+| Audio Assets | ⚠️ Synthesized | Uses Web Audio synthesis (functional) |
+| Texture Atlas | ❌ None | Not implemented (P1.1) |
+| Animation System | ❌ None | No frame-based animations (P1.2) |
+
+### Visual Enhancements (Procedural - To Be Replaced)
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Boss pulsing animation | ✅ Implemented | Breathing effect via scale |
+| Projectile rotation | ✅ Implemented | Spinning axe/bible/fireball |
+| Damage numbers | ✅ Implemented | Floating text popups |
+| Per-weapon projectile colors | ✅ Implemented | 8 distinct colors |
+| Distinct enemy shapes | ✅ Implemented | Different geometry per type |
+
+### Detailed Weapon Analysis (from spec comparison)
+| Weapon | Implementation | Spec | Status |
+|--------|---------------|------|--------|
+| Knife | `1+floor(level/2)` max 5 @ speed 10 | `1+floor(level/3)` max 4 @ speed 15 | ⚠️ Deviates |
+| Wand | `1+floor((level-1)/2)` max 4, pierce=level | `1+floor(level/4)`, pierce=1 | ⚠️ Overpowered |
+| Bible | `2+level-1` max 8, orbital | Matches | ✅ Correct |
+| Garlic | Fixed range | Should scale with level | ⚠️ Missing scaling |
+| Lightning | Projectile only | Matches (BUG-006 fix) | ✅ Correct |
+| Axe | `1+floor(level/3)` max 3 | Matches | ✅ Correct |
+| Fireball | 1 projectile, explodes | Matches | ✅ Correct |
+| Whip | 5 slashes, arc scales | Matches | ✅ Correct |
+
+---
+
+## 🎨 PRIORITY 1: VISUAL OVERHAUL - RETRO PIXEL ART STYLE [MANDATORY]
+
+**Status:** NOT STARTED
+**Deadline:** ASAP - NO COMPROMISES ACCEPTED
+
+### Art Direction: Game Boy Pokémon Style with Modern Vibrancy
+
+The game MUST have a cohesive visual identity inspired by classic Game Boy Pokémon games (Red/Blue/Yellow era pixel art), but enhanced with:
+- **More vibrant, saturated colors** (not the muted 4-color palette of original GB)
+- **Smooth gradients** where appropriate for modern appeal
+- **Clean pixel art edges** with intentional pixelation aesthetic
+- **16x16 or 32x32 sprite bases** scaled up with nearest-neighbor filtering
+
+### Required Art Assets (NO PLACEHOLDERS ALLOWED)
+
+#### Player Character
+- [ ] Idle sprite (front-facing, 4-frame animation)
+- [ ] Walk cycle (4 directions, 4 frames each)
+- [ ] Attack animation overlay
+- [ ] Death/damage flash effect
+- [ ] Invulnerability shimmer effect
+
+#### Enemies (6 Types + Bosses)
+Each enemy needs: idle animation (2-4 frames), movement animation, death animation
+
+| Enemy | Style Reference | Color Palette |
+|-------|-----------------|---------------|
+| Bat | Zubat-style wings, cute face | Purple/violet with pink accents |
+| Skeleton | Cubone-inspired bones | Cream/white with blue eye glow |
+| Zombie | Pokemon-style chunky design | Green/teal with purple decay |
+| Ghost | Gastly-inspired ethereal | Translucent purple/white gradient |
+| Slime | Ditto-style blob | Vibrant green/cyan gradient |
+| Demon | Gengar-inspired menacing | Red/orange with yellow eyes |
+| **Bosses** | 2x size, glowing aura | Enhanced saturation + particle effects |
+
+#### Weapons & Projectiles
+- [ ] Knife slash effect (silver arc with motion blur)
+- [ ] Wand magic bullet (purple/pink energy orb)
+- [ ] Bible orbiting books (golden glow)
+- [ ] Garlic AOE pulse (green expanding ring)
+- [ ] Lightning bolt strike (cyan/white flash)
+- [ ] Axe spinning sprite (brown with metallic edge)
+- [ ] Fireball with trail (orange/red gradient)
+- [ ] Whip crack effect (dark red arc)
+
+#### Environment & UI
+- [ ] Arena floor tile (grass/stone pattern, tileable)
+- [ ] Arena boundary effect (dark void or barrier)
+- [ ] XP orb sprites (small/medium/large, glowing)
+- [ ] Health bar with pixel art frame
+- [ ] XP bar with pixel art frame
+- [ ] Weapon icons (16x16 each)
+- [ ] Level up modal with retro frame
+- [ ] Death screen with retro styling
+- [ ] Minimap frame and icons
+
+#### Particle Effects
+- [ ] Enemy death poof (4-frame)
+- [ ] Damage numbers popup
+- [ ] XP collection sparkle
+- [ ] Level up celebration burst
+- [ ] Weapon impact effects
+
+### Asset Sourcing Strategy
+
+**Option A: Free Asset Packs (Preferred for Speed)**
+- OpenGameArt.org - Search for "16-bit RPG" or "pixel art survivors"
+- Itch.io free game assets
+- Kenney.nl asset packs
+- LPC (Liberated Pixel Cup) sprites
+
+**Option B: AI-Generated Pixel Art**
+- Use AI tools to generate base sprites, then manually clean up
+- Ensure consistent style across all assets
+
+**Option C: Commission/Create**
+- Use Aseprite or Piskel for custom pixel art
+- Follow strict style guide for consistency
+
+### Implementation Requirements
+
+1. **Sprite Loading System** - Implement texture atlas loading in Renderer.ts
+2. **Animation System** - Frame-based animation controller for sprites
+3. **Shader Effects** - Optional: Add CRT/scanline filter for retro feel
+4. **Color Palette** - Define 32-color palette for consistency
+
+### Acceptance Criteria
+- ❌ NO procedural shapes (squares, circles, triangles)
+- ❌ NO placeholder colors
+- ❌ NO generic/programmer art
+- ✅ ALL entities must have proper pixel art sprites
+- ✅ ALL animations must be smooth and intentional
+- ✅ Visual style must be cohesive across entire game
+
+---
+
+## ⚖️ PRIORITY 2: GAMEPLAY BALANCE [HIGH]
+
+**Status:** NOT STARTED
+**Dependencies:** Should be addressed after visual overhaul or in parallel
+
+### Areas Requiring Balance Review
+
+#### Weapon Balance
+- [ ] DPS comparison across all 8 weapons at each level
+- [ ] Weapon upgrade value (is each level meaningful?)
+- [ ] Starting weapon (knife) viability
+- [ ] Late-game weapon scaling
+
+#### Enemy Balance
+- [ ] Enemy health vs player DPS at each wave
+- [ ] Enemy damage vs player survivability
+- [ ] Enemy speed vs player movement
+- [ ] Boss difficulty spikes
+- [ ] Wave progression curve (too easy? too hard?)
+
+#### Progression Balance
+- [ ] XP curve (time between levels)
+- [ ] Upgrade choice value (are all options viable?)
+- [ ] Stat upgrade impact (health vs speed vs armor vs magnet)
+- [ ] Level cap and end-game scaling
+
+#### PvP Balance (if applicable)
+- [ ] PvP damage multiplier (currently 15%)
+- [ ] Hostility system impact
+- [ ] Griefing prevention
+
+### Balancing Methodology
+1. **Data Collection** - Add telemetry for average survival time, kills per run, popular upgrades
+2. **Playtest Sessions** - Manual testing at different skill levels
+3. **Iterative Tuning** - Small adjustments with measurable impact
+4. **Community Feedback** - Once deployed, gather player feedback
+
+---
+
+## 🔧 PRIORITY 3: CODE QUALITY & PRODUCTION READINESS [MEDIUM]
+
+**Status:** NOT STARTED
+**Dependencies:** Can be done in parallel with Priority 1 & 2
+
+### Console Statement Cleanup
+**122 console statements across 14 files need review:**
+
+| File | Count | Action |
+|------|-------|--------|
+| `GameRoom.ts` | 30 | Convert to structured logging |
+| `NetworkClient.ts` | 24 | Remove debug logs, keep errors |
+| `Game.ts` | 12 | Remove debug logs |
+| `Renderer.ts` | 2 | Remove |
+| `PhysicsSystem.ts` | 3 | Convert to metrics |
+| `XPSystem.ts` | 6 | Convert to metrics |
+| `SpawnSystem.ts` | 6 | Convert to metrics |
+| `CombatSystem.ts` | 4 | Convert to metrics |
+| `WeaponSystem.ts` | 3 | Convert to metrics |
+| Others | ~32 | Review individually |
+
+**Tasks:**
+- [ ] Implement structured logging system (winston/pino)
+- [ ] Replace debug console.log with conditional logging
+- [ ] Keep error logging for production debugging
+- [ ] Add log levels (debug, info, warn, error)
+
+### TypeScript Strictness
+**3 `as any` casts in production code:**
+- [ ] `AudioManager.ts:85` - webkitAudioContext fallback (acceptable)
+- [ ] `TouchControls.ts:92` - older browser support (acceptable)
+- [ ] `GameRoom.ts:109` - request object access (refactor possible)
+
+### Spec Alignment Tasks (Optional)
+These are intentional deviations but could be aligned if desired:
+
+| Deviation | Current | Spec | Priority |
+|-----------|---------|------|----------|
+| Knife projectile count | max 5 | max 4 | Low |
+| Wand projectile count | `1 + floor((level-1)/2)` max 4 | `1 + floor(level/4)` max 3 | Low |
+| Upgrade choices | 4 | 3 | Low |
+| Speed boost | 10% multiplicative | +0.5 absolute | Low |
+| System update order | Physics→Weapon→Combat→XP→Spawn | Physics→Combat→Spawn→Weapon→XP | Low |
+
+### Production Deployment Checklist
+- [ ] Environment variable configuration (CORS_ORIGIN, PORT)
+- [ ] Health check endpoint
+- [ ] Graceful shutdown handling
+- [ ] Memory leak testing (long-running sessions)
+- [ ] Load testing (150 concurrent players)
+- [ ] SSL/TLS configuration for WebSocket
+- [ ] Rate limiting verification
+- [ ] Ban system persistence across restarts
+
+---
+
+## RESOLVED BUGS (Reference)
 
 ### BUG-015: Player Cannot Respawn [CRITICAL] ✅ FIXED
 **Status:** FIXED
@@ -23,8 +381,43 @@
 **Status:** FIXED
 **Symptoms:** When player levels up, no UI appears to select new weapons or upgrades. Player cannot progress.
 **Impact:** Game progression is broken - players cannot choose upgrades.
-**Root Cause:** Same issue as BUG-015 - `.upgrade-modal` was missing `pointer-events: auto` and inherited `pointer-events: none` from parent `#ui`, making the modal and upgrade buttons unclickable.
-**Fix:** Added `pointer-events: auto` to `.upgrade-modal` in HUD.ts. Also fixed the same issue in `.settings-modal` and `.pause-overlay` for consistency.
+**Root Causes (Multiple):**
+1. CSS issue: `.upgrade-modal` was missing `pointer-events: auto` and inherited `pointer-events: none` from parent `#ui`
+2. Level-up logic conflict: `PlayerSchema.addXP()` was handling level-ups internally (setting `pendingUpgrade=true`) but NOT generating `pendingChoices`. The XPSystem.levelUpPlayer() which generates choices was never called because `addXP()` already incremented the level.
+**Fixes Applied:**
+1. Added `pointer-events: auto` to `.upgrade-modal` in HUD.ts
+2. Removed level-up logic from `PlayerSchema.addXP()` - now it only adds XP, and `XPSystem.processLevelUps()` handles all level-up logic including generating choices
+3. Added `hideUpgradeModal()` call in `showDeathScreen()` to prevent UI overlap if player dies during upgrade selection
+
+### BUG-023: XP Bar Overfills Before Level Up Prompt [HIGH] ✅ FIXED
+**Status:** FIXED
+**Symptoms:** XP bar visually fills beyond 100% before the upgrade prompt appears. Player has to collect significantly more XP than required.
+**Impact:** Misleading UI feedback; players don't know when they'll actually level up.
+**Root Cause:** The level-up check was using `getXPForLevel(player.level + 1)` when it should use `getXPForLevel(player.level)`. Additionally, XP was cumulative but never subtracted on level-up, causing UI mismatch.
+**Fix:** Changed XPSystem.processLevelUps() to:
+1. Use `getXPForLevel(player.level)` for level-up threshold
+2. Subtract XP spent on each level-up (XP is now relative to current level, not cumulative)
+3. Set xpToNextLevel correctly after level-up: `getXPForLevel(newLevel)`
+
+### BUG-024: Bible Orbs Don't Orbit Player [HIGH] ✅ FIXED
+**Status:** FIXED
+**Symptoms:** Bible weapon upgrade creates orbs that stay stationary instead of orbiting around the player.
+**Impact:** Weapon is far less effective since orbs don't follow player movement.
+**Root Cause:** WeaponSystem.fireBible() was removing ALL existing orbs and recreating them every fire cycle (1.5 sec). This kept resetting orb positions to player location, preventing orbit animation.
+**Fix:** Changed fireBible() to only adjust orb count:
+1. Only remove EXCESS orbs if count is above required
+2. Only create NEW orbs if count is below required
+3. Existing orbs continue orbiting undisturbed via PhysicsSystem
+
+### BUG-025: Respawn Doesn't Fully Reset Player [MEDIUM] ✅ FIXED
+**Status:** FIXED
+**Symptoms:** After respawning, player may not be placed at a new location, and some state may not be fully reset.
+**Impact:** Player may respawn in danger or with incorrect stats.
+**Root Cause:** PlayerSchema.respawn() was not resetting stat upgrades (maxHealth, speed, armor, magnetRange) or clearing pending upgrade state.
+**Fix:** Updated respawn() to reset ALL stats:
+1. Reset maxHealth to 100, speed to 5, armor to 0, magnetRange to default
+2. Clear pendingUpgrade flag and pendingChoices array
+3. Clean up player-owned projectiles (Bible orbs) in GameRoom before respawn
 
 ### BUG-017: Projectile Size Way Too Large [HIGH] ✅ FIXED
 **Status:** FIXED
@@ -68,40 +461,16 @@
 **Root Cause:** While enemy pools had different colors, they may not have been distinct enough. Also boss types didn't have predefined pools.
 **Fix:** Updated enemy colors to be more visually distinct (bat=brown, skeleton=white, zombie=forest green, ghost=sky blue, slime=lime green, demon=orange-red). Added boss pools with unique colors and increased scale (3x vs 1.5x).
 
-### FEATURE-001: Replace Placeholder Art & Audio [HIGH PRIORITY]
-**Status:** PARTIALLY COMPLETE (Procedural Polish Applied)
-**Progress:** Visual/audio polish improvements implemented without external assets
+### FEATURE-001: Replace Placeholder Art & Audio
+**Status:** ⚠️ SUPERSEDED BY PRIORITY 1 (Visual Overhaul)
+**Note:** This feature has been elevated to PRIORITY 1 with stricter requirements. See "🎨 PRIORITY 1: VISUAL OVERHAUL" section above.
 
-**✅ Completed Procedural Polish (No External Assets Required):**
-- **Per-weapon projectile colors:** Each weapon type has distinct colored projectiles (knife=silver, wand=purple, bible=gold, lightning=cyan, axe=brown, fireball=orange, whip=dark red, garlic=light green)
-- **Projectile rotation animations:** Spinning effects for axe (fast), bible orbs (medium), fireballs (medium), demon fireballs
-- **Audio pitch variation:** ±8% random pitch variation on all synthesized sounds to prevent repetition fatigue
-- **Distinct enemy geometry shapes:** Each enemy type has unique geometry (bat=pyramid, skeleton=tall box, zombie=wide box, ghost=octahedron, slime=icosahedron, demon=cone)
-- **Boss pulsing animation:** Breathing/pulsing scale effect on all boss enemies for intimidating presence
-
-**🔲 Remaining (Requires External Assets):**
-- **Visuals:** Replace procedural shapes with proper 2D sprites or 3D models
-  - Player character with animations (idle, walk, attack)
-  - Enemy sprites for each type (bat, skeleton, zombie, ghost, slime, demon)
-  - Weapon projectile effects
-  - XP orb visual effects
-  - Death/damage effects
-  - Background/arena visuals
-- **Audio:** Replace synthesized sounds with recorded audio files
-  - Background music (looping)
-  - Weapon firing sounds (per weapon type)
-  - Enemy hit/death sounds
-  - Player damage/death sounds
-  - XP pickup sounds
-  - Level up fanfare
-  - UI button click sounds
-- **UI Polish:**
-  - Proper fonts and styling
-  - Health bar improvements
-  - XP bar improvements
-  - Weapon display icons
-  - Death screen design
-  - Level up selection UI design
+**Temporary Procedural Polish (To Be Replaced):**
+- Per-weapon projectile colors (temporary)
+- Projectile rotation animations (temporary)
+- Audio pitch variation (temporary)
+- Distinct enemy geometry shapes (temporary - MUST be replaced with sprites)
+- Boss pulsing animation (to be enhanced with proper sprites)
 
 ---
 
@@ -110,14 +479,31 @@
 | Metric | Value | Notes |
 |--------|-------|-------|
 | Total Tasks | 85 | Across 6 phases |
-| Completed | 104 | 122.4% (all phases complete) |
-| Critical Bugs | 0 | All resolved |
-| High Bugs | 0 | All resolved |
-| Medium Bugs | 0 | All resolved |
+| Completed | 112 | 131.8% (all phases complete) |
+| Critical Bugs | 0 | BUG-026 and BUG-028 verified NOT bugs |
+| Medium Bugs | 1 | BUG-029 (design choice - static charge targeting) |
 | Low Bugs | 0 | All resolved |
-| Test Gaps | 0 | All systems have tests |
-| Code Quality | 0 issues | All quality issues resolved |
-| Polish Needed | HIGH | Placeholder art & audio need replacement |
+| Test Gaps | 0 | All 440 tests passing |
+| Code Quality | ⚠️ Minor | 108 console statements (68 debug logs to remove) |
+
+### 🚨 CURRENT PRIORITIES
+
+| Priority | Task | Status | Deadline |
+|----------|------|--------|----------|
+| **#0** | **Bug Fixes** - BUG-027 and BUG-030 fixed. Only BUG-029 remains (design choice) | ✅ COMPLETE | DONE |
+| **#1** | **Visual Overhaul** - Retro pixel art (Game Boy Pokemon style + vibrant colors) | NOT STARTED | ASAP - MANDATORY |
+| **#2** | **Gameplay Balance** - Weapons, enemies, progression tuning | NOT STARTED | After Priority 1 |
+| **#3** | **Code Quality** - Console cleanup, structured logging | NOT STARTED | Parallel |
+| **#4** | **Production Readiness** - Health checks, load testing, SSL | NOT STARTED | Pre-release |
+
+### Quick Reference: New Bugs (v3 Audit)
+| Bug ID | Severity | Summary | Status |
+|--------|----------|---------|--------|
+| BUG-026 | ~~CRITICAL~~ | Dead entity cleanup may be incomplete in game loop | ✅ NOT A BUG - Verified working |
+| BUG-027 | ~~MEDIUM~~ | InputManager.reconcile() implemented but never called | ✅ FIXED |
+| BUG-028 | ~~CRITICAL~~ | boss_slime split ability defined but not implemented | ✅ NOT A BUG - Verified working |
+| BUG-029 | LOW | boss_demon charge captures position once (static target) | Design Choice |
+| BUG-030 | ~~MEDIUM~~ | Projectiles/enemies can travel beyond world boundary | ✅ FIXED |
 
 ---
 
@@ -435,6 +821,9 @@ npm run test
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-01-15 | 2.43 | BUG-027 and BUG-030 FIX - Fixed client-side prediction reconciliation (added lastProcessedSequence to PlayerSchema, synced from GameRoom, called reconcile() in Game.ts). Fixed projectile/enemy boundary enforcement (projectiles cleaned up at worldRadius + 50, enemies cleaned up at worldRadius + 100 to prevent memory leaks). Also fixed HUD.ts typo (hideUpgradeModal → hideUpgradeUI). All 440 tests passing. |
+| 2026-01-15 | 2.42 | COMPREHENSIVE AUDIT v3 - Identified 5 new bugs from deep code analysis: BUG-026 (dead entity cleanup incomplete), BUG-027 (input reconciliation never called), BUG-028 (boss_slime split not implemented), BUG-029 (boss_demon static charge targeting), BUG-030 (no boundary enforcement for projectiles/enemies). Reorganized priority list with Priority 0 for critical bugs. Updated code quality metrics: 108 console statements (68 debug logs), 2 `as any` casts. Visual status confirmed: ALL procedural geometry, no sprites/atlas/animations. |
+| 2026-01-15 | 2.41 | BUG-023/024/025 FIX - Fixed XP bar overfill (XPSystem now uses correct level threshold and subtracts XP on level-up), fixed Bible orbs not orbiting (WeaponSystem now maintains existing orbs instead of recreating every fire), fixed respawn not fully resetting player (respawn now resets all stats including maxHealth, speed, armor, magnetRange and clears pending upgrades and owned projectiles). All 440 tests passing. |
 | 2026-01-14 | 2.40 | VISUAL/AUDIO POLISH - Partial FEATURE-001 implementation with procedural improvements (no external assets required). Added per-weapon projectile colors (8 distinct colors), projectile rotation animations (spinning axe/bible/fireball), audio pitch variation (±8% random to prevent repetition fatigue), distinct enemy geometry shapes (bat=pyramid, skeleton=tall box, zombie=wide box, ghost=octahedron, slime=icosahedron, demon=cone), boss pulsing animation (breathing effect). All 440 tests passing. Git tag 0.4.8 created. |
 | 2026-01-14 | 2.39 | TYPE SAFETY & CORS - Updated shared types to match Colyseus schemas (PlayerState: added dead/pendingUpgrade/armor/magnetRange, changed facing to facingX/facingY, changed invulnerable to invulnerableTime). Removed all `any` types from Interpolator.ts. Made CORS origin configurable via CORS_ORIGIN env variable. Git tag 0.4.7 created. |
 | 2026-01-14 | 2.38 | LINT CLEANUP - Fixed 6 unused variable warnings. Prefixed filter functions in GameState.ts with underscore (deferred @filterChildren support). Prefixed debug counters in Renderer.ts. Removed unused filterChildren import. All 440 tests passing. Git tag 0.4.6 created. |

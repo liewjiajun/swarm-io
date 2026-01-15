@@ -51,6 +51,11 @@ export const GAME_CONSTANTS = {
   CHARGE_IMPACT_MAX_PIERCE: 999, // Max targets hit by charge impact
   BOSS_SUMMON_ANGLE_VARIANCE: 0.5, // Random variance in summon spawn angles (radians)
   ENEMY_PROJECTILE_PIERCE: 1, // Single hit for enemy projectiles
+
+  // BUG-030 FIX: Boundary enforcement for projectiles and enemies
+  // Entities beyond worldRadius + margin are cleaned up to prevent memory leaks
+  PROJECTILE_BOUNDARY_MARGIN: 50, // Projectiles removed at worldRadius + 50
+  ENEMY_BOUNDARY_MARGIN: 100, // Enemies removed at worldRadius + 100
 } as const;
 
 // =============================================================================

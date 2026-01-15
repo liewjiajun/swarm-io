@@ -414,18 +414,40 @@ describe('WeaponSystem', () => {
       expect(gameState.addProjectile).toHaveBeenCalledTimes(8);
     });
 
-    it('should remove existing orbs before creating new ones', () => {
+    it('should keep existing orbs and only create more if needed', () => {
       const weapon = createMockWeapon({ type: 'bible', level: 1, cooldownRemaining: 0 });
       const player = createMockPlayer({ id: 'player-1', weapons: [weapon] });
       const gameState = createMockGameState([player], []);
 
-      // Add existing orb projectile
-      const existingOrb = { id: 'old-orb', type: 'orb', ownerId: 'player-1' };
+      // Add existing orb projectile (1 orb, but level 1 needs 2)
+      const existingOrb = { id: 'old-orb', type: 'orb', ownerId: 'player-1', damage: 5 };
       gameState.projectiles.set('old-orb', existingOrb);
 
       weaponSystem.update(gameState, spatialHash, deltaTime);
 
-      expect(gameState.removeProjectile).toHaveBeenCalledWith('old-orb');
+      // Should NOT remove the existing orb - only creates more if needed
+      expect(gameState.removeProjectile).not.toHaveBeenCalled();
+      // Should create 1 additional orb (level 1 = 2 orbs, had 1, need 1 more)
+      expect(gameState.addProjectile).toHaveBeenCalledTimes(1);
+    });
+
+    it('should remove excess orbs if level decreased or too many exist', () => {
+      const weapon = createMockWeapon({ type: 'bible', level: 1, cooldownRemaining: 0 });
+      const player = createMockPlayer({ id: 'player-1', weapons: [weapon] });
+      const gameState = createMockGameState([player], []);
+
+      // Add 5 existing orbs (too many for level 1 which only needs 2)
+      for (let i = 0; i < 5; i++) {
+        const orb = { id: `orb-${i}`, type: 'orb', ownerId: 'player-1', damage: 5 };
+        gameState.projectiles.set(`orb-${i}`, orb);
+      }
+
+      weaponSystem.update(gameState, spatialHash, deltaTime);
+
+      // Should remove 3 excess orbs (5 - 2 = 3)
+      expect(gameState.removeProjectile).toHaveBeenCalledTimes(3);
+      // Should NOT create any new orbs (already have enough)
+      expect(gameState.addProjectile).not.toHaveBeenCalled();
     });
   });
 

@@ -95,41 +95,36 @@ describe('PlayerSchema', () => {
 
   describe('XP and leveling', () => {
     describe('addXP', () => {
+      // Note: addXP() only accumulates XP. Level-up logic is handled by XPSystem.processLevelUps()
+      // This ensures pendingChoices are generated properly when leveling up.
+
       it('should accumulate XP', () => {
         player.addXP(3);
         expect(player.xp).toBe(3);
         expect(player.level).toBe(1);
       });
 
-      it('should level up when reaching threshold', () => {
+      it('should accumulate XP beyond threshold without leveling (level-up handled by XPSystem)', () => {
         player.addXP(5); // xpToNextLevel is 5 at level 1
-        expect(player.level).toBe(2);
-        expect(player.xp).toBe(0);
-        expect(player.pendingUpgrade).toBe(true);
+        expect(player.level).toBe(1); // addXP no longer handles level-ups
+        expect(player.xp).toBe(5); // XP accumulates
       });
 
-      it('should handle overflow XP correctly', () => {
-        player.addXP(7); // 5 to level up, 2 remaining
-        expect(player.level).toBe(2);
-        expect(player.xp).toBe(2);
-      });
-
-      it('should handle multiple level ups', () => {
-        // Level 1: 5 XP, Level 2: more XP needed
+      it('should accumulate large amounts of XP (level-up handled by XPSystem)', () => {
         player.addXP(100);
-        expect(player.level).toBeGreaterThan(1);
-        expect(player.pendingUpgrade).toBe(true);
+        expect(player.level).toBe(1); // addXP no longer handles level-ups
+        expect(player.xp).toBe(100); // XP accumulates
       });
 
       it('should apply hostility penalty when hostility is high', () => {
         player.hostility = GAME_CONSTANTS.HOSTILITY_XP_PENALTY_THRESHOLD + 1;
-        player.addXP(4); // Use small amount to avoid level up
+        player.addXP(4);
         expect(player.xp).toBe(2); // 50% penalty: 4 * 0.5 = 2
       });
 
       it('should not apply penalty when hostility is below threshold', () => {
         player.hostility = GAME_CONSTANTS.HOSTILITY_XP_PENALTY_THRESHOLD - 1;
-        player.addXP(4); // Use small amount to avoid level up
+        player.addXP(4);
         expect(player.xp).toBe(4); // No penalty
       });
     });

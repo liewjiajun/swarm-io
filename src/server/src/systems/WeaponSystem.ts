@@ -223,21 +223,29 @@ export class WeaponSystem {
     // Calculate number of orbs (2 + level scaling, max 8)
     const orbCount = Math.min(2 + weapon.level - 1, 8);
 
-    // Remove existing bible projectiles for this player
-    const toRemove: string[] = [];
+    // Find existing bible projectiles for this player
+    const existingOrbs: string[] = [];
     gameState.projectiles.forEach((proj, id) => {
       if (proj.ownerId === player.id && proj.type === 'orb') {
-        toRemove.push(id);
+        existingOrbs.push(id);
+        // Update damage on existing orbs (in case weapon was upgraded)
+        proj.damage = damage;
       }
     });
-    toRemove.forEach(id => gameState.removeProjectile(id));
 
-    // Create new orbs in circle formation
+    // Only remove excess orbs if we have too many
+    while (existingOrbs.length > orbCount) {
+      const id = existingOrbs.pop()!;
+      gameState.removeProjectile(id);
+    }
+
+    // Only create new orbs if we need more
     // Orbit radius scales with level (base range * (1 + (level-1) * 0.1))
     const orbitRadius = config.range * (1 + (weapon.level - 1) * 0.1);
 
-    for (let i = 0; i < orbCount; i++) {
-      const angle = (i / orbCount) * Math.PI * 2;
+    while (existingOrbs.length < orbCount) {
+      // Space new orbs evenly in the circle based on current count
+      const angle = (existingOrbs.length / orbCount) * Math.PI * 2;
 
       const orbX = player.x + Math.cos(angle) * orbitRadius;
       const orbY = player.y + Math.sin(angle) * orbitRadius;
@@ -255,6 +263,7 @@ export class WeaponSystem {
         999               // piercing (unlimited)
       );
 
+      existingOrbs.push('new'); // Just to increment count
       this.weaponMetrics.projectilesCreated++;
     }
   }

@@ -1157,6 +1157,9 @@ export class HUD {
    * Shows death screen with stats and respawn button
    */
   showDeathScreen(stats: DeathStats, onRespawn: () => void): void {
+    // Hide upgrade modal if it's showing (player died while selecting upgrade)
+    this.hideUpgradeUI();
+
     this.elements.deathStats.innerHTML = `
       <div>Time Survived: ${this.formatTime(stats.timeAlive)}</div>
       <div>Enemies Killed: ${stats.kills}</div>

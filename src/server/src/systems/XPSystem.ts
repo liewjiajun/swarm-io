@@ -136,7 +136,8 @@ export class XPSystem {
       if (player.pendingUpgrade || player.dead) return;
 
       // Check if player has enough XP to level up
-      const requiredXP = getXPForLevel(player.level + 1);
+      // getXPForLevel(level) returns XP needed to level up FROM that level
+      const requiredXP = getXPForLevel(player.level);
 
       if (player.xp >= requiredXP) {
         this.levelUpPlayer(gameState, player);
@@ -145,16 +146,21 @@ export class XPSystem {
   }
 
   private levelUpPlayer(gameState: GameState, player: PlayerSchema): void {
-    // Calculate new level
+    // Calculate new level (with XP subtraction at each level)
     let newLevel = player.level;
-    while (player.xp >= getXPForLevel(newLevel + 1) && newLevel < 100) {
+    let remainingXP = player.xp;
+
+    while (remainingXP >= getXPForLevel(newLevel) && newLevel < 100) {
+      remainingXP -= getXPForLevel(newLevel);
       newLevel++;
     }
 
     if (newLevel > player.level) {
       const oldLevel = player.level;
       player.level = newLevel;
-      player.xpToNextLevel = getXPForLevel(newLevel + 1) - player.xp;
+      // XP is now relative to current level, subtract what was used
+      player.xp = remainingXP;
+      player.xpToNextLevel = getXPForLevel(newLevel);
 
       // Generate upgrade choices and store them on player for client retrieval
       player.pendingChoices = this.generateUpgradeChoices(player);
