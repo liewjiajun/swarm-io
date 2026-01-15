@@ -273,11 +273,14 @@ export class WeaponSystem {
   private fireGarlic(gameState: GameState, player: PlayerSchema, weapon: any, damage: number): void {
     const config = WEAPON_CONFIGS.garlic;
 
+    // Scale range with level (same formula as other weapons: +10% per level)
+    const range = config.range * (1 + (weapon.level - 1) * 0.1);
+
     // Garlic deals direct damage to all enemies within radius (no projectiles)
     gameState.enemies.forEach(enemy => {
       const distance = Math.sqrt((enemy.x - player.x) ** 2 + (enemy.y - player.y) ** 2);
 
-      if (distance <= config.range) {
+      if (distance <= range) {
         // Apply damage directly (will be handled by CombatSystem later)
         // For now, create a very short-lived explosion effect
         gameState.addProjectile(
