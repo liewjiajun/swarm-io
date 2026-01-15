@@ -120,6 +120,17 @@ export class Game {
   async start() {
     logger.info('Starting SWARM.IO client');
 
+    // Initialize sprite mode (P1.1/P1.2 integration)
+    // This loads sprite assets while tutorial is displayed
+    // Falls back to procedural rendering if assets are missing
+    this.renderer.initSpriteMode().then((success) => {
+      if (success) {
+        logger.info('Sprite mode initialized successfully');
+      } else {
+        logger.info('Using procedural rendering (sprite assets not available)');
+      }
+    });
+
     // Show tutorial for first-time players
     this.hud.showTutorialIfFirstTime(() => {
       this.startGameConnection();

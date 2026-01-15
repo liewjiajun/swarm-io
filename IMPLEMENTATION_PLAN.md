@@ -2,7 +2,7 @@
 
 ## Current Status: Phase 6 Complete - Comprehensive Audit Verified
 
-**Last Updated:** 2026-01-15 (P2.1-P2.7 Complete - Gameplay Balance Review)
+**Last Updated:** 2026-01-15 (P1.1/P1.2 Integration Complete - Sprite mode initialization in Game.ts)
 **Implementation Progress:** 118/85 tasks completed (138.8%)
 **Test Count:** 471 tests (388 server + 73 shared + 10 client) - ALL PASSING
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
@@ -46,7 +46,9 @@
 
 #### Technical Infrastructure
 - [x] **P1.1** Implement sprite loading system in Renderer.ts (TextureLoader, atlas support) ✅ COMPLETE
+  - **Note:** Sprite system is now integrated and initialized in Game.ts - initSpriteMode() is called in the start() method and falls back to procedural rendering if assets are missing
 - [x] **P1.2** Add frame-based animation controller for sprites ✅ COMPLETE
+  - **Note:** Sprite system is now integrated and initialized in Game.ts - initSpriteMode() is called in the start() method and falls back to procedural rendering if assets are missing
 
 #### Asset Creation/Sourcing
 - [ ] **P1.3** Source/create player sprites (idle 4-frame, walk 4-dir×4-frame, attack, death)
@@ -201,8 +203,8 @@
 |----------|--------|-------|
 | Sprite Assets | ❌ None | ALL rendering is procedural geometry |
 | Audio Assets | ⚠️ Synthesized | Uses Web Audio synthesis (functional) |
-| Texture Atlas | ⚠️ Infrastructure ready | SpriteLoader implemented (P1.1 COMPLETE), awaiting assets |
-| Animation System | ⚠️ Infrastructure ready | AnimationController implemented (P1.2 COMPLETE), awaiting assets |
+| Texture Atlas | ⚠️ Infrastructure ready | SpriteLoader implemented (P1.1 COMPLETE), awaiting assets. Sprite system now activated - initSpriteMode() called from Game.ts |
+| Animation System | ⚠️ Infrastructure ready | AnimationController implemented (P1.2 COMPLETE), awaiting assets. Sprite system now activated - initSpriteMode() called from Game.ts |
 
 ### Visual Enhancements (Procedural - To Be Replaced)
 | Feature | Status | Notes |
@@ -871,6 +873,7 @@ npm run test
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-01-15 | 2.53 | SPRITE MODE INITIALIZATION (P1.1/P1.2 Integration) - Added initSpriteMode() call to Game.ts start() method so sprite assets load while tutorial is displayed, with graceful fallback to procedural rendering if assets are missing. Sprite system infrastructure is now fully integrated and activated at game startup. |
 | 2026-01-15 | 2.52 | PRODUCTION READINESS (P4.3, P4.5, P4.6) - Implemented SSL/TLS support in server index.ts with configurable SSL_CERT_PATH, SSL_KEY_PATH, and SSL_CA_PATH environment variables. Server creates HTTPS server when certificates provided, falls back to HTTP for development. Created load testing script (src/server/scripts/load-test.ts) that simulates 150+ concurrent players with gradual ramp-up, connection latency tracking, and pass/fail criteria. Created memory leak testing script (src/server/scripts/memory-test.ts) for extended session testing with player churn, heap monitoring, and automated leak detection. Added npm scripts: test:load, test:memory. All 471 tests passing. |
 | 2026-01-15 | 2.51 | TELEMETRY SERVICE (P2.10) - Implemented TelemetryService in `src/server/src/services/TelemetryService.ts` for gameplay balance data collection. Tracks session data (survival time, kills, level reached, wave reached, weapons used) and upgrade choices (weapon vs stat, specific types). Added three API endpoints: GET `/api/telemetry` (aggregated stats including averages and totals), GET `/api/telemetry/sessions` (raw session data), GET `/api/telemetry/upgrades` (upgrade choice distribution). Added 29 comprehensive tests for TelemetryService. All 471 tests passing. |
 | 2026-01-15 | 2.50 | GAMEPLAY BALANCE REVIEW (P2.1-P2.7) - Fixed Wand speed bug (P2.3): was using `config.range` (15) for velocity instead of `config.projectileSpeed` (12). Changed fireWand() to use projectileSpeed. Added test to verify correct speed. Reviewed and documented all weapon balance deviations (P2.1-P2.4) as intentional design decisions for better game feel. Reviewed progression balance (P2.6-P2.7): keeping 4 upgrade choices (vs spec 3) for more player agency, keeping multiplicative speed boost to prevent exploits. All 442 tests passing. |
