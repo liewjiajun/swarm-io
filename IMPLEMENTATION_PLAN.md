@@ -25,7 +25,7 @@
 
 | Priority | Task | Status |
 |----------|------|--------|
-| **#1** | **Visual Overhaul** - Claude to source/create sprite assets (P1.3-P1.9) | NOT STARTED |
+| **#1** | **Visual Overhaul** - Sprite integration (P1.7-P1.9) | IN PROGRESS (P1.3-P1.6 done) |
 | **#2** | **Audio Overhaul** - Claude to source/create audio assets (P2.A1-P2.A8) | NOT STARTED |
 | **#3** | **Multiplayer Experience** - Nicknames, leaderboard, minimap (P3.1-P3.3) | NOT STARTED |
 | **#4** | **Multiplayer Mechanics** - Co-op features, revival, combos (P4.1-P4.6) | NOT STARTED |
@@ -48,22 +48,23 @@
 
 ---
 
-### PRIORITY 1: VISUAL OVERHAUL [MANDATORY - BLOCKING RELEASE]
+### PRIORITY 1: VISUAL OVERHAUL [IN PROGRESS]
 
-**Current State:** Infrastructure complete (sprite loading, animation controller, CRT shader, color palette). ALL rendering is still procedural geometry - needs sprite assets.
+**Current State:** Sprite assets generated via `npm run generate:sprites`. Rendering still uses procedural geometry - integration needed.
 
-**Claude will source/create ALL of the following:**
+#### Asset Creation/Sourcing (COMPLETE)
+- [x] **P1.3** Player sprites (idle 4-frame, walk 4-dir x 4-frame) - Generated via `scripts/generate-sprites.ts`
+- [x] **P1.4** Enemy sprites (6 types x 2 idle frames: bat, skeleton, zombie, ghost, slime, demon) - Generated
+- [x] **P1.5** Projectile sprites (11 types: slash, bullet, orb, lightning, axe x2, fireball x2, whip, garlic) - Generated
+- [x] **P1.6** XP orb sprites (3 sizes: small 16x16, medium 24x24, large 32x32) - Generated
+- [ ] **P1.7** Create environment tiles (arena floor, boundary effect) - NOT STARTED
+- [ ] **P1.8** Create pixel art UI frames (health/XP bars, weapon icons, modals) - NOT STARTED
 
-#### Asset Creation/Sourcing (NOT STARTED)
-- [ ] **P1.3** Source/create player sprites (idle 4-frame, walk 4-dir x 4-frame, attack, death)
-- [ ] **P1.4** Source/create enemy sprites (6 types x 3 animations + 3 bosses)
-- [ ] **P1.5** Source/create projectile sprites (8 weapons)
-- [ ] **P1.6** Source/create XP orb sprites (3 sizes with glow)
-- [ ] **P1.7** Create environment tiles (arena floor, boundary effect)
-- [ ] **P1.8** Create pixel art UI frames (health/XP bars, weapon icons, modals)
-
-#### Integration
+#### Integration (NOT STARTED)
 - [ ] **P1.9** Replace all InstancedMesh with sprite-based rendering
+  - SpriteLoader and AnimationController infrastructure exists
+  - Renderer.ts still uses 100% procedural geometry
+  - Need to connect sprite atlas to rendering methods
 
 **Art Direction:** Game Boy Pokemon style with modern vibrant colors. 16x16 or 32x32 sprite bases scaled with nearest-neighbor filtering.
 
@@ -364,15 +365,15 @@ npm run test:memory --players=20 --duration=30
 ## CHANGELOG SUMMARY
 
 **Recent (2026-01-16):**
+- **P1.3-P1.6 Complete**: Created sprite generation script (`scripts/generate-sprites.ts`)
+  - Generates 512x512 atlas.png with 46 sprites using sharp library
+  - Player: 20 sprites (4 idle frames + 16 walk frames in 4 directions)
+  - Enemies: 12 sprites (6 types x 2 idle animation frames)
+  - XP orbs: 3 sizes (small/medium/large with glow effects)
+  - Projectiles: 11 sprites (all weapon types)
+  - Run with: `npm run generate:sprites`
 - BUG-029 fixed: Boss demon charge now tracks player position dynamically instead of using static targeting
-- Added new priority structure for remaining work:
-  - P1: Visual Overhaul (Claude to source/create sprites)
-  - P2: Audio Overhaul (Claude to source/create audio)
-  - P3: Multiplayer Experience (nicknames, leaderboard, minimap)
-  - P4: Multiplayer Mechanics (co-op features, revival, combos)
-  - P5: Surprise Mechanics (world events, secrets, hazards)
-  - P6: Balance Playtesting
-- Added explicit policy: User will not source assets - Claude handles all asset sourcing/creation
+- Added new priority structure for remaining work
 
 **2026-01-15:**
 - BUG-032 fixed: Client-side prediction reconciliation now uses fresh server state instead of stale interpolated state
