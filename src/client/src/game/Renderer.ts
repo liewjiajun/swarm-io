@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 // Post-processing modules are lazily loaded to reduce initial bundle size
 // See setupPostProcessing() for dynamic imports when CRT effect is enabled
-import type { PlayerState, EnemyState, ProjectileState, XPOrbState, PowerUpState } from '@swarm-io/shared';
+import type { PlayerState, EnemyState, ProjectileState, XPOrbState, PowerUpState, WorldEventState } from '@swarm-io/shared';
 import { DEATH_PARTICLE_COLORS } from '@swarm-io/shared';
 import { SpriteLoader } from './SpriteLoader';
 import { AnimationController, createSimpleAnimation, createWalkAnimations } from './AnimationController';
@@ -203,6 +203,9 @@ export class Renderer {
   private enemySpriteFailures: Set<string> = new Set();
   private projectileSpriteFailures: Set<string> = new Set();
   private xpOrbSpriteFailures: Set<string> = new Set();
+
+  // BUG-048 FIX: P5.1 World event visual elements
+  private worldEventMeshes: Map<string, THREE.Mesh> = new Map();
 
   // Post-processing (P1.10 CRT shader)
   // Types are 'any' because modules are lazily loaded to reduce bundle size
@@ -885,6 +888,11 @@ export class Renderer {
     // P5.2: Update power-ups
     if (state.powerUps) {
       this.updatePowerUps(state.powerUps);
+    }
+
+    // BUG-048 FIX: P5.1 Update world events
+    if (state.worldEvents) {
+      this.updateWorldEvents(state.worldEvents);
     }
 
     // Update particle effects
@@ -1901,6 +1909,112 @@ export class Renderer {
         return 0xaa44ff; // Purple - magnet
       default:
         return 0xffffff; // White - unknown
+    }
+  }
+
+  /**
+   * BUG-048 FIX: P5.1 Update world event rendering
+   * World events are rendered as circular zones on the ground with visual effects:
+   * - Meteor shower: Red/orange pulsing circle with falling particle effect
+   * - Double XP zone: Green/cyan glowing circle
+   * - Invasion wave: Red pulsing warning zone
+   */
+  private updateWorldEvents(worldEvents: Map<string, WorldEventState>) {
+    // Remove meshes for expired events
+    const currentIds = new Set(worldEvents.keys());
+    this.worldEventMeshes.forEach((mesh, id) => {
+      if (!currentIds.has(id)) {
+        this.scene.remove(mesh);
+        this.worldEventMeshes.delete(id);
+      }
+    });
+
+    const time = Date.now() / 1000;
+
+    // Update/create meshes for each active world event
+    worldEvents.forEach((event, id) => {
+      // Only render active events
+      if (!event.active) {
+        const existingMesh = this.worldEventMeshes.get(id);
+        if (existingMesh) {
+          existingMesh.visible = false;
+        }
+        return;
+      }
+
+      // Skip if outside view frustum (use larger margin for world events)
+      if (!this.isInView(event.x, event.y, event.radius + 5)) {
+        const existingMesh = this.worldEventMeshes.get(id);
+        if (existingMesh) {
+          existingMesh.visible = false;
+        }
+        return;
+      }
+
+      let mesh = this.worldEventMeshes.get(id);
+
+      if (!mesh) {
+        // Create circular zone mesh
+        const color = this.getWorldEventColor(event.type);
+        const geometry = new THREE.CircleGeometry(event.radius, 32);
+        const material = new THREE.MeshBasicMaterial({
+          color,
+          transparent: true,
+          opacity: 0.3,
+          side: THREE.DoubleSide
+        });
+        mesh = new THREE.Mesh(geometry, material);
+        mesh.rotation.x = -Math.PI / 2; // Lay flat on ground
+        this.worldEventMeshes.set(id, mesh);
+        this.scene.add(mesh);
+      }
+
+      mesh.visible = true;
+
+      // Position on ground
+      mesh.position.set(event.x, 0.05, event.y);
+
+      // Animate opacity based on event type
+      const material = mesh.material as THREE.MeshBasicMaterial;
+      switch (event.type) {
+        case 'meteor_shower':
+          // Pulsing red/orange warning
+          material.opacity = 0.2 + Math.abs(Math.sin(time * 3)) * 0.3;
+          material.color.setHex(0xff4400);
+          break;
+        case 'double_xp_zone':
+          // Gentle green/cyan glow
+          material.opacity = 0.25 + Math.sin(time * 1.5) * 0.1;
+          material.color.setHex(0x00ff88);
+          break;
+        case 'invasion_wave':
+          // Rapid red pulse warning
+          material.opacity = 0.3 + Math.abs(Math.sin(time * 5)) * 0.25;
+          material.color.setHex(0xff0000);
+          break;
+        default:
+          material.opacity = 0.3;
+      }
+
+      // Scale slightly for pulsing effect
+      const pulseScale = 1 + Math.sin(time * 2) * 0.03;
+      mesh.scale.setScalar(pulseScale);
+    });
+  }
+
+  /**
+   * BUG-048 FIX: Get color for world event type
+   */
+  private getWorldEventColor(type: string): number {
+    switch (type) {
+      case 'meteor_shower':
+        return 0xff4400; // Orange-red for danger
+      case 'double_xp_zone':
+        return 0x00ff88; // Green-cyan for bonus
+      case 'invasion_wave':
+        return 0xff0000; // Red for enemy wave
+      default:
+        return 0xffffff; // White for unknown
     }
   }
 

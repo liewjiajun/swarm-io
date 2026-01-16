@@ -6,18 +6,26 @@ import {
   ProjectileState,
   XPOrbState,
   WorldState,
+  WorldEventState,
+  PowerUpState,
 } from '@swarm-io/shared';
+
+// BUG-048 FIX: Extended game state that includes P5.1 world events and P5.2 power-ups
+interface ExtendedGameState extends GameState {
+  worldEvents?: Map<string, WorldEventState>;
+  powerUps?: Map<string, PowerUpState>;
+}
 
 interface StateSnapshot {
   timestamp: number;
-  state: GameState;
+  state: ExtendedGameState;
 }
 
 export class Interpolator {
   private snapshots: StateSnapshot[] = [];
   private maxSnapshots = 10;
 
-  pushState(state: GameState, timestamp: number): void {
+  pushState(state: ExtendedGameState, timestamp: number): void {
     this.snapshots.push({ timestamp, state: this.cloneState(state) });
 
     // Keep only recent snapshots
@@ -26,7 +34,7 @@ export class Interpolator {
     }
   }
 
-  getInterpolatedState(renderTime: number): GameState {
+  getInterpolatedState(renderTime: number): ExtendedGameState {
     // Find the two snapshots to interpolate between
     let before: StateSnapshot | null = null;
     let after: StateSnapshot | null = null;
@@ -57,8 +65,8 @@ export class Interpolator {
     return latest?.state.players.get(playerId) || null;
   }
 
-  private interpolateStates(from: GameState, to: GameState, t: number): GameState {
-    const result: GameState = {
+  private interpolateStates(from: ExtendedGameState, to: ExtendedGameState, t: number): ExtendedGameState {
+    const result: ExtendedGameState = {
       players: new Map<string, PlayerState>(),
       enemies: new Map<string, EnemyState>(),
       projectiles: new Map<string, ProjectileState>(),
@@ -122,29 +130,51 @@ export class Interpolator {
       }
     });
 
+    // BUG-048 FIX: Pass through world events without interpolation (static zones)
+    if (to.worldEvents) {
+      result.worldEvents = new Map(to.worldEvents);
+    }
+
+    // P5.2: Pass through power-ups without interpolation
+    if (to.powerUps) {
+      result.powerUps = new Map(to.powerUps);
+    }
+
     return result;
   }
 
-  private cloneState(state: GameState): GameState {
+  private cloneState(state: ExtendedGameState): ExtendedGameState {
     // Deep clone state for snapshot storage
-    const cloneMap = <T>(map: Map<string, T>): Map<string, T> => {
+    const cloneMap = <T>(map: Map<string, T> | undefined): Map<string, T> => {
       const result = new Map<string, T>();
-      map.forEach((value, key) => {
-        result.set(key, { ...value });
+      map?.forEach((value, key) => {
+        result.set(key, { ...value } as T);
       });
       return result;
     };
 
-    return {
+    const cloned: ExtendedGameState = {
       players: cloneMap(state.players),
       enemies: cloneMap(state.enemies),
       projectiles: cloneMap(state.projectiles),
       xpOrbs: cloneMap(state.xpOrbs),
       world: { ...state.world },
     };
+
+    // BUG-048 FIX: Clone world events
+    if (state.worldEvents) {
+      cloned.worldEvents = cloneMap(state.worldEvents);
+    }
+
+    // P5.2: Clone power-ups
+    if (state.powerUps) {
+      cloned.powerUps = cloneMap(state.powerUps);
+    }
+
+    return cloned;
   }
 
-  private emptyState(): GameState {
+  private emptyState(): ExtendedGameState {
     const emptyWorld: WorldState = {
       worldRadius: 500,
       playerCount: 0,
@@ -158,6 +188,8 @@ export class Interpolator {
       enemies: new Map<string, EnemyState>(),
       projectiles: new Map<string, ProjectileState>(),
       xpOrbs: new Map<string, XPOrbState>(),
+      worldEvents: new Map<string, WorldEventState>(),
+      powerUps: new Map<string, PowerUpState>(),
       world: emptyWorld,
     };
   }

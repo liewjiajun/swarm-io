@@ -89,6 +89,21 @@ interface SerializedPowerUp {
   lifetime: number;
 }
 
+// BUG-048 FIX: P5.1 World event serialized state
+interface SerializedWorldEvent {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  radius: number;
+  startTime: number;
+  duration: number;
+  active: boolean;
+  intensity: number;
+  spawnedCount: number;
+  xpMultiplier: number;
+}
+
 interface SerializedWorld {
   worldRadius: number;
   playerCount: number;
@@ -103,6 +118,7 @@ export interface SerializedGameState {
   projectiles: Map<string, SerializedProjectile>;
   xpOrbs: Map<string, SerializedXPOrb>;
   powerUps: Map<string, SerializedPowerUp>; // P5.2: Power-ups
+  worldEvents: Map<string, SerializedWorldEvent>; // BUG-048 FIX: P5.1 World events
   world: SerializedWorld;
 }
 
@@ -540,12 +556,31 @@ export class NetworkClient {
       });
     });
 
+    // BUG-048 FIX: P5.1 World events
+    const worldEvents = new Map<string, SerializedWorldEvent>();
+    this.forEachInMap(state.worldEvents, (event: any, id: string) => {
+      worldEvents.set(id, {
+        id: event.id,
+        type: event.type,
+        x: event.x,
+        y: event.y,
+        radius: event.radius,
+        startTime: event.startTime,
+        duration: event.duration,
+        active: event.active,
+        intensity: event.intensity || 0,
+        spawnedCount: event.spawnedCount || 0,
+        xpMultiplier: event.xpMultiplier || 1,
+      });
+    });
+
     return {
       players,
       enemies,
       projectiles,
       xpOrbs,
       powerUps,
+      worldEvents,
       world: {
         worldRadius: state.world.worldRadius,
         playerCount: state.world.playerCount,

@@ -389,12 +389,31 @@ export class Game {
       });
     });
 
+    // BUG-048 FIX: P5.1 World events
+    const worldEvents = new Map();
+    state.worldEvents?.forEach((event, id) => {
+      worldEvents.set(id, {
+        id: event.id,
+        type: event.type,
+        x: event.x,
+        y: event.y,
+        radius: event.radius,
+        startTime: event.startTime,
+        duration: event.duration,
+        active: event.active,
+        intensity: event.intensity,
+        spawnedCount: event.spawnedCount,
+        xpMultiplier: event.xpMultiplier
+      });
+    });
+
     return {
       players,
       enemies,
       projectiles,
       xpOrbs,
       powerUps,
+      worldEvents,
       world: {
         worldRadius: state.world.worldRadius,
         playerCount: state.world.playerCount,
