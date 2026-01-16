@@ -202,7 +202,7 @@ describe('resetProjectile', () => {
 });
 
 describe('resetEnemy', () => {
-  it('should reset all enemy fields including boss state', () => {
+  it('should reset all enemy fields including boss state and combo fields', () => {
     const enemy = {
       id: 'enemy-123',
       type: 'zombie',
@@ -219,6 +219,12 @@ describe('resetEnemy', () => {
       isCharging: true,
       chargeTargetX: 100,
       chargeTargetY: 200,
+      // Kill credit tracking (BUG-018 fix)
+      lastDamagedBy: 'player-2',
+      // Combo system fields (BUG-039 fix)
+      comboCount: 5,
+      comboLastHitTime: 12345,
+      comboLastPlayerId: 'player-3',
     };
 
     resetEnemy(enemy);
@@ -238,6 +244,12 @@ describe('resetEnemy', () => {
     expect(enemy.isCharging).toBe(false);
     expect(enemy.chargeTargetX).toBe(0);
     expect(enemy.chargeTargetY).toBe(0);
+    // Verify kill credit is properly reset (BUG-018 fix)
+    expect(enemy.lastDamagedBy).toBe('');
+    // Verify combo fields are properly reset (BUG-039 fix)
+    expect(enemy.comboCount).toBe(0);
+    expect(enemy.comboLastHitTime).toBe(0);
+    expect(enemy.comboLastPlayerId).toBe('');
   });
 });
 

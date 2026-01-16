@@ -131,6 +131,8 @@ export function resetProjectile(p: {
  * Clears all state to defaults for clean reuse.
  * BUG-007 FIX: Added missing fields (attackCooldown, abilityCooldown, isCharging,
  * chargeTargetX, chargeTargetY) to prevent state leak from boss enemies.
+ * BUG-039 FIX: Added missing combo fields (comboCount, comboLastHitTime, comboLastPlayerId)
+ * and lastDamagedBy to prevent state leak causing enemies to stop spawning.
  */
 export function resetEnemy(e: {
   id: string;
@@ -148,6 +150,12 @@ export function resetEnemy(e: {
   isCharging: boolean;
   chargeTargetX: number;
   chargeTargetY: number;
+  // BUG-018 FIX: Kill credit tracking
+  lastDamagedBy: string;
+  // P4.4: Combo system fields
+  comboCount: number;
+  comboLastHitTime: number;
+  comboLastPlayerId: string;
 }): void {
   e.id = '';
   e.type = '';
@@ -164,6 +172,11 @@ export function resetEnemy(e: {
   e.isCharging = false;
   e.chargeTargetX = 0;
   e.chargeTargetY = 0;
+  // BUG-039 FIX: Reset combo and kill credit fields to prevent state leak
+  e.lastDamagedBy = '';
+  e.comboCount = 0;
+  e.comboLastHitTime = 0;
+  e.comboLastPlayerId = '';
 }
 
 /**
