@@ -627,41 +627,49 @@ export class HUD {
         display: none;
       }
 
-      /* Upgrade Modal */
+      /* Upgrade Modal - BUG-046 FIX: Position in top-right corner instead of center
+         so players can see the battlefield while selecting upgrades */
       .upgrade-modal {
         position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: rgba(0, 0, 0, 0.9);
-        padding: 30px;
-        border: 4px solid #ffd700;
+        top: 20px;
+        right: 20px;
+        transform: none;
+        background: rgba(0, 0, 0, 0.85);
+        padding: 20px;
+        border: 3px solid #ffd700;
         z-index: 200;
         font-family: 'Press Start 2P', monospace;
         text-align: center;
         pointer-events: auto; /* BUG-016 FIX: Override parent #ui pointer-events: none */
+        max-width: 400px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
       }
 
       .upgrade-modal.hidden {
         display: none;
       }
 
+      /* BUG-046 FIX: Smaller title for compact corner display */
       .upgrade-title {
-        font-size: 24px;
+        font-size: 16px;
         color: #ffd700;
-        margin-bottom: 20px;
+        margin-bottom: 15px;
         text-shadow: 2px 2px 0 #000;
       }
 
+      /* BUG-046 FIX: Display choices in a 2x2 grid for compact corner display */
       .upgrade-choices {
-        display: flex;
-        gap: 15px;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
         justify-content: center;
       }
 
+      /* BUG-046 FIX: Smaller upgrade cards for compact corner display */
       .upgrade-choice {
-        width: 150px;
-        padding: 15px;
+        width: auto;
+        min-width: 120px;
+        padding: 10px;
         background: rgba(255, 255, 255, 0.1);
         border: 2px solid white;
         cursor: pointer;

@@ -6,7 +6,7 @@
 **Implementation Progress:** 119/85 tasks completed (140%)
 **Test Count:** 803+ tests - ALL PASSING (16 test files)
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
-**Critical Bugs:** 0 | **Medium Bugs:** 8 | **Low Bugs:** 1 | **In Progress:** 1 (BUG-035)
+**Critical Bugs:** 0 | **Medium Bugs:** 6 | **Low Bugs:** 1 | **In Progress:** 1 (BUG-035)
 **Code Quality:** Excellent (0 TODOs, 0 FIXMEs, 0 skipped tests, 0 empty functions)
 
 ---
@@ -18,7 +18,7 @@
 | Total Tasks | 85 | Across 6 phases |
 | Completed | 119 | 140% (all phases complete + extras) |
 | Critical Bugs | 0 | All resolved |
-| Medium Bugs | 8 | BUG-040-047: Speed, particles, environment, level up visuals, upgrade UI, nickname input |
+| Medium Bugs | 6 | BUG-040-045: Speed, particles, environment, level up visuals |
 | Test Coverage | 803+ tests | All passing (16 test files) |
 | Code Quality | Excellent | Structured logging, TypeScript clean |
 
@@ -26,13 +26,11 @@
 
 | Priority | Task | Status | Impact |
 |----------|------|--------|--------|
-| **#1** | **BUG-047 FIX** - Nickname input blocks WASD keys | NOT STARTED | MEDIUM - UX broken |
-| **#2** | **BUG-046 FIX** - Upgrade modal covers entire screen | NOT STARTED | MEDIUM - Players die during upgrades |
-| **#3** | **BUG-040-042** - Speed/projectile speed fixes | NOT STARTED | MEDIUM - Game feel issues |
-| **#4** | **BUG-043-045** - Environment/visuals fixes | NOT STARTED | MEDIUM - Polish |
-| **#5** | **P7.1-P7.8** - Testing infrastructure | NOT STARTED | HIGH - Blocking deployment |
-| **#6** | **P5.3-P5.7** - Remaining surprise mechanics | NOT STARTED | LOW - Feature expansion |
-| **#7** | **P6.1-P6.2** - Balance playtesting | NOT STARTED | LOW - Tuning |
+| **#1** | **BUG-040-042** - Speed/projectile speed fixes | NOT STARTED | MEDIUM - Game feel issues |
+| **#2** | **BUG-043-045** - Environment/visuals fixes | NOT STARTED | MEDIUM - Polish |
+| **#3** | **P7.1-P7.8** - Testing infrastructure | NOT STARTED | HIGH - Blocking deployment |
+| **#4** | **P5.3-P5.7** - Remaining surprise mechanics | NOT STARTED | LOW - Feature expansion |
+| **#5** | **P6.1-P6.2** - Balance playtesting | NOT STARTED | LOW - Tuning |
 
 ---
 
@@ -204,6 +202,34 @@ Added missing fields to `resetEnemy()` function in ObjectPool.ts:
 
 ---
 
+### BUG-047: Nickname Input Blocks WASD Keys [FIXED]
+
+**Symptom:** When typing nickname in the input field, pressing W, A, S, or D keys did not input those letters because they were captured by the movement system.
+
+**Root Cause:** InputManager captured WASD keys globally without checking if an input field had focus.
+
+**Fix:** Added check in keydown event listener to skip preventDefault when activeElement is an HTMLInputElement, HTMLTextAreaElement, or contentEditable element.
+
+**Location:** `src/client/src/game/InputManager.ts` lines 25-36
+
+**Fixed:** 2026-01-17
+
+---
+
+### BUG-046: Upgrade Modal Covers Entire Screen [FIXED]
+
+**Symptom:** When player levels up, the upgrade selection prompt covered the entire screen with 90% opaque background. Enemies continued attacking while the player was choosing, but they couldn't see the battlefield.
+
+**Root Cause:** Upgrade modal used position: fixed; top: 50%; left: 50% with a full-screen opaque overlay.
+
+**Fix:** Repositioned upgrade modal to top-right corner (top: 20px; right: 20px) with smaller padding, 2x2 grid layout for choices, and no full-screen overlay so players can see the battlefield while selecting upgrades.
+
+**Location:** `src/client/src/ui/HUD.ts` lines 630-676
+
+**Fixed:** 2026-01-17
+
+---
+
 ## CRITICAL BUG FIXES (Priority 1)
 
 All critical bugs have been resolved.
@@ -211,67 +237,6 @@ All critical bugs have been resolved.
 ---
 
 ## MEDIUM BUG FIXES (Priority 2-4)
-
-### BUG-047: Nickname Input Blocks WASD Keys [MEDIUM]
-
-**Symptom:** When typing nickname in the input field, pressing W, A, S, or D keys does not input those letters because they are captured by the movement system.
-
-**Root Cause (CONFIRMED):**
-InputManager captures WASD keys globally without checking if an input field has focus.
-
-**Location:** `src/client/src/game/InputManager.ts` lines 26-30
-
-**Current Code:**
-```typescript
-window.addEventListener('keydown', (e) => {
-  if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
-    e.preventDefault();  // Blocks ALL WASD - no input field check!
-  }
-});
-```
-
-**Fix Required:**
-```typescript
-window.addEventListener('keydown', (e) => {
-  if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
-    const activeElement = document.activeElement;
-    const isInputField = activeElement instanceof HTMLInputElement ||
-                         activeElement instanceof HTMLTextAreaElement;
-    if (!isInputField) {
-      e.preventDefault();
-    }
-  }
-});
-```
-
----
-
-### BUG-046: Upgrade Prompt Covers Screen During Combat [MEDIUM]
-
-**Symptom:** When player levels up, the upgrade selection prompt covers the entire screen with 90% opaque background. Enemies continue attacking while the player is choosing, but they cannot see the battlefield.
-
-**Location:** `src/client/src/ui/HUD.ts` line 636 - Upgrade modal CSS
-
-**Current CSS:**
-```css
-.upgrade-modal {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: rgba(0, 0, 0, 0.9);  /* 90% opaque - too dark! */
-  ...
-}
-```
-
-**Critical Finding:** Game is NOT supposed to be paused during upgrade selection.
-
-**Fix Options:**
-**Recommended:** Position modal in corner with game visible
-   - Change to `position: fixed; top: 20px; right: 20px`
-   - Add explicit `width: 300px; max-width: 100%`
-
----
 
 ### BUG-040: Movement Speed Still Too Slow [MEDIUM]
 
@@ -564,6 +529,19 @@ npm run test:memory --players=20 --duration=30
 ---
 
 ## CHANGELOG SUMMARY
+
+**2026-01-17 (BUG-046, BUG-047 FIXED):**
+- **BUG-047 FIXED**: Nickname input blocks WASD keys
+  - Symptom: When typing nickname in the input field, pressing W, A, S, or D keys did not input those letters because they were captured by the movement system.
+  - Root Cause: InputManager captured WASD keys globally without checking if an input field had focus.
+  - Fix: Added check in keydown event listener to skip preventDefault when activeElement is an HTMLInputElement, HTMLTextAreaElement, or contentEditable element.
+  - Location: src/client/src/game/InputManager.ts lines 25-36
+- **BUG-046 FIXED**: Upgrade modal covers entire screen
+  - Symptom: When player levels up, the upgrade selection prompt covered the entire screen with 90% opaque background. Enemies continued attacking while the player was choosing, but they couldn't see the battlefield.
+  - Root Cause: Upgrade modal used position: fixed; top: 50%; left: 50% with a full-screen opaque overlay.
+  - Fix: Repositioned upgrade modal to top-right corner (top: 20px; right: 20px) with smaller padding, 2x2 grid layout for choices, and no full-screen overlay so players can see the battlefield while selecting upgrades.
+  - Location: src/client/src/ui/HUD.ts lines 630-676
+- **Medium bugs reduced**: 8 → 6
 
 **2026-01-17 (BUG-048 FIXED):**
 - **BUG-048 FIXED**: World events not rendered on client - P5.1 feature now fully functional

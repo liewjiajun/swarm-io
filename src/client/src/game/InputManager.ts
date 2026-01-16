@@ -22,10 +22,16 @@ export class InputManager {
     window.addEventListener('keydown', (e) => this.keys.add(e.code));
     window.addEventListener('keyup', (e) => this.keys.delete(e.code));
 
-    // Prevent default for game keys
+    // Prevent default for game keys, but not when an input field has focus (BUG-047 fix)
     window.addEventListener('keydown', (e) => {
       if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
-        e.preventDefault();
+        const activeElement = document.activeElement;
+        const isInputField = activeElement instanceof HTMLInputElement ||
+                             activeElement instanceof HTMLTextAreaElement ||
+                             (activeElement as HTMLElement)?.isContentEditable;
+        if (!isInputField) {
+          e.preventDefault();
+        }
       }
     });
   }
