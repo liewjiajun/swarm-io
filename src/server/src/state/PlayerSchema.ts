@@ -39,6 +39,12 @@ export class PlayerSchema extends Schema {
   pendingTradeLevel!: number; // Level of weapon being offered
   tradeCooldown!: number; // Seconds until can trade again
 
+  // P5.2: Power-Up Buffs - synchronized for client UI
+  damageBoostTime!: number; // Remaining seconds of damage boost
+  speedBoostTime!: number; // Remaining seconds of speed boost
+  shieldTime!: number; // Remaining seconds of shield (invuln from powerup)
+  magnetBoostTime!: number; // Remaining seconds of magnet boost
+
   // Not synchronized - server only (can use regular initializers)
   pendingChoices: any[] = [];
   deathTime: number = 0;
@@ -82,6 +88,12 @@ export class PlayerSchema extends Schema {
     this.pendingTradeWeapon = '';
     this.pendingTradeLevel = 0;
     this.tradeCooldown = 0;
+
+    // P5.2: Power-Up Buffs
+    this.damageBoostTime = 0;
+    this.speedBoostTime = 0;
+    this.shieldTime = 0;
+    this.magnetBoostTime = 0;
   }
 
   addWeapon(type: string) {
@@ -163,7 +175,7 @@ export class PlayerSchema extends Schema {
   }
 
   takeDamage(amount: number, sourceId: string, isPvP: boolean = false) {
-    if (this.dead || this.invulnerableTime > 0) return;
+    if (this.dead || this.invulnerableTime > 0 || this.hasShield) return;
 
     // Apply PvP damage reduction
     if (isPvP) {
@@ -221,6 +233,12 @@ export class PlayerSchema extends Schema {
     this.tradeCooldown = 0;
     this.outgoingTradeOfferId = '';
 
+    // Clear power-up buffs (P5.2)
+    this.damageBoostTime = 0;
+    this.speedBoostTime = 0;
+    this.shieldTime = 0;
+    this.magnetBoostTime = 0;
+
     this.weapons.clear();
     this.addWeapon('knife');
   }
@@ -251,6 +269,34 @@ export class PlayerSchema extends Schema {
    */
   get canBeRevived(): boolean {
     return this.dead && this.revivalCooldown <= 0;
+  }
+
+  /**
+   * P5.2: Check if player has damage boost active
+   */
+  get hasDamageBoost(): boolean {
+    return this.damageBoostTime > 0;
+  }
+
+  /**
+   * P5.2: Check if player has speed boost active
+   */
+  get hasSpeedBoost(): boolean {
+    return this.speedBoostTime > 0;
+  }
+
+  /**
+   * P5.2: Check if player has shield active (invulnerable from power-up)
+   */
+  get hasShield(): boolean {
+    return this.shieldTime > 0;
+  }
+
+  /**
+   * P5.2: Check if player has magnet boost active
+   */
+  get hasMagnetBoost(): boolean {
+    return this.magnetBoostTime > 0;
   }
 }
 
@@ -288,5 +334,10 @@ defineTypes(PlayerSchema, {
   pendingTradeFromId: 'string',
   pendingTradeWeapon: 'string',
   pendingTradeLevel: 'number',
-  tradeCooldown: 'number'
+  tradeCooldown: 'number',
+  // P5.2: Power-Up Buffs
+  damageBoostTime: 'number',
+  speedBoostTime: 'number',
+  shieldTime: 'number',
+  magnetBoostTime: 'number'
 });

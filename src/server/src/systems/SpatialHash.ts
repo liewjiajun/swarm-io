@@ -2,7 +2,7 @@ export interface SpatialEntity {
   id: string;
   x: number;
   y: number;
-  type: 'player' | 'enemy' | 'projectile' | 'xp';
+  type: 'player' | 'enemy' | 'projectile' | 'xp' | 'powerup';
   entity: any;
 }
 

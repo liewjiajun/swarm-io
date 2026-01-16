@@ -4,7 +4,7 @@
 
 **Last Updated:** 2026-01-16 (Deep Codebase Audit Complete)
 **Implementation Progress:** 119/85 tasks completed (140%)
-**Test Count:** 487 tests - ALL PASSING (734+ individual test cases)
+**Test Count:** 521 tests - ALL PASSING (447 server + 74 shared)
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
 **Critical Bugs:** 0 | **Medium Bugs:** 0 | **Low Bugs:** 0 | **In Progress:** 1 (BUG-035)
 **Code Quality:** Excellent (0 TODOs, 0 FIXMEs, 0 skipped tests, 0 empty functions)
@@ -19,7 +19,7 @@
 | Completed | 119 | 140% (all phases complete + extras) |
 | Critical Bugs | 0 | BUG-035 now IN PROGRESS |
 | Medium Bugs | 0 | All resolved (BUG-036, BUG-037 fixed) |
-| Test Coverage | 487 tests | All passing |
+| Test Coverage | 521 tests | All passing (447 server + 74 shared) |
 | Code Quality | Good | Structured logging, TypeScript clean |
 
 ### Current Priorities
@@ -31,7 +31,7 @@
 | **#2** | **Audio Overhaul** - Procedural chiptune audio system (P2.A1-P2.A8) | COMPLETE |
 | **#3** | **Multiplayer Experience** - Nicknames, leaderboard, minimap (P3.1-P3.3) | COMPLETE |
 | **#4** | **Multiplayer Mechanics** - Co-op features, revival, combos (P4.1-P4.6) | P4.1-P4.6 COMPLETE |
-| **#5** | **Surprise Mechanics** - World events, secrets, hazards (P5.1-P5.7) | P5.1 COMPLETE, P5.2-P5.7 NOT STARTED |
+| **#5** | **Surprise Mechanics** - World events, secrets, hazards (P5.1-P5.7) | P5.1-P5.2 COMPLETE, P5.3-P5.7 NOT STARTED |
 | **#6** | **Balance Playtesting** - Tune difficulty and bosses (P6.1-P6.2) | NOT STARTED |
 
 ---
@@ -46,7 +46,7 @@
 | HACK Comments | 0 | No workarounds |
 | Skipped Tests | 0 | All tests running |
 | Empty Functions | 1 | Intentional: settings callback in Game.ts (handled by HUD) |
-| Passing Tests | 487 | 100% pass rate (734+ individual test cases) |
+| Passing Tests | 521 | 100% pass rate (447 server + 74 shared) |
 | Non-null Assertions | 0 | Uses optional chaining instead |
 | Production console.log | 0 | All logging via structured logger |
 
@@ -267,7 +267,28 @@
   - Invasion Wave: 30s duration, spawns 50 extra enemies in area
   - Double XP Zone: 45s duration, 40 unit radius, 2x XP multiplier
   - Events sync to clients via WorldEventSchema in GameState
-- [ ] **P5.2** Hidden power-ups that spawn rarely in random locations
+- [x] **P5.2** Hidden power-ups that spawn rarely in random locations
+  - PowerUpSchema (Colyseus schema for state sync)
+  - PowerUpSystem with spawn/collect logic:
+    - Power-ups spawn at random intervals (45-90 seconds)
+    - 30% chance to spawn when interval passes
+    - Maximum 3 active power-ups at once
+    - 5 power-up types:
+      - health_restore: +50 health instantly
+      - damage_boost: +50% damage for 15 seconds
+      - speed_boost: +40% speed for 12 seconds
+      - shield: 8 seconds of invulnerability
+      - magnet_boost: 3x magnet range for 20 seconds
+    - Power-ups despawn after 60 seconds if not collected
+    - Collection radius: 1.5 units
+  - GameState power-up pool and management (addPowerUp/removePowerUp)
+  - Integration with InputSystem (speed boost), CombatSystem (damage boost), XPSystem (magnet boost)
+  - Player schema buffs: damageBoostTime, speedBoostTime, shieldTime, magnetBoostTime
+  - Shield provides invulnerability (checked in takeDamage)
+  - Client rendering with colored sprites per type:
+    - Red = health, Orange = damage, Green = speed, Blue = shield, Purple = magnet
+    - Bobbing and pulsing animation for visibility
+  - 34 new tests for PowerUpSystem
 - [ ] **P5.3** Secret boss that spawns when all players reach certain level
 - [ ] **P5.4** Environmental hazards (lava pools, ice patches, teleporters)
 - [ ] **P5.5** "Jackpot" XP orbs that give massive XP but attract enemies
@@ -597,6 +618,19 @@ npm run test:memory --players=20 --duration=30
 ## CHANGELOG SUMMARY
 
 **Recent (2026-01-16):**
+- **P5.2 COMPLETE**: Hidden power-ups that spawn rarely in random locations
+  - Added PowerUpSchema for Colyseus state synchronization
+  - Added PowerUpSystem with spawn/collect logic
+  - Power-ups spawn at random intervals (45-90 seconds) with 30% chance
+  - Maximum 3 active power-ups at once, despawn after 60 seconds
+  - 5 power-up types: health_restore (+50 HP), damage_boost (+50% for 15s), speed_boost (+40% for 12s), shield (8s invulnerability), magnet_boost (3x range for 20s)
+  - Collection radius: 1.5 units
+  - Player schema buffs: damageBoostTime, speedBoostTime, shieldTime, magnetBoostTime
+  - Integration with InputSystem, CombatSystem, XPSystem for buff effects
+  - Shield provides invulnerability (checked in takeDamage)
+  - Client rendering with colored sprites (Red=health, Orange=damage, Green=speed, Blue=shield, Purple=magnet)
+  - Bobbing and pulsing animation for visibility
+  - 34 new tests added (521 total tests: 447 server + 74 shared)
 - **P5.1 COMPLETE**: Random world events (meteor shower, invasion wave, double XP zone)
   - Added WorldEventSchema for Colyseus state sync
   - Added WorldEventSystem with three event types

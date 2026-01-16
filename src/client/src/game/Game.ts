@@ -376,11 +376,25 @@ export class Game {
       });
     });
 
+    // P5.2: Power-ups
+    const powerUps = new Map();
+    state.powerUps?.forEach((powerUp, id) => {
+      powerUps.set(id, {
+        id: powerUp.id,
+        type: powerUp.type,
+        x: powerUp.x,
+        y: powerUp.y,
+        spawnTime: powerUp.spawnTime,
+        lifetime: powerUp.lifetime
+      });
+    });
+
     return {
       players,
       enemies,
       projectiles,
       xpOrbs,
+      powerUps,
       world: {
         worldRadius: state.world.worldRadius,
         playerCount: state.world.playerCount,

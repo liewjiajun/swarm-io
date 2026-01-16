@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 // Post-processing modules are lazily loaded to reduce initial bundle size
 // See setupPostProcessing() for dynamic imports when CRT effect is enabled
-import type { PlayerState, EnemyState, ProjectileState, XPOrbState } from '@swarm-io/shared';
+import type { PlayerState, EnemyState, ProjectileState, XPOrbState, PowerUpState } from '@swarm-io/shared';
 import { DEATH_PARTICLE_COLORS } from '@swarm-io/shared';
 import { SpriteLoader } from './SpriteLoader';
 import { AnimationController, createSimpleAnimation, createWalkAnimations } from './AnimationController';
@@ -197,6 +197,7 @@ export class Renderer {
   private xpOrbSprites: Map<string, THREE.Sprite> = new Map();
   private enemySprites: Map<string, THREE.Sprite> = new Map();
   private projectileSprites: Map<string, THREE.Sprite> = new Map();
+  private powerUpSprites: Map<string, THREE.Sprite> = new Map(); // P5.2: Power-up sprites
 
   // Post-processing (P1.10 CRT shader)
   // Types are 'any' because modules are lazily loaded to reduce bundle size
@@ -875,6 +876,11 @@ export class Renderer {
 
     // Update XP orbs
     this.updateXPOrbs(state.xpOrbs);
+
+    // P5.2: Update power-ups
+    if (state.powerUps) {
+      this.updatePowerUps(state.powerUps);
+    }
 
     // Update particle effects
     this.updateParticles(dt);
@@ -1605,6 +1611,82 @@ export class Renderer {
     this.xpOrbMeshLOD.instanceMatrix.needsUpdate = true;
   }
 
+  /**
+   * P5.2: Update power-up rendering
+   * Power-ups are rendered as glowing sprites with bobbing animation
+   */
+  private updatePowerUps(powerUps: Map<string, PowerUpState>) {
+    // Remove sprites for collected/despawned power-ups
+    const currentIds = new Set(powerUps.keys());
+    this.powerUpSprites.forEach((sprite, id) => {
+      if (!currentIds.has(id)) {
+        this.scene.remove(sprite);
+        this.powerUpSprites.delete(id);
+      }
+    });
+
+    // Update/create sprites for each power-up
+    powerUps.forEach((powerUp, id) => {
+      // Skip if outside view frustum
+      if (!this.isInView(powerUp.x, powerUp.y, 2)) {
+        const existingSprite = this.powerUpSprites.get(id);
+        if (existingSprite) {
+          existingSprite.visible = false;
+        }
+        return;
+      }
+
+      let sprite = this.powerUpSprites.get(id);
+
+      if (!sprite) {
+        // Create new sprite with power-up-specific color
+        const color = this.getPowerUpColor(powerUp.type);
+        const geometry = new THREE.PlaneGeometry(1.5, 1.5);
+        const material = new THREE.MeshBasicMaterial({
+          color,
+          transparent: true,
+          opacity: 0.9,
+          side: THREE.DoubleSide
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+        sprite = new THREE.Sprite(new THREE.SpriteMaterial({ color, transparent: true, opacity: 0.9 }));
+        sprite.scale.set(1.5, 1.5, 1);
+        this.powerUpSprites.set(id, sprite);
+        this.scene.add(sprite);
+      }
+
+      sprite.visible = true;
+
+      // Bobbing animation (faster than XP orbs to make them more noticeable)
+      const bobOffset = Math.sin(Date.now() * 0.008 + powerUp.x * 0.5) * 0.3;
+      // Pulse scale for visibility
+      const pulseScale = 1.5 + Math.sin(Date.now() * 0.005) * 0.2;
+      sprite.scale.set(pulseScale, pulseScale, 1);
+
+      sprite.position.set(powerUp.x, 0.8 + bobOffset, powerUp.y);
+    });
+  }
+
+  /**
+   * P5.2: Get color for power-up type
+   */
+  private getPowerUpColor(type: string): number {
+    switch (type) {
+      case 'health_restore':
+        return 0xff4444; // Red - health
+      case 'damage_boost':
+        return 0xff8800; // Orange - damage
+      case 'speed_boost':
+        return 0x44ff44; // Green - speed
+      case 'shield':
+        return 0x4488ff; // Blue - shield
+      case 'magnet_boost':
+        return 0xaa44ff; // Purple - magnet
+      default:
+        return 0xffffff; // White - unknown
+    }
+  }
+
   private onResize(canvas: HTMLCanvasElement) {
     const aspect = canvas.clientWidth / canvas.clientHeight;
 
@@ -1964,6 +2046,9 @@ export class Renderer {
     this.enemySprites.clear();
     this.projectileSprites.forEach(sprite => this.scene.remove(sprite));
     this.projectileSprites.clear();
+    // P5.2: Clean up power-up sprites
+    this.powerUpSprites.forEach(sprite => this.scene.remove(sprite));
+    this.powerUpSprites.clear();
 
     // Clean up post-processing (P1.10)
     this.composer = null;

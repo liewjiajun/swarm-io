@@ -189,3 +189,25 @@ export function resetXPOrb(o: {
   o.targetPlayerId = '';
   o.collected = false;
 }
+
+/**
+ * P5.2: Reset function for PowerUpSchema objects.
+ * Clears all state to defaults for clean reuse.
+ */
+export function resetPowerUp(p: {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  spawnTime: number;
+  lifetime: number;
+  collected: boolean;
+}): void {
+  p.id = '';
+  p.type = '';
+  p.x = 0;
+  p.y = 0;
+  p.spawnTime = 0;
+  p.lifetime = 60;
+  p.collected = false;
+}

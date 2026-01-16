@@ -9,3 +9,4 @@ export * from './WeaponSystem';
 export * from './CombatSystem';
 export * from './XPSystem';
 export * from './WorldEventSystem';
+export * from './PowerUpSystem';

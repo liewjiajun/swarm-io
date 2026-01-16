@@ -1,3 +1,4 @@
+import { GAME_CONSTANTS } from '@swarm-io/shared';
 import type { PlayerInput } from '@swarm-io/shared';
 import type { PlayerSchema } from '../state/PlayerSchema';
 
@@ -269,8 +270,11 @@ export class InputSystem {
     const dx = Math.max(this.INPUT_BOUND_MIN, Math.min(this.INPUT_BOUND_MAX, input.dx));
     const dy = Math.max(this.INPUT_BOUND_MIN, Math.min(this.INPUT_BOUND_MAX, input.dy));
 
-    // Calculate movement
-    const speed = player.speed;
+    // Calculate movement with P5.2 speed boost multiplier
+    let speed = player.speed;
+    if (player.hasSpeedBoost) {
+      speed *= GAME_CONSTANTS.POWERUP_SPEED_BOOST_MULTIPLIER;
+    }
     const deltaX = dx * speed * dt;
     const deltaY = dy * speed * dt;
 

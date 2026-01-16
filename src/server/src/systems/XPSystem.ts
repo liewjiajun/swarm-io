@@ -72,8 +72,14 @@ export class XPSystem {
       gameState.players.forEach(player => {
         if (player.dead) return;
 
+        // P5.2: Apply magnet boost from power-up
+        let effectiveMagnetRange = player.magnetRange;
+        if (player.hasMagnetBoost) {
+          effectiveMagnetRange *= GAME_CONSTANTS.POWERUP_MAGNET_BOOST_MULTIPLIER;
+        }
+
         const distance = Math.sqrt((orb.x - player.x) ** 2 + (orb.y - player.y) ** 2);
-        if (distance <= player.magnetRange && distance < nearestDistance) {
+        if (distance <= effectiveMagnetRange && distance < nearestDistance) {
           nearestPlayer = player;
           nearestDistance = distance;
         }

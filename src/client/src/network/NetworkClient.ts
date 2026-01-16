@@ -79,6 +79,16 @@ interface SerializedXPOrb {
   magnetized: boolean;
 }
 
+// P5.2: Power-up serialized state
+interface SerializedPowerUp {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  spawnTime: number;
+  lifetime: number;
+}
+
 interface SerializedWorld {
   worldRadius: number;
   playerCount: number;
@@ -92,6 +102,7 @@ export interface SerializedGameState {
   enemies: Map<string, SerializedEnemy>;
   projectiles: Map<string, SerializedProjectile>;
   xpOrbs: Map<string, SerializedXPOrb>;
+  powerUps: Map<string, SerializedPowerUp>; // P5.2: Power-ups
   world: SerializedWorld;
 }
 
@@ -516,11 +527,25 @@ export class NetworkClient {
       });
     });
 
+    // P5.2: Power-ups
+    const powerUps = new Map<string, SerializedPowerUp>();
+    this.forEachInMap(state.powerUps, (powerUp: any, id: string) => {
+      powerUps.set(id, {
+        id: powerUp.id,
+        type: powerUp.type,
+        x: powerUp.x,
+        y: powerUp.y,
+        spawnTime: powerUp.spawnTime,
+        lifetime: powerUp.lifetime,
+      });
+    });
+
     return {
       players,
       enemies,
       projectiles,
       xpOrbs,
+      powerUps,
       world: {
         worldRadius: state.world.worldRadius,
         playerCount: state.world.playerCount,

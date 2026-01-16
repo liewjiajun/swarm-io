@@ -6,9 +6,10 @@ import { ProjectileSchema } from './ProjectileSchema';
 import { XPOrbSchema } from './XPOrbSchema';
 import { WorldSchema } from './WorldSchema';
 import { WorldEventSchema } from './WorldEventSchema';
+import { PowerUpSchema } from './PowerUpSchema';
 import { generateId } from '@swarm-io/shared';
 import { GAME_CONSTANTS } from '@swarm-io/shared';
-import { ObjectPool, resetProjectile, resetEnemy, resetXPOrb } from '../systems/ObjectPool';
+import { ObjectPool, resetProjectile, resetEnemy, resetXPOrb, resetPowerUp } from '../systems/ObjectPool';
 
 // Pre-calculate squared interest radius for efficient distance checks
 const INTEREST_RADIUS_SQ = GAME_CONSTANTS.INTEREST_RADIUS * GAME_CONSTANTS.INTEREST_RADIUS;
@@ -102,6 +103,9 @@ export class GameState extends Schema {
   // P5.1: World events (meteor showers, invasions, etc.)
   worldEvents!: MapSchema<WorldEventSchema>;
 
+  // P5.2: Power-ups (hidden collectibles that grant temporary buffs)
+  powerUps!: MapSchema<PowerUpSchema>;
+
   // Object pools for reducing GC pressure (not synced)
   // Pre-allocate commonly created/destroyed entities
   private projectilePool = new ObjectPool<ProjectileSchema>(
@@ -125,6 +129,13 @@ export class GameState extends Schema {
     resetXPOrb as (obj: XPOrbSchema) => void
   );
 
+  private powerUpPool = new ObjectPool<PowerUpSchema>(
+    () => new PowerUpSchema(),
+    10,    // Initial size: pre-allocate 10 power-ups (rare spawns)
+    50,    // Max size: cap at 50
+    resetPowerUp as (obj: PowerUpSchema) => void
+  );
+
   constructor() {
     super();
     // Initialize all synced MapSchema/Schema fields through the setters
@@ -135,6 +146,7 @@ export class GameState extends Schema {
     this.xpOrbs = new MapSchema<XPOrbSchema>();
     this.world = new WorldSchema();
     this.worldEvents = new MapSchema<WorldEventSchema>();
+    this.powerUps = new MapSchema<PowerUpSchema>();
   }
 
   addPlayer(id: string, x: number, y: number, nickname?: string): PlayerSchema {
@@ -298,6 +310,34 @@ export class GameState extends Schema {
   removeWorldEvent(id: string): void {
     this.worldEvents.delete(id);
   }
+
+  /**
+   * P5.2: Add a power-up
+   */
+  addPowerUp(type: string, x: number, y: number, lifetime: number): PowerUpSchema {
+    const id = generateId();
+    const powerUp = this.powerUpPool.acquire();
+    powerUp.id = id;
+    powerUp.type = type;
+    powerUp.x = x;
+    powerUp.y = y;
+    powerUp.lifetime = lifetime;
+    powerUp.spawnTime = this.world.gameTime;
+
+    this.powerUps.set(id, powerUp);
+    return powerUp;
+  }
+
+  /**
+   * P5.2: Remove a power-up and return it to the pool
+   */
+  removePowerUp(id: string): void {
+    const powerUp = this.powerUps.get(id);
+    if (powerUp) {
+      this.powerUps.delete(id);
+      this.powerUpPool.release(powerUp);
+    }
+  }
 }
 
 // Use defineTypes for esbuild/tsx compatibility (decorators don't work properly)
@@ -308,7 +348,8 @@ defineTypes(GameState, {
   projectiles: { map: ProjectileSchema },
   xpOrbs: { map: XPOrbSchema },
   world: WorldSchema,
-  worldEvents: { map: WorldEventSchema }
+  worldEvents: { map: WorldEventSchema },
+  powerUps: { map: PowerUpSchema }
 });
 
 // Apply filter decorators manually (these work differently than @type)
@@ -323,3 +364,4 @@ export { XPOrbSchema } from './XPOrbSchema';
 export { WeaponSchema } from './WeaponSchema';
 export { WorldSchema } from './WorldSchema';
 export { WorldEventSchema } from './WorldEventSchema';
+export { PowerUpSchema } from './PowerUpSchema';

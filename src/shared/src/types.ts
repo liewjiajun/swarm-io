@@ -303,6 +303,23 @@ export interface WorldEventState extends WorldEvent {
 }
 
 // =============================================================================
+// P5.2: HIDDEN POWER-UPS
+// =============================================================================
+
+export type PowerUpType =
+  | 'health_restore'  // Instant health restoration
+  | 'damage_boost'    // Temporary damage increase
+  | 'speed_boost'     // Temporary movement speed increase
+  | 'shield'          // Temporary invulnerability
+  | 'magnet_boost';   // Temporary XP magnet range increase
+
+export interface PowerUpState extends Entity {
+  type: string;       // PowerUpType at runtime
+  spawnTime: number;  // Game time when spawned
+  lifetime: number;   // How long before despawning
+}
+
+// =============================================================================
 // UPGRADE CHOICES
 // =============================================================================
 

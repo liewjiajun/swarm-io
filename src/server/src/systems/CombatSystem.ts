@@ -137,6 +137,12 @@ export class CombatSystem {
       validatedDamage = Math.floor(validatedDamage * (1 + teamZoneBonus));
     }
 
+    // P5.2: Apply damage boost from power-up
+    const ownerPlayer = gameState.players.get(projectile.ownerId);
+    if (ownerPlayer?.hasDamageBoost) {
+      validatedDamage = Math.floor(validatedDamage * GAME_CONSTANTS.POWERUP_DAMAGE_BOOST_MULTIPLIER);
+    }
+
     // P4.4: Apply combo damage multiplier
     const comboMultiplier = this.updateComboAndGetMultiplier(enemy, projectile.ownerId);
     const comboBonusDamage = validatedDamage * (comboMultiplier - 1);

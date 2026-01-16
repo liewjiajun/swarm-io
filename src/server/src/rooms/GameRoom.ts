@@ -8,7 +8,8 @@ import {
   WeaponSystem,
   CombatSystem,
   XPSystem,
-  WorldEventSystem
+  WorldEventSystem,
+  PowerUpSystem
 } from '../systems/index.js';
 import { GAME_CONSTANTS, randomPointOnCircle } from '@swarm-io/shared';
 import { InputMessage, UpgradeMessage, TradeOfferMessage, TradeResponseMessage } from '@swarm-io/shared';
@@ -49,6 +50,7 @@ export class GameRoom extends Room<GameState> {
   private combatSystem = new CombatSystem();
   private xpSystem = new XPSystem();
   private worldEventSystem = new WorldEventSystem(); // P5.1: Random world events
+  private powerUpSystem = new PowerUpSystem(); // P5.2: Hidden power-ups
 
   // Client management
   private clientData = new Map<string, ClientData>();
@@ -441,6 +443,7 @@ export class GameRoom extends Room<GameState> {
     this.combatSystem.reset();
     this.xpSystem.reset();
     this.worldEventSystem.reset(); // P5.1: Reset world events
+    this.powerUpSystem.reset(); // P5.2: Reset power-ups
 
     gameRoomLogger.info('Room disposed');
   }
@@ -470,6 +473,7 @@ export class GameRoom extends Room<GameState> {
       this.xpSystem.update(this.state, this.spatialHash, deltaTime, this.worldEventSystem);
       this.spawnSystem.update(this.state, deltaTime);
       this.worldEventSystem.update(this.state, deltaTime); // P5.1: World events
+      this.powerUpSystem.update(this.state, this.spatialHash, deltaTime); // P5.2: Power-ups
 
       // Update player timers and states
       this.updatePlayerTimers(deltaTime);
@@ -552,6 +556,17 @@ export class GameRoom extends Room<GameState> {
         y: orb.y,
         type: 'xp',
         entity: orb
+      });
+    });
+
+    // P5.2: Insert power-ups into spatial hash
+    this.state.powerUps.forEach(powerUp => {
+      this.spatialHash.insert({
+        id: powerUp.id,
+        x: powerUp.x,
+        y: powerUp.y,
+        type: 'powerup',
+        entity: powerUp
       });
     });
   }
@@ -1264,6 +1279,7 @@ export class GameRoom extends Room<GameState> {
       projectileCount: this.state.projectiles.size,
       xpOrbCount: this.state.xpOrbs.size,
       worldEventCount: this.state.worldEvents.size, // P5.1
+      powerUpCount: this.state.powerUps.size, // P5.2
       gameTime: this.state.world.gameTime,
       currentWave: this.state.world.currentWave,
       worldRadius: this.state.world.worldRadius,
@@ -1271,7 +1287,8 @@ export class GameRoom extends Room<GameState> {
       spawnMetrics: this.spawnSystem.getSpawnMetrics(),
       combatMetrics: this.combatSystem.getCombatMetrics(),
       xpMetrics: this.xpSystem.getXPMetrics(),
-      worldEventMetrics: this.worldEventSystem.getMetrics() // P5.1
+      worldEventMetrics: this.worldEventSystem.getMetrics(), // P5.1
+      powerUpMetrics: this.powerUpSystem.getMetrics() // P5.2
     };
   }
 }

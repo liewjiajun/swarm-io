@@ -138,6 +138,32 @@ export const GAME_CONSTANTS = {
   DOUBLE_XP_ZONE_RADIUS: 40, // Radius of affected area
   DOUBLE_XP_ZONE_MULTIPLIER: 2.0, // XP multiplier inside zone
 
+  // P5.2: Hidden Power-Ups - rare spawns that grant temporary buffs
+  POWERUP_MIN_SPAWN_INTERVAL: 45, // Minimum seconds between power-up spawns
+  POWERUP_MAX_SPAWN_INTERVAL: 90, // Maximum seconds between power-up spawns
+  POWERUP_SPAWN_CHANCE: 0.3, // 30% chance to spawn when interval passes
+  POWERUP_LIFETIME: 60, // Seconds before uncollected power-up despawns
+  POWERUP_COLLECTION_RADIUS: 1.5, // Radius for collecting power-ups
+  POWERUP_MAX_ACTIVE: 3, // Maximum power-ups in the world at once
+
+  // P5.2a: Health Restore power-up
+  POWERUP_HEALTH_RESTORE_AMOUNT: 50, // Instant health restored
+
+  // P5.2b: Damage Boost power-up
+  POWERUP_DAMAGE_BOOST_MULTIPLIER: 1.5, // 50% more damage
+  POWERUP_DAMAGE_BOOST_DURATION: 15, // Duration in seconds
+
+  // P5.2c: Speed Boost power-up
+  POWERUP_SPEED_BOOST_MULTIPLIER: 1.4, // 40% faster movement
+  POWERUP_SPEED_BOOST_DURATION: 12, // Duration in seconds
+
+  // P5.2d: Shield power-up
+  POWERUP_SHIELD_DURATION: 8, // Seconds of invulnerability
+
+  // P5.2e: Magnet Boost power-up
+  POWERUP_MAGNET_BOOST_MULTIPLIER: 3, // 3x magnet range
+  POWERUP_MAGNET_BOOST_DURATION: 20, // Duration in seconds
+
   // Combat
   PVP_DAMAGE_MULTIPLIER: 0.15, // 15% damage to other players
   HOSTILITY_DECAY_RATE: 0.1, // Per second
