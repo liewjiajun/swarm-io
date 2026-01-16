@@ -132,9 +132,10 @@ export class GameState extends Schema {
     this.world = new WorldSchema();
   }
 
-  addPlayer(id: string, x: number, y: number): PlayerSchema {
+  addPlayer(id: string, x: number, y: number, nickname?: string): PlayerSchema {
     const player = new PlayerSchema();
     player.id = id;
+    player.nickname = nickname || ''; // P3.1: Set player nickname
     player.x = x;
     player.y = y;
     player.health = GAME_CONSTANTS.PLAYER_START_HEALTH;

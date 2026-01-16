@@ -18,6 +18,7 @@ export interface Entity {
 // =============================================================================
 
 export interface PlayerState extends Entity {
+  nickname: string; // P3.1: Player display name
   health: number;
   maxHealth: number;
   level: number;

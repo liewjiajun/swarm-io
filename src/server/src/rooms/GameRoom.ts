@@ -299,7 +299,7 @@ export class GameRoom extends Room<GameState> {
     });
   }
 
-  onJoin(client: Client, _options: any) {
+  onJoin(client: Client, options: any) {
     gameRoomLogger.info({ playerId: client.sessionId }, 'Player joining');
 
     try {
@@ -317,12 +317,22 @@ export class GameRoom extends Room<GameState> {
         return;
       }
 
+      // P3.1: Extract and sanitize nickname from options
+      let nickname = '';
+      if (options?.nickname && typeof options.nickname === 'string') {
+        // Sanitize: trim, limit length, remove special characters
+        nickname = options.nickname
+          .trim()
+          .slice(0, 16) // Max 16 characters
+          .replace(/[<>&"'`]/g, ''); // Remove HTML-sensitive chars
+      }
+
       // Generate spawn position near center with some spread
       const spawnRadius = Math.min(100, this.state.world.worldRadius * 0.2);
       const spawnPos = randomPointOnCircle(spawnRadius);
 
-      // Add player to game state
-      this.state.addPlayer(client.sessionId, spawnPos.x, spawnPos.y);
+      // Add player to game state with nickname
+      this.state.addPlayer(client.sessionId, spawnPos.x, spawnPos.y, nickname);
 
       // Initialize client data
       this.clientData.set(client.sessionId, {

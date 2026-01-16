@@ -21,6 +21,7 @@ export class Game {
   private connected: boolean = false;
   private inputSequence: number = 0;
   private paused: boolean = false;
+  private playerNickname: string = ''; // P3.1: Store player nickname
 
   // BUG-011 FIX: Throttle input sending to match server rate limit (30Hz)
   // Previously game sent 60Hz inputs but NetworkClient dropped 50% due to rate limiting
@@ -144,14 +145,29 @@ export class Game {
       }
     });
 
-    // Show tutorial for first-time players
-    this.hud.showTutorialIfFirstTime(() => {
-      this.startGameConnection();
-    });
+    // P3.1: Show nickname modal first, then tutorial
+    // Load stored nickname if available for returning players
+    const storedNickname = this.hud.getStoredNickname();
+    if (storedNickname) {
+      // Returning player - use stored nickname
+      this.playerNickname = storedNickname;
+      this.hud.showTutorialIfFirstTime(() => {
+        this.startGameConnection();
+      });
+    } else {
+      // First time player - show nickname modal first
+      this.hud.showNicknameModal((nickname) => {
+        this.playerNickname = nickname;
+        this.hud.showTutorialIfFirstTime(() => {
+          this.startGameConnection();
+        });
+      });
+    }
   }
 
   /**
    * Initiates the network connection and starts the game loop
+   * P3.1: Now passes the player's nickname when connecting
    */
   private async startGameConnection() {
     try {
@@ -159,12 +175,12 @@ export class Game {
       // This ensures we don't miss the initial state update
       this.setupNetworkHandlers();
 
-      // Connect to server
-      await this.network.connect();
+      // Connect to server with nickname (P3.1)
+      await this.network.connect(this.playerNickname);
       this.localPlayerId = this.network.sessionId;
       this.connected = true;
 
-      logger.info({ playerId: this.localPlayerId }, 'Connected');
+      logger.info({ playerId: this.localPlayerId, nickname: this.playerNickname }, 'Connected');
 
       // Start gameplay music
       this.audio.playMusic('gameplay');
@@ -258,6 +274,7 @@ export class Game {
     state.players.forEach((player, id) => {
       players.set(id, {
         id: player.id,
+        nickname: player.nickname || '', // P3.1: Include nickname
         x: player.x,
         y: player.y,
         health: player.health,
@@ -350,6 +367,7 @@ export class Game {
       players: new Map([
         [this.localPlayerId, {
           id: this.localPlayerId,
+          nickname: this.playerNickname || 'Test Player', // P3.1: Include nickname
           x: 0,
           y: 0,
           health: 100,

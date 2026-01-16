@@ -37,6 +37,9 @@ interface HUDElements {
   crtCheckbox: HTMLInputElement;
   tutorialOverlay: HTMLElement;
   pauseOverlay: HTMLElement;
+  nicknameModal: HTMLElement; // P3.1: Nickname input modal
+  nicknameInput: HTMLInputElement; // P3.1: Nickname text input
+  nicknameSubmitBtn: HTMLElement; // P3.1: Submit button
 }
 
 interface AudioSettings {
@@ -59,6 +62,7 @@ interface UISoundCallbacks {
 
 interface PlayerState {
   id: string;
+  nickname: string; // P3.1: Player display name
   x: number;
   y: number;
   health: number;
@@ -310,6 +314,16 @@ export class HUD {
           <div class="pause-title">PAUSED</div>
           <button class="pause-resume-btn">RESUME</button>
           <button class="pause-settings-btn">SETTINGS</button>
+        </div>
+      </div>
+
+      <!-- P3.1: Nickname Input Modal -->
+      <div class="nickname-modal hidden">
+        <div class="nickname-content">
+          <div class="nickname-title">ENTER YOUR NAME</div>
+          <input type="text" class="nickname-input" placeholder="Survivor" maxlength="16" autocomplete="off" spellcheck="false">
+          <div class="nickname-hint">Max 16 characters</div>
+          <button class="nickname-submit-btn">PLAY</button>
         </div>
       </div>
     `;
@@ -977,6 +991,88 @@ export class HUD {
         background: rgba(255, 255, 255, 0.2);
         border-color: #ffd700;
       }
+
+      /* P3.1: Nickname Input Modal */
+      .nickname-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.95);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 600;
+        font-family: 'Press Start 2P', monospace;
+        pointer-events: auto;
+      }
+
+      .nickname-modal.hidden {
+        display: none;
+      }
+
+      .nickname-content {
+        background: rgba(0, 0, 0, 0.95);
+        padding: 40px;
+        border: 4px solid #4ecdc4;
+        text-align: center;
+        max-width: 400px;
+      }
+
+      .nickname-title {
+        font-size: 20px;
+        color: #4ecdc4;
+        margin-bottom: 30px;
+        text-shadow: 2px 2px 0 #000;
+      }
+
+      .nickname-input {
+        width: 100%;
+        padding: 15px;
+        font-family: 'Press Start 2P', monospace;
+        font-size: 14px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 2px solid white;
+        color: white;
+        text-align: center;
+        outline: none;
+        box-sizing: border-box;
+        transition: border-color 0.2s ease;
+      }
+
+      .nickname-input:focus {
+        border-color: #4ecdc4;
+      }
+
+      .nickname-input::placeholder {
+        color: rgba(255, 255, 255, 0.4);
+      }
+
+      .nickname-hint {
+        font-size: 8px;
+        color: #888;
+        margin-top: 10px;
+        text-shadow: 1px 1px 0 #000;
+      }
+
+      .nickname-submit-btn {
+        font-family: 'Press Start 2P', monospace;
+        font-size: 16px;
+        padding: 15px 40px;
+        background: #4ecdc4;
+        color: white;
+        border: none;
+        cursor: pointer;
+        margin-top: 25px;
+        text-shadow: 2px 2px 0 #000;
+        transition: all 0.2s ease;
+      }
+
+      .nickname-submit-btn:hover {
+        background: #1abc9c;
+        transform: scale(1.05);
+      }
     `;
     document.head.appendChild(style);
   }
@@ -1007,7 +1103,10 @@ export class HUD {
       muteCheckbox: this.container.querySelector('.mute-checkbox') as HTMLInputElement,
       crtCheckbox: this.container.querySelector('.crt-checkbox') as HTMLInputElement,
       tutorialOverlay: this.container.querySelector('.tutorial-overlay') as HTMLElement,
-      pauseOverlay: this.container.querySelector('.pause-overlay') as HTMLElement
+      pauseOverlay: this.container.querySelector('.pause-overlay') as HTMLElement,
+      nicknameModal: this.container.querySelector('.nickname-modal') as HTMLElement, // P3.1
+      nicknameInput: this.container.querySelector('.nickname-input') as HTMLInputElement, // P3.1
+      nicknameSubmitBtn: this.container.querySelector('.nickname-submit-btn') as HTMLElement // P3.1
     };
   }
 
@@ -1066,6 +1165,7 @@ export class HUD {
 
   /**
    * Updates leaderboard with top 5 players by time alive
+   * P3.1: Now shows player nicknames instead of generic names
    */
   private updateLeaderboard(
     players: Map<string, PlayerState>,
@@ -1080,7 +1180,17 @@ export class HUD {
     this.elements.leaderboard.innerHTML = playerList
       .map((player, index) => {
         const isLocal = player.id === localPlayerId;
-        const name = isLocal ? 'YOU' : `Player ${index + 1}`;
+        // P3.1: Use nickname if available, fallback to "YOU" for local player or generic name
+        let name: string;
+        if (isLocal) {
+          name = player.nickname || 'YOU';
+        } else {
+          name = player.nickname || `Player ${index + 1}`;
+        }
+        // Truncate long names to fit in leaderboard (max 12 chars)
+        if (name.length > 12) {
+          name = name.slice(0, 11) + '…';
+        }
         const time = this.formatTime(player.timeAlive);
         return `
           <div class="leaderboard-entry ${isLocal ? 'you' : ''}">
@@ -1469,6 +1579,65 @@ export class HUD {
    */
   isPaused(): boolean {
     return !this.elements.pauseOverlay.classList.contains('hidden');
+  }
+
+  /**
+   * P3.1: Shows the nickname input modal
+   * Called before showing the tutorial for first-time players
+   * Loads stored nickname from localStorage if available
+   * @param onSubmit - Callback with the entered nickname
+   */
+  showNicknameModal(onSubmit: (nickname: string) => void): void {
+    // Load stored nickname if available
+    const storedNickname = localStorage.getItem('swarm-io-nickname');
+    if (storedNickname) {
+      this.elements.nicknameInput.value = storedNickname;
+    }
+
+    // Show modal
+    this.elements.nicknameModal.classList.remove('hidden');
+    this.elements.nicknameInput.focus();
+
+    // Setup submit handler
+    const handleSubmit = () => {
+      const nickname = this.elements.nicknameInput.value.trim();
+      // Store nickname in localStorage for next time
+      if (nickname) {
+        localStorage.setItem('swarm-io-nickname', nickname);
+      }
+      this.uiSounds?.playClick();
+      this.hideNicknameModal();
+      onSubmit(nickname);
+    };
+
+    // Clone button to remove existing listeners
+    const newBtn = this.elements.nicknameSubmitBtn.cloneNode(true) as HTMLElement;
+    this.elements.nicknameSubmitBtn.parentNode?.replaceChild(newBtn, this.elements.nicknameSubmitBtn);
+    this.elements.nicknameSubmitBtn = newBtn;
+
+    this.elements.nicknameSubmitBtn.addEventListener('click', handleSubmit);
+
+    // Allow Enter key to submit
+    this.elements.nicknameInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        handleSubmit();
+      }
+    });
+  }
+
+  /**
+   * P3.1: Hides the nickname input modal
+   */
+  hideNicknameModal(): void {
+    this.elements.nicknameModal.classList.add('hidden');
+  }
+
+  /**
+   * P3.1: Gets the stored nickname from localStorage
+   * Returns empty string if not found
+   */
+  getStoredNickname(): string {
+    return localStorage.getItem('swarm-io-nickname') || '';
   }
 
   /**

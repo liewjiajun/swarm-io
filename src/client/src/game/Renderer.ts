@@ -152,6 +152,10 @@ export class Renderer {
   private damageContainer: HTMLDivElement | null = null;
   private lastEnemyHealth: Map<string, number> = new Map();
 
+  // P3.1: Player name labels
+  private playerNameLabels: Map<string, HTMLDivElement> = new Map();
+  private playerNameContainer: HTMLDivElement | null = null;
+
   // Particle effects
   private particles: Particle[] = [];
   private particleMesh!: THREE.InstancedMesh;
@@ -368,6 +372,21 @@ export class Renderer {
       z-index: 100;
     `;
     document.body.appendChild(this.damageContainer);
+
+    // P3.1: Create container for player name labels
+    this.playerNameContainer = document.createElement('div');
+    this.playerNameContainer.id = 'player-name-labels';
+    this.playerNameContainer.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 95;
+    `;
+    document.body.appendChild(this.playerNameContainer);
 
     // Create screen flash overlay for level up effect
     this.screenFlash = document.createElement('div');
@@ -839,6 +858,9 @@ export class Renderer {
     // Update players
     this.updatePlayers(state.players, localPlayerId);
 
+    // P3.1: Update player name labels above sprites
+    this.updatePlayerNameLabels(state.players, localPlayerId);
+
     // Detect damage before updating enemies (to track health changes)
     this.detectDamage(state.enemies);
 
@@ -985,6 +1007,84 @@ export class Renderer {
     const sprite = new THREE.Sprite(material);
     sprite.scale.set(2, 2, 1); // Larger sprite for better visibility
     return sprite;
+  }
+
+  /**
+   * P3.1: Update player name labels above sprites
+   * Creates/updates/removes DOM elements for each player's nickname
+   */
+  private updatePlayerNameLabels(players: Map<string, PlayerState>, localPlayerId: string): void {
+    if (!this.playerNameContainer) return;
+
+    const canvas = this.renderer.domElement;
+    const halfWidth = canvas.clientWidth / 2;
+    const halfHeight = canvas.clientHeight / 2;
+
+    // Remove labels for disconnected players
+    const currentIds = new Set(players.keys());
+    this.playerNameLabels.forEach((label, id) => {
+      if (!currentIds.has(id)) {
+        label.remove();
+        this.playerNameLabels.delete(id);
+      }
+    });
+
+    // Update/create labels for each player
+    players.forEach((player, id) => {
+      // Skip players without nicknames or dead players
+      if (!player.nickname || player.dead) {
+        const existingLabel = this.playerNameLabels.get(id);
+        if (existingLabel) {
+          existingLabel.style.display = 'none';
+        }
+        return;
+      }
+
+      let label = this.playerNameLabels.get(id);
+      if (!label) {
+        // Create new label
+        label = document.createElement('div');
+        label.style.cssText = `
+          position: absolute;
+          font-family: 'Press Start 2P', monospace;
+          font-size: 8px;
+          color: ${id === localPlayerId ? '#4ecdc4' : '#ffffff'};
+          text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+          pointer-events: none;
+          white-space: nowrap;
+          transform: translate(-50%, -50%);
+        `;
+        // We already checked this.playerNameContainer exists at function start
+        this.playerNameContainer!.appendChild(label);
+        this.playerNameLabels.set(id, label);
+      }
+
+      // Update label text if changed
+      if (label.textContent !== player.nickname) {
+        label.textContent = player.nickname;
+      }
+
+      // Make label visible
+      label.style.display = 'block';
+
+      // Convert world position to screen position (above player sprite)
+      const worldPos = new THREE.Vector3(player.x, 2.5, player.y); // Higher than sprite
+      worldPos.project(this.camera);
+
+      const screenX = (worldPos.x * halfWidth) + halfWidth;
+      const screenY = -(worldPos.y * halfHeight) + halfHeight;
+
+      // Update position
+      label.style.left = `${screenX}px`;
+      label.style.top = `${screenY}px`;
+
+      // Highlight local player's name
+      if (id === localPlayerId) {
+        label.style.color = '#4ecdc4';
+      } else {
+        label.style.color = '#ffffff';
+      }
+    });
   }
 
   private updateEnemies(enemies: Map<string, EnemyState>) {
@@ -1838,6 +1938,12 @@ export class Renderer {
       this.screenFlash.remove();
       this.screenFlash = null;
     }
+    // P3.1: Clean up player name labels
+    if (this.playerNameContainer) {
+      this.playerNameContainer.remove();
+      this.playerNameContainer = null;
+    }
+    this.playerNameLabels.clear();
     this.damageNumbers = [];
     this.lastEnemyHealth.clear();
     this.particles = [];

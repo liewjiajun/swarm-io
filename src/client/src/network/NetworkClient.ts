@@ -33,6 +33,7 @@ interface UpgradeChoice {
 
 interface SerializedPlayer {
   id: string;
+  nickname: string; // P3.1: Player display name
   x: number;
   y: number;
   health: number;
@@ -106,6 +107,9 @@ export class NetworkClient {
   private reconnectAttempts = 0;
   private readonly reconnectDelays = [1000, 2000, 4000, 8000, 30000];
   private isReconnecting = false;
+
+  // P3.1: Player nickname (stored for reconnection)
+  private playerNickname: string = '';
 
   // P3.4: Client-side rate limiting (match server's 30 inputs/sec limit)
   private readonly MAX_INPUTS_PER_SECOND = 30;
@@ -203,10 +207,15 @@ export class NetworkClient {
     return true;
   }
 
-  async connect(): Promise<void> {
+  async connect(nickname?: string): Promise<void> {
     if (this.isReconnecting) {
       logger.debug('Already reconnecting, skipping');
       return;
+    }
+
+    // P3.1: Store nickname for potential reconnection
+    if (nickname) {
+      this.playerNickname = nickname;
     }
 
     try {
@@ -220,13 +229,15 @@ export class NetworkClient {
         } catch (reconnectError) {
           logger.info({ error: String(reconnectError) }, 'Reconnection failed, clearing stale session and joining fresh');
           localStorage.removeItem('swarm_session');
-          this.room = await this.client.joinOrCreate('game');
+          // P3.1: Send nickname when joining fresh
+          this.room = await this.client.joinOrCreate('game', { nickname: this.playerNickname });
         }
       } else {
-        this.room = await this.client.joinOrCreate('game');
+        // P3.1: Send nickname when joining
+        this.room = await this.client.joinOrCreate('game', { nickname: this.playerNickname });
       }
 
-      logger.info({ roomId: this.room.id }, 'Connected to room');
+      logger.info({ roomId: this.room.id, nickname: this.playerNickname }, 'Connected to room');
 
       // Store session for reconnection
       if (this.room.reconnectionToken) {
@@ -446,6 +457,7 @@ export class NetworkClient {
     this.forEachInMap(state.players, (player: any, id: string) => {
       players.set(id, {
         id: player.id,
+        nickname: player.nickname || '', // P3.1: Include player nickname
         x: player.x,
         y: player.y,
         health: player.health,

@@ -5,6 +5,7 @@ import { GAME_CONSTANTS, WEAPON_CONFIGS, getXPForLevel } from '@swarm-io/shared'
 export class PlayerSchema extends Schema {
   // Don't use class field initializers - they bypass prototype getters/setters
   id!: string;
+  nickname!: string; // P3.1: Player display name
   x!: number;
   y!: number;
   health!: number;
@@ -35,6 +36,7 @@ export class PlayerSchema extends Schema {
     super();
     // Initialize all synced values through the setters (with useDefineForClassFields: false)
     this.id = '';
+    this.nickname = ''; // P3.1: Default empty nickname
     this.x = 0;
     this.y = 0;
     this.health = 100;
@@ -159,6 +161,7 @@ export class PlayerSchema extends Schema {
 // Note: useDefineForClassFields: false in tsconfig is required for this to work
 defineTypes(PlayerSchema, {
   id: 'string',
+  nickname: 'string', // P3.1: Synced player nickname
   x: 'number',
   y: 'number',
   health: 'number',
