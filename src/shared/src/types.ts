@@ -217,7 +217,7 @@ export interface UpgradeChoice {
 }
 
 export interface ClientMessage {
-  type: 'input' | 'choose_upgrade' | 'respawn';
+  type: 'input' | 'choose_upgrade' | 'respawn' | 'trade_offer' | 'trade_response' | 'trade_cancel';
 }
 
 export interface InputMessage extends ClientMessage {
@@ -244,6 +244,35 @@ export interface UpgradeMessage extends ClientMessage {
     description: string;
     weight: number;
   };
+}
+
+// =============================================================================
+// P4.6: TRADING/GIFTING UPGRADES
+// =============================================================================
+
+export interface TradeOfferMessage extends ClientMessage {
+  type: 'trade_offer';
+  targetPlayerId: string; // Player to offer trade to
+  weaponType: string; // Weapon being offered
+}
+
+export interface TradeResponseMessage extends ClientMessage {
+  type: 'trade_response';
+  offerId: string; // ID of the trade offer
+  accepted: boolean; // Whether the trade was accepted
+}
+
+export interface TradeCancelMessage extends ClientMessage {
+  type: 'trade_cancel';
+}
+
+export interface TradeOffer {
+  id: string;
+  fromPlayerId: string;
+  toPlayerId: string;
+  weaponType: string;
+  weaponLevel: number;
+  createdAt: number; // Timestamp
 }
 
 // =============================================================================

@@ -249,4 +249,108 @@ describe('PlayerSchema', () => {
       expect(player.isInvulnerable).toBe(false);
     });
   });
+
+  // P4.6: Trading functionality tests
+  describe('trading functionality (P4.6)', () => {
+    describe('initial trade state', () => {
+      it('should have empty trade state on creation', () => {
+        expect(player.pendingTradeOfferId).toBe('');
+        expect(player.pendingTradeFromId).toBe('');
+        expect(player.pendingTradeWeapon).toBe('');
+        expect(player.pendingTradeLevel).toBe(0);
+        expect(player.tradeCooldown).toBe(0);
+        expect(player.outgoingTradeOfferId).toBe('');
+      });
+    });
+
+    describe('removeWeapon', () => {
+      it('should remove existing weapon and return its level', () => {
+        player.addWeapon('knife');
+        player.upgradeWeapon('knife');
+        player.upgradeWeapon('knife'); // level 3
+
+        const removedLevel = player.removeWeapon('knife');
+        expect(removedLevel).toBe(3);
+        expect(player.hasWeapon('knife')).toBe(false);
+        expect(player.weapons.length).toBe(0);
+      });
+
+      it('should return 0 when removing non-existent weapon', () => {
+        const removedLevel = player.removeWeapon('knife');
+        expect(removedLevel).toBe(0);
+      });
+
+      it('should only remove the specified weapon', () => {
+        player.addWeapon('knife');
+        player.addWeapon('wand');
+        player.addWeapon('bible');
+
+        player.removeWeapon('wand');
+
+        expect(player.weapons.length).toBe(2);
+        expect(player.hasWeapon('knife')).toBe(true);
+        expect(player.hasWeapon('wand')).toBe(false);
+        expect(player.hasWeapon('bible')).toBe(true);
+      });
+    });
+
+    describe('addWeaponAtLevel', () => {
+      it('should add weapon at specified level', () => {
+        player.addWeaponAtLevel('wand', 5);
+
+        expect(player.hasWeapon('wand')).toBe(true);
+        expect(player.getWeaponLevel('wand')).toBe(5);
+      });
+
+      it('should not add invalid weapon type', () => {
+        player.addWeaponAtLevel('invalid_weapon', 3);
+        expect(player.weapons.length).toBe(0);
+      });
+
+      it('should take higher level when adding duplicate weapon', () => {
+        player.addWeapon('knife'); // level 1
+        player.addWeaponAtLevel('knife', 5);
+
+        // Should not create duplicate, just upgrade to higher level
+        expect(player.weapons.length).toBe(1);
+        expect(player.getWeaponLevel('knife')).toBe(5);
+      });
+
+      it('should keep existing level if higher than new level', () => {
+        player.addWeapon('knife');
+        player.upgradeWeapon('knife');
+        player.upgradeWeapon('knife');
+        player.upgradeWeapon('knife'); // level 4
+
+        player.addWeaponAtLevel('knife', 2); // try to add at lower level
+
+        expect(player.weapons.length).toBe(1);
+        expect(player.getWeaponLevel('knife')).toBe(4); // keeps higher level
+      });
+    });
+
+    describe('trade state reset on respawn', () => {
+      it('should clear trade state when respawning', () => {
+        // Set up trade state
+        player.pendingTradeOfferId = 'trade_123';
+        player.pendingTradeFromId = 'other-player';
+        player.pendingTradeWeapon = 'wand';
+        player.pendingTradeLevel = 3;
+        player.tradeCooldown = 5;
+        player.outgoingTradeOfferId = 'trade_456';
+
+        player.addWeapon('knife');
+        player.die('killer');
+        player.respawn(0, 0);
+
+        // All trade state should be cleared
+        expect(player.pendingTradeOfferId).toBe('');
+        expect(player.pendingTradeFromId).toBe('');
+        expect(player.pendingTradeWeapon).toBe('');
+        expect(player.pendingTradeLevel).toBe(0);
+        expect(player.tradeCooldown).toBe(0);
+        expect(player.outgoingTradeOfferId).toBe('');
+      });
+    });
+  });
 });

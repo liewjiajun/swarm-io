@@ -32,10 +32,18 @@ export class PlayerSchema extends Schema {
   revivingPlayerId!: string; // ID of player currently reviving this one
   revivalCooldown!: number; // Seconds until can be revived again
 
+  // P4.6: Trading - synchronized fields for trade UI
+  pendingTradeOfferId!: string; // ID of incoming trade offer (empty if none)
+  pendingTradeFromId!: string; // ID of player who sent the offer
+  pendingTradeWeapon!: string; // Weapon type being offered
+  pendingTradeLevel!: number; // Level of weapon being offered
+  tradeCooldown!: number; // Seconds until can trade again
+
   // Not synchronized - server only (can use regular initializers)
   pendingChoices: any[] = [];
   deathTime: number = 0;
   killedBy: string = '';
+  outgoingTradeOfferId: string = ''; // ID of trade offer this player sent (server only)
 
   constructor() {
     super();
@@ -67,6 +75,13 @@ export class PlayerSchema extends Schema {
     this.revivalProgress = 0;
     this.revivingPlayerId = '';
     this.revivalCooldown = 0;
+
+    // P4.6: Trading
+    this.pendingTradeOfferId = '';
+    this.pendingTradeFromId = '';
+    this.pendingTradeWeapon = '';
+    this.pendingTradeLevel = 0;
+    this.tradeCooldown = 0;
   }
 
   addWeapon(type: string) {
@@ -94,6 +109,46 @@ export class PlayerSchema extends Schema {
   getWeaponLevel(type: string): number {
     const weapon = this.weapons.find(w => w.type === type);
     return weapon ? weapon.level : 0;
+  }
+
+  /**
+   * P4.6: Remove a weapon from the player's inventory
+   * Returns the level of the removed weapon, or 0 if weapon wasn't found
+   */
+  removeWeapon(type: string): number {
+    const weaponIndex = this.weapons.findIndex(w => w.type === type);
+    if (weaponIndex === -1) {
+      return 0;
+    }
+    const weapon = this.weapons[weaponIndex];
+    if (!weapon) {
+      return 0;
+    }
+    const level = weapon.level;
+    this.weapons.splice(weaponIndex, 1);
+    return level;
+  }
+
+  /**
+   * P4.6: Add a weapon at a specific level (used for trading)
+   */
+  addWeaponAtLevel(type: string, level: number): void {
+    const config = WEAPON_CONFIGS[type];
+    if (!config) return;
+
+    // If player already has this weapon, upgrade it instead of adding duplicate
+    if (this.hasWeapon(type)) {
+      const weapon = this.weapons.find(w => w.type === type)!;
+      // Take the higher level of the two
+      weapon.level = Math.max(weapon.level, level);
+      return;
+    }
+
+    const weapon = new WeaponSchema();
+    weapon.type = type;
+    weapon.level = level;
+    weapon.cooldownRemaining = 0;
+    this.weapons.push(weapon);
   }
 
   addXP(amount: number) {
@@ -158,6 +213,14 @@ export class PlayerSchema extends Schema {
     this.pendingUpgrade = false;
     this.pendingChoices = [];
 
+    // Clear any pending trade state (P4.6)
+    this.pendingTradeOfferId = '';
+    this.pendingTradeFromId = '';
+    this.pendingTradeWeapon = '';
+    this.pendingTradeLevel = 0;
+    this.tradeCooldown = 0;
+    this.outgoingTradeOfferId = '';
+
     this.weapons.clear();
     this.addWeapon('knife');
   }
@@ -219,5 +282,11 @@ defineTypes(PlayerSchema, {
   // P4.2: Revival Mechanic
   revivalProgress: 'number',
   revivingPlayerId: 'string',
-  revivalCooldown: 'number'
+  revivalCooldown: 'number',
+  // P4.6: Trading
+  pendingTradeOfferId: 'string',
+  pendingTradeFromId: 'string',
+  pendingTradeWeapon: 'string',
+  pendingTradeLevel: 'number',
+  tradeCooldown: 'number'
 });

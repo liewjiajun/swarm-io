@@ -10,7 +10,7 @@ import {
   XPSystem
 } from '../systems/index.js';
 import { GAME_CONSTANTS, randomPointOnCircle } from '@swarm-io/shared';
-import { InputMessage, UpgradeMessage } from '@swarm-io/shared';
+import { InputMessage, UpgradeMessage, TradeOfferMessage, TradeResponseMessage } from '@swarm-io/shared';
 import * as fs from 'fs';
 import * as path from 'path';
 import { gameRoomLogger, securityLogger } from '../utils/logger.js';
@@ -50,6 +50,17 @@ export class GameRoom extends Room<GameState> {
 
   // Client management
   private clientData = new Map<string, ClientData>();
+
+  // P4.6: Trade offer tracking (offerId -> TradeOffer)
+  private activeTradeOffers = new Map<string, {
+    id: string;
+    fromPlayerId: string;
+    toPlayerId: string;
+    weaponType: string;
+    weaponLevel: number;
+    createdAt: number;
+  }>();
+  private tradeOfferIdCounter = 0;
 
   // Ban persistence (P3.2)
   private bannedSessions = new Map<string, BanEntry>();
@@ -306,6 +317,19 @@ export class GameRoom extends Room<GameState> {
     this.onMessage('stop_revive', (client) => {
       this.handleStopReviveMessage(client);
     });
+
+    // P4.6: Trading/gifting upgrades between nearby players
+    this.onMessage('trade_offer', (client, message) => {
+      this.handleTradeOfferMessage(client, message as TradeOfferMessage);
+    });
+
+    this.onMessage('trade_response', (client, message) => {
+      this.handleTradeResponseMessage(client, message as TradeResponseMessage);
+    });
+
+    this.onMessage('trade_cancel', (client) => {
+      this.handleTradeCancelMessage(client);
+    });
   }
 
   onJoin(client: Client, options: any) {
@@ -377,6 +401,9 @@ export class GameRoom extends Room<GameState> {
     gameRoomLogger.info({ playerId: client.sessionId, consented }, 'Player leaving');
 
     try {
+      // P4.6: Cancel any trade offers involving this player
+      this.cleanupPlayerTradeOffers(client.sessionId);
+
       // Remove player from game state
       this.state.removePlayer(client.sessionId);
 
@@ -540,6 +567,11 @@ export class GameRoom extends Room<GameState> {
         if (player.hostility > 0) {
           player.hostility = Math.max(0, player.hostility - deltaTime * GAME_CONSTANTS.HOSTILITY_DECAY_RATE);
         }
+
+        // P4.6: Decay trade cooldown
+        if (player.tradeCooldown > 0) {
+          player.tradeCooldown = Math.max(0, player.tradeCooldown - deltaTime);
+        }
       } else {
         // P4.2: Update revival cooldown for dead players
         if (player.revivalCooldown > 0) {
@@ -550,6 +582,9 @@ export class GameRoom extends Room<GameState> {
 
     // P4.2: Process revival progress for players being revived
     this.processRevivalProgress(deltaTime);
+
+    // P4.6: Clean up expired trade offers
+    this.cleanupExpiredTradeOffers();
   }
 
   /**
@@ -876,6 +911,334 @@ export class GameRoom extends Room<GameState> {
         }, 'Revival stopped');
       }
     });
+  }
+
+  /**
+   * P4.6: Handle trade offer message - player wants to gift a weapon to another player
+   */
+  private handleTradeOfferMessage(client: Client, message: TradeOfferMessage) {
+    const sender = this.state.players.get(client.sessionId);
+    if (!sender || sender.dead) {
+      client.send('trade_failed', { reason: 'sender_invalid' });
+      return;
+    }
+
+    // Check if sender is on trade cooldown
+    if (sender.tradeCooldown > 0) {
+      client.send('trade_failed', {
+        reason: 'cooldown',
+        remaining: sender.tradeCooldown
+      });
+      return;
+    }
+
+    // Check if sender already has an outgoing trade offer
+    if (sender.outgoingTradeOfferId) {
+      client.send('trade_failed', { reason: 'already_has_offer' });
+      return;
+    }
+
+    // Find target player
+    const target = this.state.players.get(message.targetPlayerId);
+    if (!target || target.dead) {
+      client.send('trade_failed', { reason: 'target_invalid' });
+      return;
+    }
+
+    // Check if target already has a pending trade offer
+    if (target.pendingTradeOfferId) {
+      client.send('trade_failed', { reason: 'target_busy' });
+      return;
+    }
+
+    // Check if players are close enough
+    const distance = Math.sqrt(
+      (sender.x - target.x) ** 2 + (sender.y - target.y) ** 2
+    );
+    if (distance > GAME_CONSTANTS.TRADE_RADIUS) {
+      client.send('trade_failed', {
+        reason: 'out_of_range',
+        distance,
+        required: GAME_CONSTANTS.TRADE_RADIUS
+      });
+      return;
+    }
+
+    // Validate weapon ownership
+    if (!sender.hasWeapon(message.weaponType)) {
+      client.send('trade_failed', { reason: 'weapon_not_owned' });
+      return;
+    }
+
+    // Cannot trade away your last weapon (player must have at least knife)
+    if (sender.weapons.length <= 1) {
+      client.send('trade_failed', { reason: 'cannot_trade_last_weapon' });
+      return;
+    }
+
+    // Create trade offer
+    const offerId = `trade_${++this.tradeOfferIdCounter}_${Date.now()}`;
+    const weaponLevel = sender.getWeaponLevel(message.weaponType);
+
+    const offer = {
+      id: offerId,
+      fromPlayerId: client.sessionId,
+      toPlayerId: message.targetPlayerId,
+      weaponType: message.weaponType,
+      weaponLevel,
+      createdAt: Date.now()
+    };
+
+    // Store the offer
+    this.activeTradeOffers.set(offerId, offer);
+    sender.outgoingTradeOfferId = offerId;
+
+    // Set pending trade on target player (synced to client)
+    target.pendingTradeOfferId = offerId;
+    target.pendingTradeFromId = client.sessionId;
+    target.pendingTradeWeapon = message.weaponType;
+    target.pendingTradeLevel = weaponLevel;
+
+    gameRoomLogger.info({
+      offerId,
+      from: client.sessionId,
+      to: message.targetPlayerId,
+      weapon: message.weaponType,
+      level: weaponLevel
+    }, 'Trade offer created');
+
+    // Notify target player
+    const targetClient = this.clients.find(c => c.sessionId === message.targetPlayerId);
+    if (targetClient) {
+      targetClient.send('trade_offer_received', {
+        offerId,
+        fromPlayerId: client.sessionId,
+        fromNickname: sender.nickname || `Player ${client.sessionId.slice(0, 4)}`,
+        weaponType: message.weaponType,
+        weaponLevel
+      });
+    }
+
+    // Confirm to sender
+    client.send('trade_offer_sent', {
+      offerId,
+      toPlayerId: message.targetPlayerId,
+      toNickname: target.nickname || `Player ${message.targetPlayerId.slice(0, 4)}`,
+      weaponType: message.weaponType,
+      weaponLevel
+    });
+  }
+
+  /**
+   * P4.6: Handle trade response message - player accepts or declines a trade
+   */
+  private handleTradeResponseMessage(client: Client, message: TradeResponseMessage) {
+    const recipient = this.state.players.get(client.sessionId);
+    if (!recipient || recipient.dead) {
+      client.send('trade_failed', { reason: 'recipient_invalid' });
+      return;
+    }
+
+    // Verify the offer exists and is for this player
+    if (recipient.pendingTradeOfferId !== message.offerId) {
+      client.send('trade_failed', { reason: 'offer_not_found' });
+      return;
+    }
+
+    const offer = this.activeTradeOffers.get(message.offerId);
+    if (!offer) {
+      // Clear stale state
+      this.clearTradeState(recipient);
+      client.send('trade_failed', { reason: 'offer_expired' });
+      return;
+    }
+
+    // Find the sender
+    const sender = this.state.players.get(offer.fromPlayerId);
+    if (!sender || sender.dead) {
+      this.cancelTradeOffer(offer.id);
+      client.send('trade_failed', { reason: 'sender_left' });
+      return;
+    }
+
+    // Check if players are still in range
+    const distance = Math.sqrt(
+      (sender.x - recipient.x) ** 2 + (sender.y - recipient.y) ** 2
+    );
+    if (distance > GAME_CONSTANTS.TRADE_RADIUS) {
+      this.cancelTradeOffer(offer.id);
+      client.send('trade_failed', { reason: 'out_of_range' });
+      return;
+    }
+
+    if (!message.accepted) {
+      // Trade declined
+      this.cancelTradeOffer(offer.id);
+
+      // Notify sender
+      const senderClient = this.clients.find(c => c.sessionId === sender.id);
+      if (senderClient) {
+        senderClient.send('trade_declined', {
+          offerId: offer.id,
+          declinedBy: client.sessionId
+        });
+      }
+
+      client.send('trade_declined_confirm', { offerId: offer.id });
+      return;
+    }
+
+    // Trade accepted - verify sender still has the weapon
+    if (!sender.hasWeapon(offer.weaponType)) {
+      this.cancelTradeOffer(offer.id);
+      client.send('trade_failed', { reason: 'weapon_no_longer_available' });
+      return;
+    }
+
+    // Verify sender still has more than one weapon
+    if (sender.weapons.length <= 1) {
+      this.cancelTradeOffer(offer.id);
+      client.send('trade_failed', { reason: 'sender_has_no_spare_weapons' });
+      return;
+    }
+
+    // Execute the trade
+    const actualLevel = sender.removeWeapon(offer.weaponType);
+    recipient.addWeaponAtLevel(offer.weaponType, actualLevel);
+
+    // Apply trade cooldown to both players
+    sender.tradeCooldown = GAME_CONSTANTS.TRADE_COOLDOWN;
+    recipient.tradeCooldown = GAME_CONSTANTS.TRADE_COOLDOWN;
+
+    // Clean up offer state
+    this.activeTradeOffers.delete(offer.id);
+    sender.outgoingTradeOfferId = '';
+    this.clearTradeState(recipient);
+
+    gameRoomLogger.info({
+      offerId: offer.id,
+      from: sender.id,
+      to: recipient.id,
+      weapon: offer.weaponType,
+      level: actualLevel
+    }, 'Trade completed');
+
+    // Notify both players
+    const senderClient = this.clients.find(c => c.sessionId === sender.id);
+    if (senderClient) {
+      senderClient.send('trade_complete', {
+        offerId: offer.id,
+        tradedTo: recipient.id,
+        tradedToNickname: recipient.nickname || `Player ${recipient.id.slice(0, 4)}`,
+        weaponType: offer.weaponType,
+        weaponLevel: actualLevel
+      });
+    }
+
+    client.send('trade_complete', {
+      offerId: offer.id,
+      receivedFrom: sender.id,
+      receivedFromNickname: sender.nickname || `Player ${sender.id.slice(0, 4)}`,
+      weaponType: offer.weaponType,
+      weaponLevel: actualLevel
+    });
+  }
+
+  /**
+   * P4.6: Handle trade cancel message - player cancels their outgoing trade offer
+   */
+  private handleTradeCancelMessage(client: Client) {
+    const sender = this.state.players.get(client.sessionId);
+    if (!sender) return;
+
+    if (!sender.outgoingTradeOfferId) {
+      client.send('trade_failed', { reason: 'no_active_offer' });
+      return;
+    }
+
+    this.cancelTradeOffer(sender.outgoingTradeOfferId);
+    client.send('trade_cancelled', { offerId: sender.outgoingTradeOfferId });
+  }
+
+  /**
+   * P4.6: Cancel a trade offer and clean up all related state
+   */
+  private cancelTradeOffer(offerId: string): void {
+    const offer = this.activeTradeOffers.get(offerId);
+    if (!offer) return;
+
+    // Clear sender state
+    const sender = this.state.players.get(offer.fromPlayerId);
+    if (sender) {
+      sender.outgoingTradeOfferId = '';
+    }
+
+    // Clear recipient state
+    const recipient = this.state.players.get(offer.toPlayerId);
+    if (recipient) {
+      this.clearTradeState(recipient);
+
+      // Notify recipient that offer was cancelled
+      const recipientClient = this.clients.find(c => c.sessionId === recipient.id);
+      if (recipientClient) {
+        recipientClient.send('trade_cancelled', { offerId });
+      }
+    }
+
+    // Remove the offer
+    this.activeTradeOffers.delete(offerId);
+
+    gameRoomLogger.debug({ offerId }, 'Trade offer cancelled');
+  }
+
+  /**
+   * P4.6: Clear pending trade state from a player
+   */
+  private clearTradeState(player: any): void {
+    player.pendingTradeOfferId = '';
+    player.pendingTradeFromId = '';
+    player.pendingTradeWeapon = '';
+    player.pendingTradeLevel = 0;
+  }
+
+  /**
+   * P4.6: Clean up expired trade offers
+   */
+  private cleanupExpiredTradeOffers(): void {
+    const now = Date.now();
+    const expiredOffers: string[] = [];
+
+    this.activeTradeOffers.forEach((offer, offerId) => {
+      const age = (now - offer.createdAt) / 1000; // Age in seconds
+      if (age > GAME_CONSTANTS.TRADE_OFFER_TIMEOUT) {
+        expiredOffers.push(offerId);
+      }
+    });
+
+    for (const offerId of expiredOffers) {
+      const offer = this.activeTradeOffers.get(offerId);
+      if (offer) {
+        gameRoomLogger.debug({ offerId, age: GAME_CONSTANTS.TRADE_OFFER_TIMEOUT }, 'Trade offer expired');
+        this.cancelTradeOffer(offerId);
+      }
+    }
+  }
+
+  /**
+   * P4.6: Clean up all trade offers involving a specific player (when they leave)
+   */
+  private cleanupPlayerTradeOffers(playerId: string): void {
+    const offersToCancel: string[] = [];
+
+    this.activeTradeOffers.forEach((offer, offerId) => {
+      if (offer.fromPlayerId === playerId || offer.toPlayerId === playerId) {
+        offersToCancel.push(offerId);
+      }
+    });
+
+    for (const offerId of offersToCancel) {
+      this.cancelTradeOffer(offerId);
+    }
   }
 
   private recalculateWorldSize() {

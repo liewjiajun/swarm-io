@@ -111,6 +111,11 @@ export const GAME_CONSTANTS = {
   TEAM_ZONE_DEFENSE_BONUS: 0.10, // -10% damage taken per nearby ally
   TEAM_ZONE_MAX_BONUS: 0.45, // Maximum bonus (capped at 3 allies worth)
 
+  // P4.6: Trading/Gifting Upgrades - players can share weapons with nearby teammates
+  TRADE_RADIUS: 5, // How close players need to be to trade (between revival 3 and team zone 8)
+  TRADE_OFFER_TIMEOUT: 30, // Seconds before a trade offer expires
+  TRADE_COOLDOWN: 10, // Seconds after completing a trade before another can be initiated
+
   // Combat
   PVP_DAMAGE_MULTIPLIER: 0.15, // 15% damage to other players
   HOSTILITY_DECAY_RATE: 0.1, // Per second

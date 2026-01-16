@@ -4,7 +4,7 @@
 
 **Last Updated:** 2026-01-16 (Deep Codebase Audit Complete)
 **Implementation Progress:** 119/85 tasks completed (140%)
-**Test Count:** 463 tests - ALL PASSING (734+ individual test cases)
+**Test Count:** 473 tests - ALL PASSING (734+ individual test cases)
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
 **Critical Bugs:** 0 | **Medium Bugs:** 0 | **Low Bugs:** 0 | **In Progress:** 1 (BUG-035)
 **Code Quality:** Excellent (0 TODOs, 0 FIXMEs, 0 skipped tests, 0 empty functions)
@@ -19,7 +19,7 @@
 | Completed | 119 | 140% (all phases complete + extras) |
 | Critical Bugs | 0 | BUG-035 now IN PROGRESS |
 | Medium Bugs | 0 | All resolved (BUG-036, BUG-037 fixed) |
-| Test Coverage | 463 tests | All passing |
+| Test Coverage | 473 tests | All passing |
 | Code Quality | Good | Structured logging, TypeScript clean |
 
 ### Current Priorities
@@ -30,7 +30,7 @@
 | **#1** | **Visual Overhaul** - Sprite integration (P1.7-P1.9) | P1.7, P1.8, P1.9 ALL DONE |
 | **#2** | **Audio Overhaul** - Procedural chiptune audio system (P2.A1-P2.A8) | COMPLETE |
 | **#3** | **Multiplayer Experience** - Nicknames, leaderboard, minimap (P3.1-P3.3) | COMPLETE |
-| **#4** | **Multiplayer Mechanics** - Co-op features, revival, combos (P4.1-P4.6) | P4.1-P4.5 COMPLETE, P4.6 pending |
+| **#4** | **Multiplayer Mechanics** - Co-op features, revival, combos (P4.1-P4.6) | P4.1-P4.6 COMPLETE |
 | **#5** | **Surprise Mechanics** - World events, secrets, hazards (P5.1-P5.7) | NOT STARTED |
 | **#6** | **Balance Playtesting** - Tune difficulty and bosses (P6.1-P6.2) | NOT STARTED |
 
@@ -46,7 +46,7 @@
 | HACK Comments | 0 | No workarounds |
 | Skipped Tests | 0 | All tests running |
 | Empty Functions | 1 | Intentional: settings callback in Game.ts (handled by HUD) |
-| Passing Tests | 463 | 100% pass rate (734+ individual test cases) |
+| Passing Tests | 473 | 100% pass rate (734+ individual test cases) |
 | Non-null Assertions | 0 | Uses optional chaining instead |
 | Production console.log | 0 | All logging via structured logger |
 
@@ -247,7 +247,12 @@
 - [x] **P4.3** Team zones - areas where players buff each other's damage/defense (15% damage bonus, 10% damage reduction per ally, max 45%)
 - [x] **P4.4** Combo system - sequential hits by different players multiply damage (25% damage bonus per different player hit, max 3x)
 - [x] **P4.5** Shared boss aggro - bosses target multiple players dynamically (switch targets every 5 seconds with 30% chance)
-- [ ] **P4.6** Trading/gifting upgrades between nearby players
+- [x] **P4.6** Trading/gifting upgrades between nearby players
+  - Players can offer any weapon (except their last one) to nearby players within 5 unit radius
+  - Target player receives trade notification with weapon type and level
+  - Trade offers expire after 30 seconds
+  - Both players have 10 second cooldown after trade completes
+  - Trade state cleared on death/respawn
 
 ---
 
@@ -586,6 +591,13 @@ npm run test:memory --players=20 --duration=30
 ## CHANGELOG SUMMARY
 
 **Recent (2026-01-16):**
+- **P4.6 COMPLETE**: Trading/gifting upgrades between nearby players
+  - Players within 5 unit radius can offer weapons to each other
+  - Trade offer messages: trade_offer, trade_response, trade_cancel
+  - Validation: proximity check, weapon ownership, cooldown, cannot trade last weapon
+  - Trade offers expire after 30 seconds
+  - 10 second cooldown after successful trade
+  - 10 new tests added for trading functionality
 - **P4.1-P4.5 COMPLETE**: Multiplayer Game Mechanics
   - P4.1 COMPLETE: Cooperative XP sharing (50% shared with players within 10 radius)
   - P4.2 COMPLETE: Revival mechanic (3 second revive time, keeps level/weapons)

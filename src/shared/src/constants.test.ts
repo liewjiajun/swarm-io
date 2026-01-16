@@ -26,6 +26,15 @@ describe('GAME_CONSTANTS', () => {
     expect(GAME_CONSTANTS.RESPAWN_DELAY).toBeGreaterThan(0);
   });
 
+  // P4.6: Trading constants
+  it('should have valid trading configuration', () => {
+    expect(GAME_CONSTANTS.TRADE_RADIUS).toBeGreaterThan(0);
+    expect(GAME_CONSTANTS.TRADE_RADIUS).toBeLessThan(GAME_CONSTANTS.TEAM_ZONE_RADIUS); // Closer than team zone
+    expect(GAME_CONSTANTS.TRADE_RADIUS).toBeGreaterThan(GAME_CONSTANTS.REVIVAL_RADIUS); // Farther than revival
+    expect(GAME_CONSTANTS.TRADE_OFFER_TIMEOUT).toBeGreaterThan(0);
+    expect(GAME_CONSTANTS.TRADE_COOLDOWN).toBeGreaterThan(0);
+  });
+
   it('should have valid XP configuration', () => {
     expect(GAME_CONSTANTS.XP_MAGNET_RADIUS).toBeGreaterThan(0);
     expect(GAME_CONSTANTS.XP_COLLECTION_RADIUS).toBeGreaterThan(0);
