@@ -29,7 +29,7 @@
 | **#0** | **ART DIRECTION FIX** - Sprite generation redesigned (BUG-035) | IN PROGRESS |
 | **#1** | **Visual Overhaul** - Sprite integration (P1.7-P1.9) | P1.7, P1.8, P1.9 ALL DONE |
 | **#2** | **Audio Overhaul** - Procedural chiptune audio system (P2.A1-P2.A8) | COMPLETE |
-| **#3** | **Multiplayer Experience** - Nicknames, leaderboard, minimap (P3.1-P3.3) | P3.1 COMPLETE |
+| **#3** | **Multiplayer Experience** - Nicknames, leaderboard, minimap (P3.1-P3.3) | P3.1, P3.2 COMPLETE |
 | **#4** | **Multiplayer Mechanics** - Co-op features, revival, combos (P4.1-P4.6) | NOT STARTED |
 | **#5** | **Surprise Mechanics** - World events, secrets, hazards (P5.1-P5.7) | NOT STARTED |
 | **#6** | **Balance Playtesting** - Tune difficulty and bosses (P6.1-P6.2) | NOT STARTED |
@@ -224,11 +224,11 @@
 - [x] **P3.1b** Display player nicknames above sprites
 - [x] **P3.1c** Store nickname in localStorage for returning players
 
-#### P3.2: Leaderboard Improvements
-- [ ] **P3.2a** Show top 10 players by score (not just survival time)
-- [ ] **P3.2b** Add kill count to leaderboard
-- [ ] **P3.2c** Highlight local player in leaderboard
-- [ ] **P3.2d** Add end-of-game leaderboard with stats summary
+#### P3.2: Leaderboard Improvements [COMPLETE]
+- [x] **P3.2a** Show top 10 players by score (not just survival time)
+- [x] **P3.2b** Add kill count to leaderboard
+- [x] **P3.2c** Highlight local player in leaderboard
+- [x] **P3.2d** Add end-of-game leaderboard with stats summary
 
 #### P3.3: Minimap Enhancements
 - [ ] **P3.3a** Show all player positions on minimap (with nicknames on hover)
@@ -586,6 +586,11 @@ npm run test:memory --players=20 --duration=30
 ## CHANGELOG SUMMARY
 
 **Recent (2026-01-16):**
+- **P3.2 COMPLETE**: Leaderboard Improvements
+  - P3.2a COMPLETE: Top 10 players by score (formula: kills*100 + timeAlive*10 + level*50)
+  - P3.2b COMPLETE: Kill count shown with skull emoji in leaderboard
+  - P3.2c COMPLETE: Local player highlighted with teal glow, shows rank even if not in top 10
+  - P3.2d COMPLETE: Death screen now shows final rank, score breakdown, and end-of-game leaderboard with top 5 players
 - **P3.1 COMPLETE**: Player Identity System
   - Nickname input modal shown at game start
   - Nicknames stored in localStorage for returning players

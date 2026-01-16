@@ -239,10 +239,43 @@ export class Game {
         // Get player stats from the last known state
         const state = this.interpolator.getInterpolatedState(performance.now() - 100);
         const player = state.players.get(this.localPlayerId);
+
+        // P3.2d: Calculate score and gather leaderboard data
+        const calculateScore = (p: { kills: number; timeAlive: number; level: number }) => {
+          return (p.kills * 100) + Math.floor(p.timeAlive * 10) + (p.level * 50);
+        };
+
+        // Get all players and sort by score for ranking
+        const allPlayers = Array.from(state.players.values())
+          .map(p => ({
+            id: p.id,
+            name: p.nickname || `Player`,
+            kills: p.kills || 0,
+            timeAlive: p.timeAlive || 0,
+            level: p.level || 1,
+            score: calculateScore({ kills: p.kills || 0, timeAlive: p.timeAlive || 0, level: p.level || 1 }),
+            dead: p.dead
+          }))
+          .sort((a, b) => b.score - a.score);
+
+        // Find local player's rank (include dead players in ranking)
+        const localPlayerRank = allPlayers.findIndex(p => p.id === this.localPlayerId) + 1;
+
+        // Get top 5 players for end-of-game leaderboard (include all players, even dead)
+        const topPlayers = allPlayers.slice(0, 5).map(p => ({
+          name: p.id === this.localPlayerId ? (p.name || 'YOU') : p.name,
+          score: p.score,
+          kills: p.kills
+        }));
+
         const stats = {
           kills: player?.kills || 0,
           timeAlive: player?.timeAlive || 0,
-          level: player?.level || 1
+          level: player?.level || 1,
+          score: calculateScore({ kills: player?.kills || 0, timeAlive: player?.timeAlive || 0, level: player?.level || 1 }),
+          rank: localPlayerRank || allPlayers.length,
+          totalPlayers: allPlayers.length,
+          topPlayers
         };
         this.hud.showDeathScreen(stats, () => this.respawn());
       }

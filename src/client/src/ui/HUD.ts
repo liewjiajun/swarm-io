@@ -26,7 +26,9 @@ interface HUDElements {
   upgradeModal: HTMLElement;
   upgradeChoices: HTMLElement;
   deathScreen: HTMLElement;
+  deathRank: HTMLElement; // P3.2d: Player's final rank display
   deathStats: HTMLElement;
+  deathLeaderboard: HTMLElement; // P3.2d: End-of-game leaderboard container
   respawnBtn: HTMLElement;
   settingsBtn: HTMLElement;
   settingsModal: HTMLElement;
@@ -95,6 +97,10 @@ interface DeathStats {
   kills: number;
   timeAlive: number;
   level: number;
+  score: number; // P3.2d: Final score
+  rank: number; // P3.2d: Final rank among all players
+  totalPlayers: number; // P3.2d: Total players when died
+  topPlayers: { name: string; score: number; kills: number }[]; // P3.2d: Top 5 players for end-of-game leaderboard
 }
 
 // Weapon type to emoji mapping
@@ -217,11 +223,16 @@ export class HUD {
         <div class="upgrade-choices"></div>
       </div>
 
-      <!-- Death Screen -->
+      <!-- Death Screen (P3.2d: Enhanced with end-of-game leaderboard) -->
       <div class="death-screen hidden">
         <div class="death-content">
           <div class="death-title">YOU DIED</div>
+          <div class="death-rank"></div>
           <div class="death-stats"></div>
+          <div class="death-leaderboard">
+            <div class="death-leaderboard-title">TOP SURVIVORS</div>
+            <div class="death-leaderboard-entries"></div>
+          </div>
           <button class="respawn-btn">RESPAWN</button>
         </div>
       </div>
@@ -407,11 +418,14 @@ export class HUD {
         right: 20px;
       }
 
+      /* P3.2: Enhanced leaderboard - shows top 10 by score with kills */
       .leaderboard {
         background: rgba(0, 0, 0, 0.5);
         padding: 10px;
         border: 2px solid white;
-        min-width: 180px;
+        min-width: 220px;
+        max-height: 280px;
+        overflow-y: auto;
       }
 
       .leaderboard-title {
@@ -423,13 +437,52 @@ export class HUD {
 
       .leaderboard-entry {
         font-size: 8px;
-        margin: 5px 0;
+        margin: 3px 0;
         display: flex;
         justify-content: space-between;
+        align-items: center;
+        gap: 4px;
       }
 
       .leaderboard-entry.you {
         color: #4ecdc4;
+        text-shadow: 0 0 5px rgba(78, 205, 196, 0.5);
+      }
+
+      .leaderboard-rank {
+        min-width: 20px;
+        text-align: left;
+      }
+
+      .leaderboard-name {
+        flex: 1;
+        text-align: left;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .leaderboard-kills {
+        min-width: 32px;
+        text-align: right;
+        color: #ff6b6b;
+      }
+
+      .leaderboard-entry.you .leaderboard-kills {
+        color: #ff8f8f;
+      }
+
+      .leaderboard-score {
+        min-width: 40px;
+        text-align: right;
+        color: #ffd700;
+      }
+
+      .leaderboard-separator {
+        text-align: center;
+        color: #666;
+        font-size: 8px;
+        margin: 5px 0;
       }
 
       /* Bottom Left - Weapons */
@@ -598,12 +651,95 @@ export class HUD {
         50% { transform: scale(1.05); }
       }
 
-      .death-stats {
-        font-size: 14px;
-        color: white;
-        margin-bottom: 30px;
+      .death-rank {
+        font-size: 18px;
+        color: #ffd700;
+        margin-bottom: 15px;
         text-shadow: 2px 2px 0 #000;
-        line-height: 2;
+      }
+
+      .death-stats {
+        font-size: 12px;
+        color: white;
+        margin-bottom: 20px;
+        text-shadow: 2px 2px 0 #000;
+        line-height: 1.8;
+        display: flex;
+        justify-content: center;
+        gap: 30px;
+        flex-wrap: wrap;
+      }
+
+      .death-stat {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-width: 80px;
+      }
+
+      .death-stat-value {
+        font-size: 20px;
+        color: #4ecdc4;
+      }
+
+      .death-stat-label {
+        font-size: 8px;
+        color: #aaa;
+        margin-top: 4px;
+      }
+
+      /* P3.2d: End-of-game leaderboard in death screen */
+      .death-leaderboard {
+        background: rgba(0, 0, 0, 0.5);
+        border: 2px solid #ffd700;
+        padding: 15px;
+        margin-bottom: 25px;
+        min-width: 280px;
+      }
+
+      .death-leaderboard-title {
+        font-size: 10px;
+        color: #ffd700;
+        text-align: center;
+        margin-bottom: 12px;
+        text-shadow: 1px 1px 0 #000;
+      }
+
+      .death-leaderboard-entries {
+        font-size: 10px;
+      }
+
+      .death-leaderboard-entry {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: 6px 0;
+        padding: 4px 8px;
+        background: rgba(255, 255, 255, 0.05);
+        gap: 10px;
+      }
+
+      .death-leaderboard-entry.you {
+        background: rgba(78, 205, 196, 0.2);
+        border: 1px solid #4ecdc4;
+        color: #4ecdc4;
+      }
+
+      .death-leaderboard-entry .leaderboard-rank {
+        min-width: 24px;
+      }
+
+      .death-leaderboard-entry .leaderboard-name {
+        flex: 1;
+      }
+
+      .death-leaderboard-entry .leaderboard-kills {
+        color: #ff6b6b;
+      }
+
+      .death-leaderboard-entry .leaderboard-score {
+        color: #ffd700;
+        min-width: 50px;
       }
 
       .respawn-btn {
@@ -1093,7 +1229,9 @@ export class HUD {
       upgradeModal: this.container.querySelector('.upgrade-modal') as HTMLElement,
       upgradeChoices: this.container.querySelector('.upgrade-choices') as HTMLElement,
       deathScreen: this.container.querySelector('.death-screen') as HTMLElement,
+      deathRank: this.container.querySelector('.death-rank') as HTMLElement, // P3.2d
       deathStats: this.container.querySelector('.death-stats') as HTMLElement,
+      deathLeaderboard: this.container.querySelector('.death-leaderboard-entries') as HTMLElement, // P3.2d
       respawnBtn: this.container.querySelector('.respawn-btn') as HTMLElement,
       settingsBtn: this.container.querySelector('.settings-btn') as HTMLElement,
       settingsModal: this.container.querySelector('.settings-modal') as HTMLElement,
@@ -1164,18 +1302,37 @@ export class HUD {
   }
 
   /**
-   * Updates leaderboard with top 5 players by time alive
-   * P3.1: Now shows player nicknames instead of generic names
+   * Calculates a player's score based on kills, time alive, and level
+   * P3.2a: Score = (kills * 100) + (timeAlive * 10) + (level * 50)
+   */
+  private calculateScore(player: PlayerState): number {
+    return (player.kills * 100) + Math.floor(player.timeAlive * 10) + (player.level * 50);
+  }
+
+  /**
+   * Updates leaderboard with top 10 players by score
+   * P3.1: Shows player nicknames instead of generic names
+   * P3.2a: Ranks by score (kills * 100 + timeAlive * 10 + level * 50)
+   * P3.2b: Shows kill count alongside score
+   * P3.2c: Highlights local player with special styling
    */
   private updateLeaderboard(
     players: Map<string, PlayerState>,
     localPlayerId: string
   ): void {
     // Convert to array and filter out dead players
+    // P3.2a: Sort by score (not just survival time)
     const playerList = Array.from(players.values())
       .filter(p => !p.dead)
-      .sort((a, b) => b.timeAlive - a.timeAlive)
-      .slice(0, 5);
+      .sort((a, b) => this.calculateScore(b) - this.calculateScore(a))
+      .slice(0, 10); // P3.2a: Show top 10 instead of top 5
+
+    // Find local player's rank (even if not in top 10)
+    const allSortedPlayers = Array.from(players.values())
+      .filter(p => !p.dead)
+      .sort((a, b) => this.calculateScore(b) - this.calculateScore(a));
+    const localPlayerRank = allSortedPlayers.findIndex(p => p.id === localPlayerId) + 1;
+    const localPlayer = players.get(localPlayerId);
 
     this.elements.leaderboard.innerHTML = playerList
       .map((player, index) => {
@@ -1187,19 +1344,33 @@ export class HUD {
         } else {
           name = player.nickname || `Player ${index + 1}`;
         }
-        // Truncate long names to fit in leaderboard (max 12 chars)
-        if (name.length > 12) {
-          name = name.slice(0, 11) + '…';
+        // Truncate long names to fit in leaderboard (max 10 chars to fit kills)
+        if (name.length > 10) {
+          name = name.slice(0, 9) + '…';
         }
-        const time = this.formatTime(player.timeAlive);
+        const score = this.calculateScore(player);
+        // P3.2b: Show kill count with skull emoji
+        const kills = player.kills;
         return `
           <div class="leaderboard-entry ${isLocal ? 'you' : ''}">
-            <span>${index + 1}. ${name}</span>
-            <span>${time}</span>
+            <span class="leaderboard-rank">${index + 1}.</span>
+            <span class="leaderboard-name">${name}</span>
+            <span class="leaderboard-kills">💀${kills}</span>
+            <span class="leaderboard-score">${score}</span>
           </div>
         `;
       })
-      .join('');
+      .join('') +
+      // P3.2c: If local player is not in top 10, show their rank at the bottom
+      (localPlayer && !localPlayer.dead && localPlayerRank > 10 ? `
+        <div class="leaderboard-separator">···</div>
+        <div class="leaderboard-entry you">
+          <span class="leaderboard-rank">${localPlayerRank}.</span>
+          <span class="leaderboard-name">${localPlayer.nickname || 'YOU'}</span>
+          <span class="leaderboard-kills">💀${localPlayer.kills}</span>
+          <span class="leaderboard-score">${this.calculateScore(localPlayer)}</span>
+        </div>
+      ` : '');
   }
 
   /**
@@ -1318,17 +1489,55 @@ export class HUD {
   }
 
   /**
-   * Shows death screen with stats and respawn button
+   * Shows death screen with stats, rank, and end-of-game leaderboard
+   * P3.2d: Enhanced with final rank display and top 5 players leaderboard
    */
   showDeathScreen(stats: DeathStats, onRespawn: () => void): void {
     // Hide upgrade modal if it's showing (player died while selecting upgrade)
     this.hideUpgradeUI();
 
-    this.elements.deathStats.innerHTML = `
-      <div>Time Survived: ${this.formatTime(stats.timeAlive)}</div>
-      <div>Enemies Killed: ${stats.kills}</div>
-      <div>Level Reached: ${stats.level}</div>
+    // P3.2d: Display final rank
+    const rankSuffix = this.getOrdinalSuffix(stats.rank);
+    this.elements.deathRank.innerHTML = `
+      FINISHED <span style="color: #4ecdc4;">${stats.rank}${rankSuffix}</span> OF ${stats.totalPlayers}
     `;
+
+    // P3.2d: Enhanced stats display with visual layout
+    this.elements.deathStats.innerHTML = `
+      <div class="death-stat">
+        <span class="death-stat-value">${stats.score}</span>
+        <span class="death-stat-label">SCORE</span>
+      </div>
+      <div class="death-stat">
+        <span class="death-stat-value">${stats.kills}</span>
+        <span class="death-stat-label">KILLS</span>
+      </div>
+      <div class="death-stat">
+        <span class="death-stat-value">${this.formatTime(stats.timeAlive)}</span>
+        <span class="death-stat-label">TIME</span>
+      </div>
+      <div class="death-stat">
+        <span class="death-stat-value">${stats.level}</span>
+        <span class="death-stat-label">LEVEL</span>
+      </div>
+    `;
+
+    // P3.2d: End-of-game leaderboard showing top 5 players
+    this.elements.deathLeaderboard.innerHTML = stats.topPlayers
+      .map((player, index) => {
+        // Check if this is the local player (their name will match stored nickname)
+        const storedNickname = this.getStoredNickname();
+        const isLocal = player.name === storedNickname || player.name === 'YOU';
+        return `
+          <div class="death-leaderboard-entry ${isLocal ? 'you' : ''}">
+            <span class="leaderboard-rank">${index + 1}.</span>
+            <span class="leaderboard-name">${player.name}</span>
+            <span class="leaderboard-kills">💀${player.kills}</span>
+            <span class="leaderboard-score">${player.score}</span>
+          </div>
+        `;
+      })
+      .join('');
 
     // Remove previous listener and add new one
     const newBtn = this.elements.respawnBtn.cloneNode(true) as HTMLElement;
@@ -1344,6 +1553,15 @@ export class HUD {
     // Play modal open sound for death screen
     this.uiSounds?.playModalOpen();
     this.elements.deathScreen.classList.remove('hidden');
+  }
+
+  /**
+   * Returns ordinal suffix for a number (1st, 2nd, 3rd, etc.)
+   */
+  private getOrdinalSuffix(n: number): string {
+    const s = ['th', 'st', 'nd', 'rd'];
+    const v = n % 100;
+    return s[(v - 20) % 10] || s[v] || s[0];
   }
 
   /**
