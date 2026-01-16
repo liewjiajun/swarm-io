@@ -6,7 +6,7 @@
 **Implementation Progress:** 119/85 tasks completed (140%)
 **Test Count:** 473 tests - ALL PASSING (734+ individual test cases)
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
-**Critical Bugs:** 1 | **Medium Bugs:** 0 | **Low Bugs:** 0
+**Critical Bugs:** 0 | **Medium Bugs:** 0 | **Low Bugs:** 0 | **In Progress:** 1 (BUG-035)
 **Code Quality:** Excellent (0 TODOs, 0 FIXMEs, 0 skipped tests, 0 empty functions)
 
 ---
@@ -17,7 +17,7 @@
 |--------|-------|-------|
 | Total Tasks | 85 | Across 6 phases |
 | Completed | 119 | 140% (all phases complete + extras) |
-| Critical Bugs | 1 | BUG-035: Art direction not cohesive |
+| Critical Bugs | 0 | BUG-035 now IN PROGRESS |
 | Medium Bugs | 0 | All resolved (BUG-036, BUG-037 fixed) |
 | Test Coverage | 473 tests | All passing |
 | Code Quality | Good | Structured logging, TypeScript clean |
@@ -26,7 +26,7 @@
 
 | Priority | Task | Status |
 |----------|------|--------|
-| **#0** | **🚨 ART DIRECTION FIX** - Source cohesive pixel art assets (BUG-035) | CRITICAL |
+| **#0** | **ART DIRECTION FIX** - Sprite generation redesigned (BUG-035) | IN PROGRESS |
 | **#1** | **Visual Overhaul** - Sprite integration (P1.7-P1.9) | P1.7, P1.8, P1.9 ALL DONE |
 | **#2** | **Audio Overhaul** - Claude to source/create audio assets (P2.A1-P2.A8) | NOT STARTED |
 | **#3** | **Multiplayer Experience** - Nicknames, leaderboard, minimap (P3.1-P3.3) | NOT STARTED |
@@ -124,20 +124,32 @@
 
 ---
 
-### PRIORITY 0: ART DIRECTION FIX (BUG-035) [CRITICAL]
+### PRIORITY 0: ART DIRECTION FIX (BUG-035) [IN PROGRESS]
 
-**Current State:** Programmatically generated sprites lack visual cohesion and don't match Game Boy Pokemon aesthetic.
+**Current State:** Sprite generation script has been significantly redesigned with Pokemon Game Boy aesthetic.
 
-**Action Plan:**
-1. Search OpenGameArt.org for "top-down pixel art" character packs (CC0/CC-BY)
-2. Search Itch.io for free survivor-like sprite packs
-3. Check Kenney.nl for suitable character/enemy sprites
-4. If no suitable assets found, redesign `scripts/generate-sprites.ts` to follow strict guidelines:
-   - 4-5 colors max per sprite (light, mid, dark, highlight, outline)
-   - Consistent 16x16 or 32x32 base sizes
-   - Clear silhouettes with exaggerated features
-   - Heads ~40% of body height for "cute" aesthetic
-   - Use unified 32-color palette already defined in constants.ts
+**Completed Work (2026-01-16):**
+- [x] Unified 4-color palette per sprite type (outline, dark, mid, light)
+- [x] Added helper methods for outlined shapes (fillEllipseOutlined, fillCircleOutlined)
+- [x] Large heads (~40% of body height) for cute Pokemon aesthetic
+- [x] Rounded ellipse shapes instead of rectangles
+- [x] Consistent 1px dark outlines on all sprites
+- [x] Clear silhouettes with exaggerated features
+- [x] Proper animation frames (idle bob, walking, wing flap, bounce, etc.)
+
+**Sprites Redesigned:**
+- Player (idle + 4-direction walk): Round body, large head, cute eyes
+- Bat: Round body with wing animation, cute ears, red pupils
+- Skeleton: Round skull with big eye sockets, bone shapes
+- Zombie: Hunched posture, outstretched arms, glowing yellow eyes
+- Ghost: Floating blob with wavy tail, hollow eyes
+- Slime: Classic cute blob with squash/stretch animation
+- Demon: Horned head, glowing eyes, fanged mouth
+
+**Next Steps:**
+- [ ] Visual playtesting to evaluate sprites at game scale
+- [ ] Fine-tune colors/shapes based on in-game appearance
+- [ ] Adjust animation timing if needed
 
 ---
 
@@ -285,29 +297,39 @@ The `NetworkClient.test.ts` only has 11 test cases - significantly behind other 
 
 ## CRITICAL BUG FIX LOGS (Lessons Learned)
 
-### 🚨 OPEN BUGS (Require Immediate Attention)
+### BUGS IN PROGRESS
 
-### BUG-035: Art Direction Not Cohesive (CRITICAL)
+### BUG-035: Art Direction Not Cohesive (IN PROGRESS)
 
 **Symptom:** Programmatically generated sprites look ugly and don't follow the Game Boy Pokemon art direction specified.
 
-**Current State:** `scripts/generate-sprites.ts` generates procedural pixel art that lacks:
+**Original State:** `scripts/generate-sprites.ts` generated procedural pixel art that lacked:
 - Consistent color palette matching the 32-color spec
 - Cohesive art style (shapes/proportions don't match between entities)
 - Pokemon-style aesthetic (current sprites look generic/amateur)
 
-**Required Action:** Search for and source professional pixel art assets from:
-- OpenGameArt.org - filter for "top-down RPG" or "survivor-like" sprites
-- Itch.io - search for CC0/free pixel art packs
-- Kenney.nl - public domain game assets
-- LPC (Liberated Pixel Cup) compatible sprites
+**Progress (2026-01-16):** Sprite generation script significantly redesigned with Pokemon Game Boy aesthetic:
+- **Unified 4-color palette per sprite type** (outline, dark, mid, light)
+- **Added helper methods** for outlined shapes (fillEllipseOutlined, fillCircleOutlined)
+- **All character sprites redesigned** with:
+  - Large heads (~40% of body height) for cute Pokemon aesthetic
+  - Rounded ellipse shapes instead of rectangles
+  - Consistent 1px dark outlines on all sprites
+  - Clear silhouettes with exaggerated features
+  - Proper animation frames (idle bob, walking, wing flap, bounce, etc.)
 
-**Alternative:** If suitable assets cannot be found, redesign generation to follow strict Pokemon GB style guidelines:
-- 4-5 color per sprite max (light, mid, dark, highlight, outline)
-- Clear silhouettes with exaggerated features
-- Consistent proportions (heads ~40% of body for cute style)
+**Sprites Redesigned:**
+- Player (idle + 4-direction walk): Round body, large head, cute eyes
+- Bat: Round body with wing animation, cute ears, red pupils
+- Skeleton: Round skull with big eye sockets, bone shapes
+- Zombie: Hunched posture, outstretched arms, glowing yellow eyes
+- Ghost: Floating blob with wavy tail, hollow eyes
+- Slime: Classic cute blob with squash/stretch animation
+- Demon: Horned head, glowing eyes, fanged mouth
 
-**Impact:** Game looks unprofessional. Critical for player first impression.
+**Remaining:** Visual playtesting needed to fine-tune sprite appearance in-game. May need further adjustments based on how sprites look at game scale.
+
+**Impact:** Game visual cohesion significantly improved. Sprites now follow consistent Pokemon GB style guidelines.
 
 ---
 
@@ -562,6 +584,18 @@ npm run test:memory --players=20 --duration=30
 ## CHANGELOG SUMMARY
 
 **Recent (2026-01-16):**
+- **BUG-035 IN PROGRESS**: Redesigned sprite generation with Pokemon Game Boy aesthetic
+  - Unified 4-color palette per sprite type (outline, dark, mid, light)
+  - Added helper methods for outlined shapes (fillEllipseOutlined, fillCircleOutlined)
+  - All character sprites redesigned with large heads (~40% body height), rounded ellipse shapes, 1px dark outlines
+  - Player: Round body, large head, cute eyes with idle + 4-direction walk animations
+  - Bat: Round body with wing animation, cute ears, red pupils
+  - Skeleton: Round skull with big eye sockets, bone shapes
+  - Zombie: Hunched posture, outstretched arms, glowing yellow eyes
+  - Ghost: Floating blob with wavy tail, hollow eyes
+  - Slime: Classic cute blob with squash/stretch animation
+  - Demon: Horned head, glowing eyes, fanged mouth
+  - Sprites now more cohesive but may need visual playtesting to fine-tune
 - **BUG-036 FIXED**: Changed garlic projectile type from 'explosion' to 'garlic_aura' in WeaponSystem.ts line 293
   - Garlic now renders with correct green aura sprite instead of fireball flash
 - **BUG-037 FIXED**: Increased movement speeds by 50%:

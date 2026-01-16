@@ -1,8 +1,15 @@
 /**
- * Sprite Atlas Generator
+ * Sprite Atlas Generator - Pokemon Game Boy Style
  *
  * Generates a 512x512 pixel art sprite atlas for SWARM.IO
- * Creates retro Game Boy-inspired sprites with the game's color palette
+ * Art Direction: Game Boy Pokemon aesthetic with modern vibrant colors
+ *
+ * Style Guidelines (BUG-035 fix):
+ * - 4 colors max per sprite: outline (black), dark, mid, light/highlight
+ * - Consistent 1px black outline on all character sprites
+ * - Large heads (~40% of body height) for "cute" Pokemon aesthetic
+ * - Rounded shapes instead of hard rectangles
+ * - Clear silhouettes with exaggerated features
  *
  * Run with: npx tsx scripts/generate-sprites.ts
  */
@@ -14,46 +21,60 @@ import path from 'path';
 const ATLAS_WIDTH = 512;
 const ATLAS_HEIGHT = 512;
 
-// Color palette (from constants.ts, converted to RGBA)
+// =============================================================================
+// UNIFIED COLOR PALETTE - 4 colors per sprite type (BUG-035 fix)
+// Each sprite uses: OUTLINE (black), DARK, MID, LIGHT
+// =============================================================================
 const COLORS = {
-  // Player colors
-  PLAYER_LOCAL: { r: 0, g: 255, b: 0, a: 255 },
-  PLAYER_DARK: { r: 0, g: 180, b: 0, a: 255 },
-  PLAYER_LIGHT: { r: 100, g: 255, b: 100, a: 255 },
-  PLAYER_OUTLINE: { r: 0, g: 100, b: 0, a: 255 },
+  // Player: Green theme (4 colors)
+  PLAYER_OUTLINE: { r: 0, g: 40, b: 0, a: 255 },      // Very dark green/black outline
+  PLAYER_DARK: { r: 0, g: 120, b: 0, a: 255 },        // Dark green shadow
+  PLAYER_MID: { r: 0, g: 200, b: 0, a: 255 },         // Main green
+  PLAYER_LIGHT: { r: 100, g: 255, b: 100, a: 255 },   // Highlight green
 
-  // Enemy colors
-  ENEMY_BAT: { r: 139, g: 69, b: 19, a: 255 },
-  ENEMY_BAT_DARK: { r: 100, g: 50, b: 10, a: 255 },
-  ENEMY_BAT_LIGHT: { r: 180, g: 100, b: 50, a: 255 },
+  // Bat: Brown theme (4 colors)
+  ENEMY_BAT_OUTLINE: { r: 40, g: 20, b: 0, a: 255 },
+  ENEMY_BAT_DARK: { r: 80, g: 40, b: 10, a: 255 },
+  ENEMY_BAT_MID: { r: 139, g: 69, b: 19, a: 255 },
+  ENEMY_BAT_LIGHT: { r: 180, g: 110, b: 60, a: 255 },
 
-  ENEMY_SKELETON: { r: 255, g: 255, b: 255, a: 255 },
-  ENEMY_SKELETON_DARK: { r: 180, g: 180, b: 180, a: 255 },
-  ENEMY_SKELETON_BONE: { r: 230, g: 230, b: 210, a: 255 },
+  // Skeleton: Gray/white theme (4 colors)
+  ENEMY_SKELETON_OUTLINE: { r: 60, g: 60, b: 60, a: 255 },
+  ENEMY_SKELETON_DARK: { r: 160, g: 160, b: 160, a: 255 },
+  ENEMY_SKELETON_MID: { r: 220, g: 220, b: 210, a: 255 },
+  ENEMY_SKELETON_LIGHT: { r: 255, g: 255, b: 255, a: 255 },
 
-  ENEMY_ZOMBIE: { r: 34, g: 139, b: 34, a: 255 },
-  ENEMY_ZOMBIE_DARK: { r: 20, g: 100, b: 20, a: 255 },
-  ENEMY_ZOMBIE_LIGHT: { r: 60, g: 180, b: 60, a: 255 },
+  // Zombie: Green theme (4 colors)
+  ENEMY_ZOMBIE_OUTLINE: { r: 10, g: 50, b: 10, a: 255 },
+  ENEMY_ZOMBIE_DARK: { r: 20, g: 90, b: 20, a: 255 },
+  ENEMY_ZOMBIE_MID: { r: 34, g: 139, b: 34, a: 255 },
+  ENEMY_ZOMBIE_LIGHT: { r: 80, g: 180, b: 80, a: 255 },
 
-  ENEMY_GHOST: { r: 135, g: 206, b: 235, a: 200 },
-  ENEMY_GHOST_LIGHT: { r: 200, g: 230, b: 255, a: 180 },
-  ENEMY_GHOST_DARK: { r: 100, g: 150, b: 200, a: 220 },
+  // Ghost: Blue theme with transparency (4 colors)
+  ENEMY_GHOST_OUTLINE: { r: 50, g: 80, b: 120, a: 200 },
+  ENEMY_GHOST_DARK: { r: 100, g: 140, b: 180, a: 180 },
+  ENEMY_GHOST_MID: { r: 150, g: 200, b: 230, a: 160 },
+  ENEMY_GHOST_LIGHT: { r: 220, g: 240, b: 255, a: 140 },
 
-  ENEMY_SLIME: { r: 50, g: 205, b: 50, a: 255 },
-  ENEMY_SLIME_DARK: { r: 30, g: 150, b: 30, a: 255 },
-  ENEMY_SLIME_LIGHT: { r: 100, g: 255, b: 100, a: 255 },
+  // Slime: Bright green theme (4 colors)
+  ENEMY_SLIME_OUTLINE: { r: 15, g: 80, b: 15, a: 255 },
+  ENEMY_SLIME_DARK: { r: 30, g: 140, b: 30, a: 255 },
+  ENEMY_SLIME_MID: { r: 50, g: 205, b: 50, a: 255 },
+  ENEMY_SLIME_LIGHT: { r: 140, g: 255, b: 140, a: 255 },
 
-  ENEMY_DEMON: { r: 255, g: 69, b: 0, a: 255 },
-  ENEMY_DEMON_DARK: { r: 180, g: 40, b: 0, a: 255 },
-  ENEMY_DEMON_LIGHT: { r: 255, g: 120, b: 60, a: 255 },
+  // Demon: Red/orange theme (4 colors)
+  ENEMY_DEMON_OUTLINE: { r: 80, g: 20, b: 0, a: 255 },
+  ENEMY_DEMON_DARK: { r: 160, g: 40, b: 0, a: 255 },
+  ENEMY_DEMON_MID: { r: 230, g: 80, b: 20, a: 255 },
+  ENEMY_DEMON_LIGHT: { r: 255, g: 150, b: 80, a: 255 },
 
-  // XP orbs
+  // XP orbs - distinct colors per size
   XP_SMALL: { r: 0, g: 255, b: 136, a: 255 },
   XP_MEDIUM: { r: 0, g: 255, b: 255, a: 255 },
   XP_LARGE: { r: 255, g: 255, b: 0, a: 255 },
   XP_GLOW: { r: 255, g: 255, b: 255, a: 100 },
 
-  // Projectiles
+  // Projectiles - simplified palettes
   PROJ_KNIFE: { r: 192, g: 192, b: 192, a: 255 },
   PROJ_WAND: { r: 155, g: 89, b: 182, a: 255 },
   PROJ_BIBLE: { r: 255, g: 215, b: 0, a: 255 },
@@ -67,6 +88,10 @@ const COLORS = {
   BLACK: { r: 0, g: 0, b: 0, a: 255 },
   WHITE: { r: 255, g: 255, b: 255, a: 255 },
   TRANSPARENT: { r: 0, g: 0, b: 0, a: 0 },
+
+  // Eyes - universal
+  EYE_WHITE: { r: 255, g: 255, b: 255, a: 255 },
+  EYE_PUPIL: { r: 0, g: 0, b: 0, a: 255 },
 };
 
 type RGBA = { r: number; g: number; b: number; a: number };
@@ -128,6 +153,60 @@ class PixelCanvas {
     }
   }
 
+  // Draw ellipse with 1px outline (Pokemon style)
+  fillEllipseOutlined(cx: number, cy: number, rx: number, ry: number, fill: RGBA, outline: RGBA): void {
+    // First draw outline (1px larger)
+    for (let y = -(ry + 1); y <= ry + 1; y++) {
+      for (let x = -(rx + 1); x <= rx + 1; x++) {
+        if ((x * x) / ((rx + 1) * (rx + 1)) + (y * y) / ((ry + 1) * (ry + 1)) <= 1) {
+          this.setPixel(cx + x, cy + y, outline);
+        }
+      }
+    }
+    // Then draw fill
+    for (let y = -ry; y <= ry; y++) {
+      for (let x = -rx; x <= rx; x++) {
+        if ((x * x) / (rx * rx) + (y * y) / (ry * ry) <= 1) {
+          this.setPixel(cx + x, cy + y, fill);
+        }
+      }
+    }
+  }
+
+  // Draw circle with 1px outline (Pokemon style)
+  fillCircleOutlined(cx: number, cy: number, radius: number, fill: RGBA, outline: RGBA): void {
+    // First draw outline (1px larger)
+    for (let y = -(radius + 1); y <= radius + 1; y++) {
+      for (let x = -(radius + 1); x <= radius + 1; x++) {
+        if (x * x + y * y <= (radius + 1) * (radius + 1)) {
+          this.setPixel(cx + x, cy + y, outline);
+        }
+      }
+    }
+    // Then draw fill
+    for (let y = -radius; y <= radius; y++) {
+      for (let x = -radius; x <= radius; x++) {
+        if (x * x + y * y <= radius * radius) {
+          this.setPixel(cx + x, cy + y, fill);
+        }
+      }
+    }
+  }
+
+  // Draw rounded rectangle with outline (Pokemon style)
+  fillRoundedRectOutlined(x: number, y: number, w: number, h: number, fill: RGBA, outline: RGBA): void {
+    // Draw outline first
+    this.fillRect(x - 1, y, w + 2, h, outline);     // Left-right outline
+    this.fillRect(x, y - 1, w, h + 2, outline);     // Top-bottom outline
+    // Then fill
+    this.fillRect(x, y, w, h, fill);
+    // Round corners by removing outline pixels at corners
+    this.setPixel(x - 1, y - 1, COLORS.TRANSPARENT);
+    this.setPixel(x + w, y - 1, COLORS.TRANSPARENT);
+    this.setPixel(x - 1, y + h, COLORS.TRANSPARENT);
+    this.setPixel(x + w, y + h, COLORS.TRANSPARENT);
+  }
+
   // Draw line
   drawLine(x1: number, y1: number, x2: number, y2: number, color: RGBA): void {
     const dx = Math.abs(x2 - x1);
@@ -153,297 +232,367 @@ class PixelCanvas {
 // Sprite drawing functions
 
 function drawPlayerIdle(canvas: PixelCanvas, x: number, y: number, frame: number): void {
-  // 32x32 player sprite - humanoid character
-  const baseX = x;
-  const baseY = y;
+  // 32x32 player sprite - Pokemon-style humanoid with large head
+  // Style: 4 colors (outline, dark, mid, light), rounded shapes, head ~40% of height
+  const cx = x + 16; // center x
+  const cy = y + 16; // center y
 
-  // Idle animation - slight bob
+  // Idle animation - breathing bob
   const bob = frame % 2 === 0 ? 0 : 1;
+  const armBob = frame === 1 || frame === 3 ? 1 : 0;
 
-  // Body (centered in 32x32, character is roughly 20x24)
-  const cx = baseX + 16; // center x
-  const cy = baseY + 16 + bob; // center y with bob
+  // === BODY (draw first, behind head) ===
+  // Body is an ellipse (rounded, not rectangle)
+  canvas.fillEllipseOutlined(cx, cy + 2 + bob, 5, 6, COLORS.PLAYER_MID, COLORS.PLAYER_OUTLINE);
+  // Body shading (dark on bottom half)
+  canvas.fillEllipse(cx, cy + 4 + bob, 4, 3, COLORS.PLAYER_DARK);
 
-  // Head (8x8)
-  canvas.fillRect(cx - 4, cy - 12, 8, 8, COLORS.PLAYER_LOCAL);
-  canvas.fillRect(cx - 3, cy - 11, 6, 6, COLORS.PLAYER_LIGHT);
-  // Eyes
-  canvas.setPixel(cx - 2, cy - 9, COLORS.BLACK);
-  canvas.setPixel(cx + 1, cy - 9, COLORS.BLACK);
+  // === ARMS ===
+  // Left arm (small ellipse)
+  canvas.fillEllipseOutlined(cx - 7, cy + 1 + bob + armBob, 2, 3, COLORS.PLAYER_MID, COLORS.PLAYER_OUTLINE);
+  // Right arm
+  canvas.fillEllipseOutlined(cx + 7, cy + 1 + bob - armBob, 2, 3, COLORS.PLAYER_MID, COLORS.PLAYER_OUTLINE);
 
-  // Body (8x10)
-  canvas.fillRect(cx - 4, cy - 4, 8, 10, COLORS.PLAYER_LOCAL);
-  canvas.fillRect(cx - 3, cy - 3, 6, 8, COLORS.PLAYER_DARK);
+  // === LEGS ===
+  // Short stubby legs (Pokemon style)
+  canvas.fillEllipseOutlined(cx - 3, cy + 9 + bob, 2, 3, COLORS.PLAYER_DARK, COLORS.PLAYER_OUTLINE);
+  canvas.fillEllipseOutlined(cx + 3, cy + 9 + bob, 2, 3, COLORS.PLAYER_DARK, COLORS.PLAYER_OUTLINE);
 
-  // Arms (different positions per frame for idle animation)
-  const armOffset = frame === 1 || frame === 3 ? 1 : 0;
-  canvas.fillRect(cx - 7, cy - 3 + armOffset, 3, 6, COLORS.PLAYER_LOCAL);
-  canvas.fillRect(cx + 4, cy - 3 - armOffset, 3, 6, COLORS.PLAYER_LOCAL);
+  // === HEAD (draw last, on top) ===
+  // Large round head (~40% of sprite height = ~12px diameter)
+  canvas.fillCircleOutlined(cx, cy - 6 + bob, 6, COLORS.PLAYER_MID, COLORS.PLAYER_OUTLINE);
+  // Head highlight (light on top)
+  canvas.fillCircle(cx - 1, cy - 8 + bob, 3, COLORS.PLAYER_LIGHT);
 
-  // Legs
-  canvas.fillRect(cx - 3, cy + 6, 3, 5, COLORS.PLAYER_DARK);
-  canvas.fillRect(cx, cy + 6, 3, 5, COLORS.PLAYER_DARK);
-
-  // Outline effect
-  canvas.setPixel(cx - 5, cy - 13, COLORS.PLAYER_OUTLINE);
-  canvas.setPixel(cx + 4, cy - 13, COLORS.PLAYER_OUTLINE);
+  // === EYES ===
+  // Large cute eyes (2px white with 1px pupil)
+  canvas.fillRect(cx - 4, cy - 7 + bob, 3, 3, COLORS.EYE_WHITE);
+  canvas.fillRect(cx + 1, cy - 7 + bob, 3, 3, COLORS.EYE_WHITE);
+  // Pupils (slightly to center for cute look)
+  canvas.setPixel(cx - 2, cy - 6 + bob, COLORS.EYE_PUPIL);
+  canvas.setPixel(cx + 2, cy - 6 + bob, COLORS.EYE_PUPIL);
+  // Eye shine
+  canvas.setPixel(cx - 3, cy - 7 + bob, COLORS.WHITE);
+  canvas.setPixel(cx + 1, cy - 7 + bob, COLORS.WHITE);
 }
 
 function drawPlayerWalk(canvas: PixelCanvas, x: number, y: number, frame: number, direction: 'down' | 'up' | 'left' | 'right'): void {
-  const baseX = x;
-  const baseY = y;
-  const cx = baseX + 16;
-  const cy = baseY + 16;
+  // Pokemon-style walking animation with consistent proportions
+  const cx = x + 16;
+  const cy = y + 16;
 
-  // Walking animation - leg movement
+  // Walking animation phases
   const legPhase = frame % 4;
-  const leftLegY = legPhase === 0 || legPhase === 2 ? 0 : (legPhase === 1 ? -2 : 2);
-  const rightLegY = legPhase === 0 || legPhase === 2 ? 0 : (legPhase === 1 ? 2 : -2);
   const bodyBob = legPhase === 1 || legPhase === 3 ? 1 : 0;
-
-  // Arm swing
-  const armPhase = frame % 4;
-  const leftArmY = armPhase === 0 || armPhase === 2 ? 0 : (armPhase === 1 ? 2 : -2);
-  const rightArmY = armPhase === 0 || armPhase === 2 ? 0 : (armPhase === 1 ? -2 : 2);
+  const leftLegOffset = legPhase === 1 ? -1 : (legPhase === 3 ? 1 : 0);
+  const rightLegOffset = legPhase === 1 ? 1 : (legPhase === 3 ? -1 : 0);
+  const armSwing = legPhase === 1 ? 1 : (legPhase === 3 ? -1 : 0);
 
   if (direction === 'down') {
-    // Facing camera
-    // Head
-    canvas.fillRect(cx - 4, cy - 12 + bodyBob, 8, 8, COLORS.PLAYER_LOCAL);
-    canvas.fillRect(cx - 3, cy - 11 + bodyBob, 6, 6, COLORS.PLAYER_LIGHT);
-    canvas.setPixel(cx - 2, cy - 9 + bodyBob, COLORS.BLACK);
-    canvas.setPixel(cx + 1, cy - 9 + bodyBob, COLORS.BLACK);
+    // Facing camera (same as idle but with walking animation)
     // Body
-    canvas.fillRect(cx - 4, cy - 4 + bodyBob, 8, 10, COLORS.PLAYER_LOCAL);
-    canvas.fillRect(cx - 3, cy - 3 + bodyBob, 6, 8, COLORS.PLAYER_DARK);
-    // Arms
-    canvas.fillRect(cx - 7, cy - 3 + leftArmY + bodyBob, 3, 6, COLORS.PLAYER_LOCAL);
-    canvas.fillRect(cx + 4, cy - 3 + rightArmY + bodyBob, 3, 6, COLORS.PLAYER_LOCAL);
-    // Legs
-    canvas.fillRect(cx - 3, cy + 6 + leftLegY + bodyBob, 3, 5, COLORS.PLAYER_DARK);
-    canvas.fillRect(cx, cy + 6 + rightLegY + bodyBob, 3, 5, COLORS.PLAYER_DARK);
+    canvas.fillEllipseOutlined(cx, cy + 2 + bodyBob, 5, 6, COLORS.PLAYER_MID, COLORS.PLAYER_OUTLINE);
+    canvas.fillEllipse(cx, cy + 4 + bodyBob, 4, 3, COLORS.PLAYER_DARK);
+    // Arms (swinging)
+    canvas.fillEllipseOutlined(cx - 7, cy + 1 + bodyBob + armSwing, 2, 3, COLORS.PLAYER_MID, COLORS.PLAYER_OUTLINE);
+    canvas.fillEllipseOutlined(cx + 7, cy + 1 + bodyBob - armSwing, 2, 3, COLORS.PLAYER_MID, COLORS.PLAYER_OUTLINE);
+    // Legs (walking)
+    canvas.fillEllipseOutlined(cx - 3 + leftLegOffset, cy + 9 + bodyBob, 2, 3, COLORS.PLAYER_DARK, COLORS.PLAYER_OUTLINE);
+    canvas.fillEllipseOutlined(cx + 3 + rightLegOffset, cy + 9 + bodyBob, 2, 3, COLORS.PLAYER_DARK, COLORS.PLAYER_OUTLINE);
+    // Head
+    canvas.fillCircleOutlined(cx, cy - 6 + bodyBob, 6, COLORS.PLAYER_MID, COLORS.PLAYER_OUTLINE);
+    canvas.fillCircle(cx - 1, cy - 8 + bodyBob, 3, COLORS.PLAYER_LIGHT);
+    // Eyes (forward facing)
+    canvas.fillRect(cx - 4, cy - 7 + bodyBob, 3, 3, COLORS.EYE_WHITE);
+    canvas.fillRect(cx + 1, cy - 7 + bodyBob, 3, 3, COLORS.EYE_WHITE);
+    canvas.setPixel(cx - 2, cy - 6 + bodyBob, COLORS.EYE_PUPIL);
+    canvas.setPixel(cx + 2, cy - 6 + bodyBob, COLORS.EYE_PUPIL);
+    canvas.setPixel(cx - 3, cy - 7 + bodyBob, COLORS.WHITE);
+    canvas.setPixel(cx + 1, cy - 7 + bodyBob, COLORS.WHITE);
+
   } else if (direction === 'up') {
-    // Facing away
-    canvas.fillRect(cx - 4, cy - 12 + bodyBob, 8, 8, COLORS.PLAYER_LOCAL);
-    canvas.fillRect(cx - 3, cy - 11 + bodyBob, 6, 6, COLORS.PLAYER_DARK);
-    canvas.fillRect(cx - 4, cy - 4 + bodyBob, 8, 10, COLORS.PLAYER_LOCAL);
-    canvas.fillRect(cx - 3, cy - 3 + bodyBob, 6, 8, COLORS.PLAYER_DARK);
-    canvas.fillRect(cx - 7, cy - 3 - leftArmY + bodyBob, 3, 6, COLORS.PLAYER_LOCAL);
-    canvas.fillRect(cx + 4, cy - 3 - rightArmY + bodyBob, 3, 6, COLORS.PLAYER_LOCAL);
-    canvas.fillRect(cx - 3, cy + 6 - leftLegY + bodyBob, 3, 5, COLORS.PLAYER_DARK);
-    canvas.fillRect(cx, cy + 6 - rightLegY + bodyBob, 3, 5, COLORS.PLAYER_DARK);
+    // Facing away - no eyes visible
+    // Body
+    canvas.fillEllipseOutlined(cx, cy + 2 + bodyBob, 5, 6, COLORS.PLAYER_MID, COLORS.PLAYER_OUTLINE);
+    canvas.fillEllipse(cx, cy + 4 + bodyBob, 4, 3, COLORS.PLAYER_DARK);
+    // Arms (swinging opposite)
+    canvas.fillEllipseOutlined(cx - 7, cy + 1 + bodyBob - armSwing, 2, 3, COLORS.PLAYER_MID, COLORS.PLAYER_OUTLINE);
+    canvas.fillEllipseOutlined(cx + 7, cy + 1 + bodyBob + armSwing, 2, 3, COLORS.PLAYER_MID, COLORS.PLAYER_OUTLINE);
+    // Legs
+    canvas.fillEllipseOutlined(cx - 3 - leftLegOffset, cy + 9 + bodyBob, 2, 3, COLORS.PLAYER_DARK, COLORS.PLAYER_OUTLINE);
+    canvas.fillEllipseOutlined(cx + 3 - rightLegOffset, cy + 9 + bodyBob, 2, 3, COLORS.PLAYER_DARK, COLORS.PLAYER_OUTLINE);
+    // Head (back of head - darker, no eyes)
+    canvas.fillCircleOutlined(cx, cy - 6 + bodyBob, 6, COLORS.PLAYER_MID, COLORS.PLAYER_OUTLINE);
+    canvas.fillCircle(cx, cy - 6 + bodyBob, 4, COLORS.PLAYER_DARK);
+
   } else if (direction === 'left') {
     // Side view facing left
-    canvas.fillRect(cx - 2, cy - 12 + bodyBob, 6, 8, COLORS.PLAYER_LOCAL);
-    canvas.fillRect(cx - 1, cy - 11 + bodyBob, 4, 6, COLORS.PLAYER_LIGHT);
-    canvas.setPixel(cx - 1, cy - 9 + bodyBob, COLORS.BLACK);
-    canvas.fillRect(cx - 2, cy - 4 + bodyBob, 5, 10, COLORS.PLAYER_LOCAL);
-    canvas.fillRect(cx - 1, cy - 3 + bodyBob, 3, 8, COLORS.PLAYER_DARK);
-    // Single arm visible
-    canvas.fillRect(cx - 4, cy - 3 + leftArmY + bodyBob, 3, 6, COLORS.PLAYER_LOCAL);
-    // Legs (staggered)
-    canvas.fillRect(cx - 1 - (legPhase === 1 || legPhase === 3 ? 1 : 0), cy + 6 + bodyBob, 3, 5, COLORS.PLAYER_DARK);
+    // Body (slightly narrower from side)
+    canvas.fillEllipseOutlined(cx, cy + 2 + bodyBob, 4, 6, COLORS.PLAYER_MID, COLORS.PLAYER_OUTLINE);
+    canvas.fillEllipse(cx + 1, cy + 4 + bodyBob, 3, 3, COLORS.PLAYER_DARK);
+    // One arm visible (in front)
+    canvas.fillEllipseOutlined(cx - 3, cy + 1 + bodyBob + armSwing, 2, 3, COLORS.PLAYER_MID, COLORS.PLAYER_OUTLINE);
+    // Legs (staggered for walking)
+    canvas.fillEllipseOutlined(cx - 1 + leftLegOffset, cy + 9 + bodyBob, 2, 3, COLORS.PLAYER_DARK, COLORS.PLAYER_OUTLINE);
+    canvas.fillEllipseOutlined(cx + 1 - leftLegOffset, cy + 9 + bodyBob, 2, 3, COLORS.PLAYER_DARK, COLORS.PLAYER_OUTLINE);
+    // Head
+    canvas.fillCircleOutlined(cx, cy - 6 + bodyBob, 6, COLORS.PLAYER_MID, COLORS.PLAYER_OUTLINE);
+    canvas.fillCircle(cx + 1, cy - 8 + bodyBob, 3, COLORS.PLAYER_LIGHT);
+    // One eye visible (looking left)
+    canvas.fillRect(cx - 4, cy - 7 + bodyBob, 3, 3, COLORS.EYE_WHITE);
+    canvas.setPixel(cx - 4, cy - 6 + bodyBob, COLORS.EYE_PUPIL);
+    canvas.setPixel(cx - 3, cy - 7 + bodyBob, COLORS.WHITE);
+
   } else { // right
     // Side view facing right
-    canvas.fillRect(cx - 4, cy - 12 + bodyBob, 6, 8, COLORS.PLAYER_LOCAL);
-    canvas.fillRect(cx - 3, cy - 11 + bodyBob, 4, 6, COLORS.PLAYER_LIGHT);
-    canvas.setPixel(cx, cy - 9 + bodyBob, COLORS.BLACK);
-    canvas.fillRect(cx - 3, cy - 4 + bodyBob, 5, 10, COLORS.PLAYER_LOCAL);
-    canvas.fillRect(cx - 2, cy - 3 + bodyBob, 3, 8, COLORS.PLAYER_DARK);
-    canvas.fillRect(cx + 1, cy - 3 + rightArmY + bodyBob, 3, 6, COLORS.PLAYER_LOCAL);
-    canvas.fillRect(cx - 2 + (legPhase === 1 || legPhase === 3 ? 1 : 0), cy + 6 + bodyBob, 3, 5, COLORS.PLAYER_DARK);
+    // Body
+    canvas.fillEllipseOutlined(cx, cy + 2 + bodyBob, 4, 6, COLORS.PLAYER_MID, COLORS.PLAYER_OUTLINE);
+    canvas.fillEllipse(cx - 1, cy + 4 + bodyBob, 3, 3, COLORS.PLAYER_DARK);
+    // One arm visible
+    canvas.fillEllipseOutlined(cx + 3, cy + 1 + bodyBob - armSwing, 2, 3, COLORS.PLAYER_MID, COLORS.PLAYER_OUTLINE);
+    // Legs
+    canvas.fillEllipseOutlined(cx - 1 - rightLegOffset, cy + 9 + bodyBob, 2, 3, COLORS.PLAYER_DARK, COLORS.PLAYER_OUTLINE);
+    canvas.fillEllipseOutlined(cx + 1 + rightLegOffset, cy + 9 + bodyBob, 2, 3, COLORS.PLAYER_DARK, COLORS.PLAYER_OUTLINE);
+    // Head
+    canvas.fillCircleOutlined(cx, cy - 6 + bodyBob, 6, COLORS.PLAYER_MID, COLORS.PLAYER_OUTLINE);
+    canvas.fillCircle(cx - 1, cy - 8 + bodyBob, 3, COLORS.PLAYER_LIGHT);
+    // One eye visible (looking right)
+    canvas.fillRect(cx + 1, cy - 7 + bodyBob, 3, 3, COLORS.EYE_WHITE);
+    canvas.setPixel(cx + 3, cy - 6 + bodyBob, COLORS.EYE_PUPIL);
+    canvas.setPixel(cx + 1, cy - 7 + bodyBob, COLORS.WHITE);
   }
 }
 
 function drawBat(canvas: PixelCanvas, x: number, y: number, frame: number): void {
+  // Pokemon-style bat - round body, cute big eyes, wing animation
   const cx = x + 16;
   const cy = y + 16;
-
-  // Wing animation
   const wingUp = frame === 0;
+  const wingY = wingUp ? -4 : 0;
 
-  // Body (small oval)
-  canvas.fillEllipse(cx, cy, 4, 5, COLORS.ENEMY_BAT);
-  canvas.fillEllipse(cx, cy, 3, 4, COLORS.ENEMY_BAT_LIGHT);
+  // Body (round with outline)
+  canvas.fillCircleOutlined(cx, cy, 5, COLORS.ENEMY_BAT_MID, COLORS.ENEMY_BAT_OUTLINE);
+  // Body shading
+  canvas.fillCircle(cx + 1, cy + 2, 3, COLORS.ENEMY_BAT_DARK);
 
-  // Wings
-  if (wingUp) {
-    // Wings up
-    canvas.fillRect(cx - 10, cy - 6, 6, 4, COLORS.ENEMY_BAT);
-    canvas.fillRect(cx + 4, cy - 6, 6, 4, COLORS.ENEMY_BAT);
-    canvas.fillRect(cx - 8, cy - 4, 4, 3, COLORS.ENEMY_BAT_DARK);
-    canvas.fillRect(cx + 4, cy - 4, 4, 3, COLORS.ENEMY_BAT_DARK);
-  } else {
-    // Wings down
-    canvas.fillRect(cx - 10, cy - 2, 6, 4, COLORS.ENEMY_BAT);
-    canvas.fillRect(cx + 4, cy - 2, 6, 4, COLORS.ENEMY_BAT);
-    canvas.fillRect(cx - 8, cy, 4, 3, COLORS.ENEMY_BAT_DARK);
-    canvas.fillRect(cx + 4, cy, 4, 3, COLORS.ENEMY_BAT_DARK);
-  }
+  // Ears (triangular, on top of head)
+  canvas.fillEllipseOutlined(cx - 4, cy - 6, 2, 3, COLORS.ENEMY_BAT_MID, COLORS.ENEMY_BAT_OUTLINE);
+  canvas.fillEllipseOutlined(cx + 4, cy - 6, 2, 3, COLORS.ENEMY_BAT_MID, COLORS.ENEMY_BAT_OUTLINE);
 
-  // Eyes (red glowing)
-  canvas.setPixel(cx - 2, cy - 2, { r: 255, g: 0, b: 0, a: 255 });
-  canvas.setPixel(cx + 1, cy - 2, { r: 255, g: 0, b: 0, a: 255 });
+  // Wings (animated)
+  canvas.fillEllipseOutlined(cx - 9, cy + wingY, 4, 3, COLORS.ENEMY_BAT_MID, COLORS.ENEMY_BAT_OUTLINE);
+  canvas.fillEllipseOutlined(cx + 9, cy + wingY, 4, 3, COLORS.ENEMY_BAT_MID, COLORS.ENEMY_BAT_OUTLINE);
+  // Wing membrane (darker)
+  canvas.fillEllipse(cx - 9, cy + wingY + 1, 3, 2, COLORS.ENEMY_BAT_DARK);
+  canvas.fillEllipse(cx + 9, cy + wingY + 1, 3, 2, COLORS.ENEMY_BAT_DARK);
 
-  // Ears
-  canvas.setPixel(cx - 3, cy - 5, COLORS.ENEMY_BAT);
-  canvas.setPixel(cx + 2, cy - 5, COLORS.ENEMY_BAT);
+  // Eyes (big cute eyes with red pupils - bat characteristic)
+  canvas.fillRect(cx - 4, cy - 2, 3, 3, COLORS.EYE_WHITE);
+  canvas.fillRect(cx + 1, cy - 2, 3, 3, COLORS.EYE_WHITE);
+  // Red pupils (glowing effect)
+  canvas.setPixel(cx - 2, cy - 1, { r: 255, g: 50, b: 50, a: 255 });
+  canvas.setPixel(cx + 2, cy - 1, { r: 255, g: 50, b: 50, a: 255 });
+  // Eye shine
+  canvas.setPixel(cx - 3, cy - 2, COLORS.WHITE);
+  canvas.setPixel(cx + 1, cy - 2, COLORS.WHITE);
+
+  // Small fangs
+  canvas.setPixel(cx - 1, cy + 3, COLORS.ENEMY_BAT_LIGHT);
+  canvas.setPixel(cx + 1, cy + 3, COLORS.ENEMY_BAT_LIGHT);
 }
 
 function drawSkeleton(canvas: PixelCanvas, x: number, y: number, frame: number): void {
+  // Pokemon-style skeleton - cute skull with big eye sockets, rounded bones
   const cx = x + 16;
   const cy = y + 16;
   const bob = frame === 0 ? 0 : 1;
+  const armSwing = frame === 0 ? 0 : 1;
 
-  // Skull
-  canvas.fillRect(cx - 5, cy - 12 + bob, 10, 9, COLORS.ENEMY_SKELETON);
-  canvas.fillRect(cx - 4, cy - 11 + bob, 8, 7, COLORS.ENEMY_SKELETON_BONE);
-  // Eye sockets
-  canvas.fillRect(cx - 3, cy - 10 + bob, 2, 3, COLORS.BLACK);
-  canvas.fillRect(cx + 1, cy - 10 + bob, 2, 3, COLORS.BLACK);
-  // Jaw
-  canvas.fillRect(cx - 3, cy - 5 + bob, 6, 2, COLORS.ENEMY_SKELETON_DARK);
+  // Ribcage/body (behind skull)
+  canvas.fillEllipseOutlined(cx, cy + 3 + bob, 5, 5, COLORS.ENEMY_SKELETON_MID, COLORS.ENEMY_SKELETON_OUTLINE);
+  // Rib lines
+  canvas.fillRect(cx - 3, cy + 1 + bob, 6, 1, COLORS.ENEMY_SKELETON_DARK);
+  canvas.fillRect(cx - 3, cy + 3 + bob, 6, 1, COLORS.ENEMY_SKELETON_DARK);
+  canvas.fillRect(cx - 3, cy + 5 + bob, 6, 1, COLORS.ENEMY_SKELETON_DARK);
 
-  // Ribcage
-  canvas.fillRect(cx - 4, cy - 2 + bob, 8, 6, COLORS.ENEMY_SKELETON);
-  for (let i = 0; i < 3; i++) {
-    canvas.fillRect(cx - 3, cy - 1 + i * 2 + bob, 6, 1, COLORS.ENEMY_SKELETON_DARK);
-  }
+  // Arms (bone shapes)
+  canvas.fillEllipseOutlined(cx - 8, cy + 1 + bob + armSwing, 3, 2, COLORS.ENEMY_SKELETON_MID, COLORS.ENEMY_SKELETON_OUTLINE);
+  canvas.fillEllipseOutlined(cx + 8, cy + 1 + bob - armSwing, 3, 2, COLORS.ENEMY_SKELETON_MID, COLORS.ENEMY_SKELETON_OUTLINE);
 
-  // Spine
-  canvas.fillRect(cx - 1, cy + 4 + bob, 2, 4, COLORS.ENEMY_SKELETON_BONE);
+  // Legs (bone shapes)
+  canvas.fillEllipseOutlined(cx - 3, cy + 10 + bob, 2, 4, COLORS.ENEMY_SKELETON_MID, COLORS.ENEMY_SKELETON_OUTLINE);
+  canvas.fillEllipseOutlined(cx + 3, cy + 10 + bob, 2, 4, COLORS.ENEMY_SKELETON_MID, COLORS.ENEMY_SKELETON_OUTLINE);
 
-  // Arms (bones)
-  const armSwing = frame === 0 ? 0 : 2;
-  canvas.fillRect(cx - 8, cy - 2 + armSwing + bob, 4, 2, COLORS.ENEMY_SKELETON_BONE);
-  canvas.fillRect(cx + 4, cy - 2 - armSwing + bob, 4, 2, COLORS.ENEMY_SKELETON_BONE);
+  // Skull (large, ~40% of body, drawn last to be on top)
+  canvas.fillCircleOutlined(cx, cy - 5 + bob, 7, COLORS.ENEMY_SKELETON_MID, COLORS.ENEMY_SKELETON_OUTLINE);
+  // Skull highlight
+  canvas.fillCircle(cx - 2, cy - 7 + bob, 3, COLORS.ENEMY_SKELETON_LIGHT);
 
-  // Legs
-  canvas.fillRect(cx - 3, cy + 8 + bob, 2, 5, COLORS.ENEMY_SKELETON_BONE);
-  canvas.fillRect(cx + 1, cy + 8 + bob, 2, 5, COLORS.ENEMY_SKELETON_BONE);
+  // Big empty eye sockets (dark holes)
+  canvas.fillCircle(cx - 3, cy - 5 + bob, 2, COLORS.ENEMY_SKELETON_OUTLINE);
+  canvas.fillCircle(cx + 3, cy - 5 + bob, 2, COLORS.ENEMY_SKELETON_OUTLINE);
+  // Tiny red dots for spooky eyes
+  canvas.setPixel(cx - 3, cy - 5 + bob, { r: 255, g: 100, b: 100, a: 255 });
+  canvas.setPixel(cx + 3, cy - 5 + bob, { r: 255, g: 100, b: 100, a: 255 });
+
+  // Nose hole
+  canvas.setPixel(cx, cy - 2 + bob, COLORS.ENEMY_SKELETON_OUTLINE);
+
+  // Jaw/teeth
+  canvas.fillRect(cx - 3, cy + bob, 6, 2, COLORS.ENEMY_SKELETON_MID);
+  canvas.fillRect(cx - 3, cy + bob, 6, 1, COLORS.ENEMY_SKELETON_OUTLINE);
+  // Individual teeth
+  canvas.setPixel(cx - 2, cy + 1 + bob, COLORS.ENEMY_SKELETON_LIGHT);
+  canvas.setPixel(cx, cy + 1 + bob, COLORS.ENEMY_SKELETON_LIGHT);
+  canvas.setPixel(cx + 2, cy + 1 + bob, COLORS.ENEMY_SKELETON_LIGHT);
 }
 
 function drawZombie(canvas: PixelCanvas, x: number, y: number, frame: number): void {
+  // Pokemon-style zombie - cute but creepy, arms outstretched, shambling
   const cx = x + 16;
   const cy = y + 16;
   const bob = frame === 0 ? 0 : 1;
+  const tilt = frame === 0 ? 0 : 1; // Shambling animation
 
-  // Head (larger, deformed)
-  canvas.fillRect(cx - 5, cy - 12 + bob, 10, 9, COLORS.ENEMY_ZOMBIE);
-  canvas.fillRect(cx - 4, cy - 11 + bob, 8, 7, COLORS.ENEMY_ZOMBIE_LIGHT);
-  // Dead eyes
-  canvas.setPixel(cx - 2, cy - 9 + bob, { r: 255, g: 255, b: 0, a: 255 });
-  canvas.setPixel(cx + 2, cy - 9 + bob, { r: 255, g: 255, b: 0, a: 255 });
-  // Mouth
-  canvas.fillRect(cx - 2, cy - 6 + bob, 4, 2, COLORS.ENEMY_ZOMBIE_DARK);
+  // Body (hunched oval)
+  canvas.fillEllipseOutlined(cx + tilt, cy + 3 + bob, 6, 6, COLORS.ENEMY_ZOMBIE_MID, COLORS.ENEMY_ZOMBIE_OUTLINE);
+  canvas.fillEllipse(cx + tilt + 1, cy + 5 + bob, 4, 3, COLORS.ENEMY_ZOMBIE_DARK);
 
-  // Body (hunched)
-  canvas.fillRect(cx - 5, cy - 3 + bob, 10, 10, COLORS.ENEMY_ZOMBIE);
-  canvas.fillRect(cx - 4, cy - 2 + bob, 8, 8, COLORS.ENEMY_ZOMBIE_DARK);
+  // Outstretched arms (zombie pose)
+  canvas.fillEllipseOutlined(cx - 9, cy + 1 + bob, 4, 2, COLORS.ENEMY_ZOMBIE_MID, COLORS.ENEMY_ZOMBIE_OUTLINE);
+  canvas.fillEllipseOutlined(cx + 9, cy + 1 + bob, 4, 2, COLORS.ENEMY_ZOMBIE_MID, COLORS.ENEMY_ZOMBIE_OUTLINE);
 
-  // Arms (outstretched, zombie pose)
-  canvas.fillRect(cx - 10, cy - 4, 5, 3, COLORS.ENEMY_ZOMBIE);
-  canvas.fillRect(cx + 5, cy - 4, 5, 3, COLORS.ENEMY_ZOMBIE);
+  // Shambling legs
+  canvas.fillEllipseOutlined(cx - 3 - tilt, cy + 10 + bob, 2, 4, COLORS.ENEMY_ZOMBIE_DARK, COLORS.ENEMY_ZOMBIE_OUTLINE);
+  canvas.fillEllipseOutlined(cx + 3 + tilt, cy + 10 + bob, 2, 4, COLORS.ENEMY_ZOMBIE_DARK, COLORS.ENEMY_ZOMBIE_OUTLINE);
 
-  // Legs
-  canvas.fillRect(cx - 4, cy + 7 + bob, 3, 5, COLORS.ENEMY_ZOMBIE_DARK);
-  canvas.fillRect(cx + 1, cy + 7 + bob, 3, 5, COLORS.ENEMY_ZOMBIE_DARK);
+  // Large head (zombies have big heads in cute style)
+  canvas.fillCircleOutlined(cx, cy - 5 + bob, 7, COLORS.ENEMY_ZOMBIE_MID, COLORS.ENEMY_ZOMBIE_OUTLINE);
+  // Messy hair/highlight
+  canvas.fillCircle(cx - 2, cy - 8 + bob, 3, COLORS.ENEMY_ZOMBIE_LIGHT);
+  canvas.fillCircle(cx + 3, cy - 9 + bob, 2, COLORS.ENEMY_ZOMBIE_LIGHT);
+
+  // Dead/glowing eyes (yellow)
+  canvas.fillRect(cx - 4, cy - 6 + bob, 3, 3, { r: 255, g: 255, b: 100, a: 255 });
+  canvas.fillRect(cx + 1, cy - 6 + bob, 3, 3, { r: 255, g: 255, b: 100, a: 255 });
+  // Dark pupils (small)
+  canvas.setPixel(cx - 2, cy - 5 + bob, COLORS.ENEMY_ZOMBIE_OUTLINE);
+  canvas.setPixel(cx + 2, cy - 5 + bob, COLORS.ENEMY_ZOMBIE_OUTLINE);
+
+  // Open mouth (groaning)
+  canvas.fillEllipse(cx, cy - 1 + bob, 2, 2, COLORS.ENEMY_ZOMBIE_OUTLINE);
 }
 
 function drawGhost(canvas: PixelCanvas, x: number, y: number, frame: number): void {
+  // Pokemon-style ghost - cute floating blob with big eyes, wavy tail
   const cx = x + 16;
   const cy = y + 16;
   const float = frame === 0 ? -2 : 0;
+  const wavePhase = frame === 0 ? 0 : 1;
 
-  // Main body (translucent)
-  canvas.fillEllipse(cx, cy - 4 + float, 8, 10, COLORS.ENEMY_GHOST);
-  canvas.fillEllipse(cx, cy - 6 + float, 6, 6, COLORS.ENEMY_GHOST_LIGHT);
-
-  // Wavy bottom
-  for (let i = -6; i <= 6; i += 3) {
-    const waveOffset = (frame === 0 ? (i + 6) % 2 : (i + 7) % 2) * 2;
-    canvas.fillRect(cx + i - 1, cy + 5 + float + waveOffset, 3, 4, COLORS.ENEMY_GHOST);
+  // Wispy tail (wavy bottom) - drawn first, behind body
+  for (let i = -2; i <= 2; i++) {
+    const waveOffset = ((i + wavePhase) % 2) * 3;
+    canvas.fillEllipse(cx + i * 3, cy + 8 + float + waveOffset, 2, 3, COLORS.ENEMY_GHOST_MID);
   }
 
-  // Eyes (hollow)
-  canvas.fillRect(cx - 4, cy - 7 + float, 3, 4, COLORS.ENEMY_GHOST_DARK);
-  canvas.fillRect(cx + 1, cy - 7 + float, 3, 4, COLORS.ENEMY_GHOST_DARK);
-  // Pupils
-  canvas.setPixel(cx - 3, cy - 5 + float, COLORS.BLACK);
-  canvas.setPixel(cx + 2, cy - 5 + float, COLORS.BLACK);
+  // Main body (round blob)
+  canvas.fillEllipseOutlined(cx, cy - 2 + float, 8, 9, COLORS.ENEMY_GHOST_MID, COLORS.ENEMY_GHOST_OUTLINE);
+  // Body highlight (light on top)
+  canvas.fillCircle(cx - 2, cy - 6 + float, 4, COLORS.ENEMY_GHOST_LIGHT);
 
-  // Mouth (O shape)
-  canvas.fillEllipse(cx, cy - 1 + float, 2, 2, COLORS.ENEMY_GHOST_DARK);
+  // Large cute eyes (slightly hollow/dark)
+  canvas.fillCircle(cx - 4, cy - 3 + float, 3, COLORS.ENEMY_GHOST_DARK);
+  canvas.fillCircle(cx + 4, cy - 3 + float, 3, COLORS.ENEMY_GHOST_DARK);
+  // Eye whites/pupils
+  canvas.setPixel(cx - 5, cy - 4 + float, COLORS.EYE_WHITE);
+  canvas.setPixel(cx + 3, cy - 4 + float, COLORS.EYE_WHITE);
+  canvas.setPixel(cx - 3, cy - 2 + float, COLORS.BLACK);
+  canvas.setPixel(cx + 5, cy - 2 + float, COLORS.BLACK);
+
+  // Small "O" mouth (surprised/spooky)
+  canvas.fillCircle(cx, cy + 2 + float, 2, COLORS.ENEMY_GHOST_DARK);
 }
 
 function drawSlime(canvas: PixelCanvas, x: number, y: number, frame: number): void {
+  // Pokemon-style slime - classic cute blob, big eyes, happy face, squash/stretch
   const cx = x + 16;
   const cy = y + 16;
 
-  // Bounce animation
+  // Bounce animation (squash and stretch)
   const squash = frame === 0;
-  const rx = squash ? 10 : 8;
+  const rx = squash ? 9 : 7;
   const ry = squash ? 6 : 9;
-  const yOffset = squash ? 2 : 0;
+  const yOffset = squash ? 3 : 0;
 
-  // Body (blob shape)
-  canvas.fillEllipse(cx, cy + yOffset, rx, ry, COLORS.ENEMY_SLIME);
-  canvas.fillEllipse(cx, cy - 2 + yOffset, rx - 2, ry - 2, COLORS.ENEMY_SLIME_LIGHT);
+  // Body (blob shape with outline)
+  canvas.fillEllipseOutlined(cx, cy + yOffset, rx, ry, COLORS.ENEMY_SLIME_MID, COLORS.ENEMY_SLIME_OUTLINE);
+  // Body highlight (light on top)
+  canvas.fillEllipse(cx - 2, cy - 3 + yOffset, rx - 3, ry - 4, COLORS.ENEMY_SLIME_LIGHT);
 
-  // Shine highlight
-  canvas.fillRect(cx - 4, cy - 4 + yOffset, 3, 2, COLORS.WHITE);
+  // Big shine highlight (Pokemon style)
+  canvas.fillCircle(cx - 4, cy - 3 + yOffset, 2, COLORS.WHITE);
 
-  // Eyes (cute)
-  canvas.fillRect(cx - 4, cy - 1 + yOffset, 3, 3, COLORS.BLACK);
-  canvas.fillRect(cx + 1, cy - 1 + yOffset, 3, 3, COLORS.BLACK);
+  // Large cute eyes (black with white shine)
+  canvas.fillCircle(cx - 3, cy - 1 + yOffset, 2, COLORS.EYE_PUPIL);
+  canvas.fillCircle(cx + 3, cy - 1 + yOffset, 2, COLORS.EYE_PUPIL);
   // Eye shine
-  canvas.setPixel(cx - 3, cy - 1 + yOffset, COLORS.WHITE);
-  canvas.setPixel(cx + 2, cy - 1 + yOffset, COLORS.WHITE);
+  canvas.setPixel(cx - 4, cy - 2 + yOffset, COLORS.EYE_WHITE);
+  canvas.setPixel(cx + 2, cy - 2 + yOffset, COLORS.EYE_WHITE);
 
-  // Mouth (happy curve)
-  canvas.setPixel(cx - 2, cy + 3 + yOffset, COLORS.ENEMY_SLIME_DARK);
-  canvas.setPixel(cx - 1, cy + 4 + yOffset, COLORS.ENEMY_SLIME_DARK);
-  canvas.setPixel(cx, cy + 4 + yOffset, COLORS.ENEMY_SLIME_DARK);
-  canvas.setPixel(cx + 1, cy + 3 + yOffset, COLORS.ENEMY_SLIME_DARK);
+  // Happy smile (curved mouth)
+  canvas.setPixel(cx - 2, cy + 3 + yOffset, COLORS.ENEMY_SLIME_OUTLINE);
+  canvas.setPixel(cx - 1, cy + 4 + yOffset, COLORS.ENEMY_SLIME_OUTLINE);
+  canvas.setPixel(cx, cy + 4 + yOffset, COLORS.ENEMY_SLIME_OUTLINE);
+  canvas.setPixel(cx + 1, cy + 4 + yOffset, COLORS.ENEMY_SLIME_OUTLINE);
+  canvas.setPixel(cx + 2, cy + 3 + yOffset, COLORS.ENEMY_SLIME_OUTLINE);
 }
 
 function drawDemon(canvas: PixelCanvas, x: number, y: number, frame: number): void {
+  // Pokemon-style demon - cute but menacing, big head with horns, glowing eyes
   const cx = x + 16;
   const cy = y + 16;
   const bob = frame === 0 ? 0 : 1;
+  const armSwing = frame === 0 ? 0 : 1;
 
-  // Horns
-  canvas.fillRect(cx - 7, cy - 14 + bob, 3, 5, COLORS.ENEMY_DEMON_DARK);
-  canvas.fillRect(cx + 4, cy - 14 + bob, 3, 5, COLORS.ENEMY_DEMON_DARK);
+  // Body (round with outline)
+  canvas.fillEllipseOutlined(cx, cy + 3 + bob, 6, 6, COLORS.ENEMY_DEMON_MID, COLORS.ENEMY_DEMON_OUTLINE);
+  canvas.fillEllipse(cx + 1, cy + 5 + bob, 4, 3, COLORS.ENEMY_DEMON_DARK);
 
-  // Head
-  canvas.fillRect(cx - 5, cy - 10 + bob, 10, 8, COLORS.ENEMY_DEMON);
-  canvas.fillRect(cx - 4, cy - 9 + bob, 8, 6, COLORS.ENEMY_DEMON_LIGHT);
-
-  // Eyes (glowing)
-  canvas.fillRect(cx - 3, cy - 8 + bob, 2, 2, { r: 255, g: 255, b: 0, a: 255 });
-  canvas.fillRect(cx + 1, cy - 8 + bob, 2, 2, { r: 255, g: 255, b: 0, a: 255 });
-
-  // Fanged mouth
-  canvas.fillRect(cx - 3, cy - 4 + bob, 6, 2, COLORS.BLACK);
-  canvas.setPixel(cx - 2, cy - 3 + bob, COLORS.WHITE);
-  canvas.setPixel(cx + 1, cy - 3 + bob, COLORS.WHITE);
-
-  // Body (muscular)
-  canvas.fillRect(cx - 6, cy - 2 + bob, 12, 10, COLORS.ENEMY_DEMON);
-  canvas.fillRect(cx - 5, cy - 1 + bob, 10, 8, COLORS.ENEMY_DEMON_DARK);
-
-  // Arms
-  canvas.fillRect(cx - 10, cy - 2 + bob, 4, 6, COLORS.ENEMY_DEMON);
-  canvas.fillRect(cx + 6, cy - 2 + bob, 4, 6, COLORS.ENEMY_DEMON);
+  // Arms (short and stubby)
+  canvas.fillEllipseOutlined(cx - 8, cy + 2 + bob + armSwing, 3, 3, COLORS.ENEMY_DEMON_MID, COLORS.ENEMY_DEMON_OUTLINE);
+  canvas.fillEllipseOutlined(cx + 8, cy + 2 + bob - armSwing, 3, 3, COLORS.ENEMY_DEMON_MID, COLORS.ENEMY_DEMON_OUTLINE);
 
   // Legs
-  canvas.fillRect(cx - 4, cy + 8 + bob, 3, 5, COLORS.ENEMY_DEMON_DARK);
-  canvas.fillRect(cx + 1, cy + 8 + bob, 3, 5, COLORS.ENEMY_DEMON_DARK);
+  canvas.fillEllipseOutlined(cx - 3, cy + 10 + bob, 2, 3, COLORS.ENEMY_DEMON_DARK, COLORS.ENEMY_DEMON_OUTLINE);
+  canvas.fillEllipseOutlined(cx + 3, cy + 10 + bob, 2, 3, COLORS.ENEMY_DEMON_DARK, COLORS.ENEMY_DEMON_OUTLINE);
 
-  // Tail
-  canvas.fillRect(cx + 4, cy + 5 + bob, 5, 2, COLORS.ENEMY_DEMON);
-  canvas.setPixel(cx + 8, cy + 4 + bob, COLORS.ENEMY_DEMON);
+  // Tail (curving to side)
+  canvas.fillEllipse(cx + 7, cy + 6 + bob, 4, 2, COLORS.ENEMY_DEMON_MID);
+  canvas.setPixel(cx + 11, cy + 5 + bob, COLORS.ENEMY_DEMON_OUTLINE);
+  canvas.setPixel(cx + 10, cy + 4 + bob, COLORS.ENEMY_DEMON_OUTLINE);
+
+  // Large head (demon proportions)
+  canvas.fillCircleOutlined(cx, cy - 5 + bob, 7, COLORS.ENEMY_DEMON_MID, COLORS.ENEMY_DEMON_OUTLINE);
+  // Head highlight
+  canvas.fillCircle(cx - 2, cy - 7 + bob, 3, COLORS.ENEMY_DEMON_LIGHT);
+
+  // Horns (on top of head)
+  canvas.fillEllipseOutlined(cx - 6, cy - 10 + bob, 2, 4, COLORS.ENEMY_DEMON_DARK, COLORS.ENEMY_DEMON_OUTLINE);
+  canvas.fillEllipseOutlined(cx + 6, cy - 10 + bob, 2, 4, COLORS.ENEMY_DEMON_DARK, COLORS.ENEMY_DEMON_OUTLINE);
+
+  // Glowing yellow eyes
+  canvas.fillRect(cx - 4, cy - 6 + bob, 3, 3, { r: 255, g: 255, b: 0, a: 255 });
+  canvas.fillRect(cx + 1, cy - 6 + bob, 3, 3, { r: 255, g: 255, b: 0, a: 255 });
+  // Dark slit pupils (menacing)
+  canvas.fillRect(cx - 2, cy - 6 + bob, 1, 3, COLORS.ENEMY_DEMON_OUTLINE);
+  canvas.fillRect(cx + 2, cy - 6 + bob, 1, 3, COLORS.ENEMY_DEMON_OUTLINE);
+
+  // Fanged mouth
+  canvas.fillRect(cx - 3, cy - 1 + bob, 6, 2, COLORS.ENEMY_DEMON_OUTLINE);
+  // White fangs
+  canvas.setPixel(cx - 2, cy + bob, COLORS.WHITE);
+  canvas.setPixel(cx + 2, cy + bob, COLORS.WHITE);
 }
 
 function drawXPOrb(canvas: PixelCanvas, x: number, y: number, size: 'small' | 'medium' | 'large'): void {
