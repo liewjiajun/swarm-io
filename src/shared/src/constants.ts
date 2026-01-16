@@ -116,6 +116,28 @@ export const GAME_CONSTANTS = {
   TRADE_OFFER_TIMEOUT: 30, // Seconds before a trade offer expires
   TRADE_COOLDOWN: 10, // Seconds after completing a trade before another can be initiated
 
+  // P5.1: World Events - random events that affect gameplay
+  WORLD_EVENT_MIN_INTERVAL: 60, // Minimum seconds between world events
+  WORLD_EVENT_MAX_INTERVAL: 120, // Maximum seconds between world events
+  WORLD_EVENT_ANNOUNCEMENT_TIME: 5, // Seconds warning before event starts
+
+  // P5.1a: Meteor Shower event
+  METEOR_SHOWER_DURATION: 15, // Duration in seconds
+  METEOR_SHOWER_RADIUS: 50, // Radius of affected area
+  METEOR_SHOWER_DAMAGE: 25, // Damage per meteor
+  METEOR_SHOWER_INTERVAL: 0.5, // Seconds between meteor strikes
+  METEOR_SHOWER_METEOR_RADIUS: 3, // Damage radius per meteor
+
+  // P5.1b: Invasion Wave event
+  INVASION_WAVE_DURATION: 30, // Duration in seconds
+  INVASION_WAVE_ENEMY_COUNT: 50, // Extra enemies to spawn
+  INVASION_WAVE_SPAWN_RADIUS: 80, // Radius around event center to spawn enemies
+
+  // P5.1c: Double XP Zone event
+  DOUBLE_XP_ZONE_DURATION: 45, // Duration in seconds
+  DOUBLE_XP_ZONE_RADIUS: 40, // Radius of affected area
+  DOUBLE_XP_ZONE_MULTIPLIER: 2.0, // XP multiplier inside zone
+
   // Combat
   PVP_DAMAGE_MULTIPLIER: 0.15, // 15% damage to other players
   HOSTILITY_DECAY_RATE: 0.1, // Per second

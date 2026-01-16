@@ -276,6 +276,33 @@ export interface TradeOffer {
 }
 
 // =============================================================================
+// P5.1: WORLD EVENTS
+// =============================================================================
+
+export type WorldEventType =
+  | 'meteor_shower'      // Meteors fall from sky, dealing damage
+  | 'invasion_wave'      // Extra enemy spawn wave
+  | 'double_xp_zone';    // Area grants 2x XP for a duration
+
+export interface WorldEvent {
+  id: string;
+  type: WorldEventType;
+  x: number;              // Center position
+  y: number;
+  radius: number;         // Affected area
+  startTime: number;      // Game time when event started
+  duration: number;       // How long the event lasts
+  active: boolean;        // Whether event is currently active
+}
+
+export interface WorldEventState extends WorldEvent {
+  // Additional synced state for different event types
+  intensity?: number;     // For meteor_shower: damage per meteor
+  spawnedCount?: number;  // For invasion_wave: enemies spawned so far
+  xpMultiplier?: number;  // For double_xp_zone: XP multiplier
+}
+
+// =============================================================================
 // UPGRADE CHOICES
 // =============================================================================
 

@@ -1,5 +1,6 @@
 import { GameState, PlayerSchema, XPOrbSchema } from '../state/GameState.js';
 import { SpatialHash } from './SpatialHash.js';
+import type { WorldEventSystem } from './WorldEventSystem.js';
 import { GAME_CONSTANTS, UPGRADE_POOL, getXPForLevel, WEAPON_CONFIGS } from '@swarm-io/shared';
 import { xpSystemLogger } from '../utils/logger.js';
 
@@ -37,7 +38,15 @@ export class XPSystem {
     xpSystemLogger.info('Initialized with XP collection and leveling');
   }
 
-  update(gameState: GameState, spatialHash: SpatialHash, _deltaTime: number): void {
+  // Store reference to world event system for XP multiplier checks
+  private worldEventSystem: WorldEventSystem | null = null;
+
+  update(gameState: GameState, spatialHash: SpatialHash, _deltaTime: number, worldEventSystem?: WorldEventSystem): void {
+    // Store world event system reference for XP multiplier checks
+    if (worldEventSystem) {
+      this.worldEventSystem = worldEventSystem;
+    }
+
     // Process XP orb magnetization
     this.processOrbMagnetization(gameState, spatialHash);
 
@@ -109,7 +118,7 @@ export class XPSystem {
 
   private collectXPOrb(gameState: GameState, player: PlayerSchema, orb: XPOrbSchema): void {
     // Security validation: Ensure orb value is reasonable
-    const validatedValue = this.validateXPValue(orb.value);
+    let validatedValue = this.validateXPValue(orb.value);
 
     if (validatedValue <= 0) {
       this.logSecurityViolation('Invalid XP orb value', {
@@ -118,6 +127,20 @@ export class XPSystem {
         value: orb.value
       });
       return;
+    }
+
+    // P5.1c: Apply double XP zone multiplier if player is in a double XP zone
+    if (this.worldEventSystem) {
+      const xpMultiplier = this.worldEventSystem.isInDoubleXpZone(gameState, player.x, player.y);
+      if (xpMultiplier > 1) {
+        validatedValue = Math.floor(validatedValue * xpMultiplier);
+        xpSystemLogger.debug({
+          playerId: player.id,
+          baseXp: orb.value,
+          multiplier: xpMultiplier,
+          finalXp: validatedValue
+        }, 'Double XP zone applied');
+      }
     }
 
     // Award XP to player (handles hostility reduction)

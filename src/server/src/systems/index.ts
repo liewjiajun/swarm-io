@@ -8,3 +8,4 @@ export * from './SpawnSystem';
 export * from './WeaponSystem';
 export * from './CombatSystem';
 export * from './XPSystem';
+export * from './WorldEventSystem';

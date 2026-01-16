@@ -4,7 +4,7 @@
 
 **Last Updated:** 2026-01-16 (Deep Codebase Audit Complete)
 **Implementation Progress:** 119/85 tasks completed (140%)
-**Test Count:** 473 tests - ALL PASSING (734+ individual test cases)
+**Test Count:** 487 tests - ALL PASSING (734+ individual test cases)
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
 **Critical Bugs:** 0 | **Medium Bugs:** 0 | **Low Bugs:** 0 | **In Progress:** 1 (BUG-035)
 **Code Quality:** Excellent (0 TODOs, 0 FIXMEs, 0 skipped tests, 0 empty functions)
@@ -19,7 +19,7 @@
 | Completed | 119 | 140% (all phases complete + extras) |
 | Critical Bugs | 0 | BUG-035 now IN PROGRESS |
 | Medium Bugs | 0 | All resolved (BUG-036, BUG-037 fixed) |
-| Test Coverage | 473 tests | All passing |
+| Test Coverage | 487 tests | All passing |
 | Code Quality | Good | Structured logging, TypeScript clean |
 
 ### Current Priorities
@@ -31,7 +31,7 @@
 | **#2** | **Audio Overhaul** - Procedural chiptune audio system (P2.A1-P2.A8) | COMPLETE |
 | **#3** | **Multiplayer Experience** - Nicknames, leaderboard, minimap (P3.1-P3.3) | COMPLETE |
 | **#4** | **Multiplayer Mechanics** - Co-op features, revival, combos (P4.1-P4.6) | P4.1-P4.6 COMPLETE |
-| **#5** | **Surprise Mechanics** - World events, secrets, hazards (P5.1-P5.7) | NOT STARTED |
+| **#5** | **Surprise Mechanics** - World events, secrets, hazards (P5.1-P5.7) | P5.1 COMPLETE, P5.2-P5.7 NOT STARTED |
 | **#6** | **Balance Playtesting** - Tune difficulty and bosses (P6.1-P6.2) | NOT STARTED |
 
 ---
@@ -46,7 +46,7 @@
 | HACK Comments | 0 | No workarounds |
 | Skipped Tests | 0 | All tests running |
 | Empty Functions | 1 | Intentional: settings callback in Game.ts (handled by HUD) |
-| Passing Tests | 473 | 100% pass rate (734+ individual test cases) |
+| Passing Tests | 487 | 100% pass rate (734+ individual test cases) |
 | Non-null Assertions | 0 | Uses optional chaining instead |
 | Production console.log | 0 | All logging via structured logger |
 
@@ -260,7 +260,13 @@
 
 **Unexpected features to delight players:**
 
-- [ ] **P5.1** Random world events (meteor shower, enemy invasion wave, double XP zone)
+- [x] **P5.1** Random world events (meteor shower, enemy invasion wave, double XP zone)
+  - WorldEventSystem manages random world events that add variety to gameplay
+  - Events spawn at random intervals (60-120 seconds) at random locations
+  - Meteor Shower: 15s duration, 50 unit radius, meteors deal 25 damage
+  - Invasion Wave: 30s duration, spawns 50 extra enemies in area
+  - Double XP Zone: 45s duration, 40 unit radius, 2x XP multiplier
+  - Events sync to clients via WorldEventSchema in GameState
 - [ ] **P5.2** Hidden power-ups that spawn rarely in random locations
 - [ ] **P5.3** Secret boss that spawns when all players reach certain level
 - [ ] **P5.4** Environmental hazards (lava pools, ice patches, teleporters)
@@ -591,6 +597,14 @@ npm run test:memory --players=20 --duration=30
 ## CHANGELOG SUMMARY
 
 **Recent (2026-01-16):**
+- **P5.1 COMPLETE**: Random world events (meteor shower, invasion wave, double XP zone)
+  - Added WorldEventSchema for Colyseus state sync
+  - Added WorldEventSystem with three event types
+  - Meteor Shower: Deals damage to players and enemies in radius
+  - Invasion Wave: Spawns extra enemies scaled to current wave difficulty
+  - Double XP Zone: XPSystem applies multiplier when collecting orbs inside zone
+  - Events spawn randomly after 60-120 second intervals when players are present
+  - 14 new tests added (487 total tests, all passing)
 - **P4.6 COMPLETE**: Trading/gifting upgrades between nearby players
   - Players within 5 unit radius can offer weapons to each other
   - Trade offer messages: trade_offer, trade_response, trade_cancel

@@ -6,3 +6,4 @@ export * from './ProjectileSchema';
 export * from './XPOrbSchema';
 export * from './WeaponSchema';
 export * from './WorldSchema';
+export * from './WorldEventSchema';

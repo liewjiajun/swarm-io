@@ -5,6 +5,7 @@ import { EnemySchema } from './EnemySchema';
 import { ProjectileSchema } from './ProjectileSchema';
 import { XPOrbSchema } from './XPOrbSchema';
 import { WorldSchema } from './WorldSchema';
+import { WorldEventSchema } from './WorldEventSchema';
 import { generateId } from '@swarm-io/shared';
 import { GAME_CONSTANTS } from '@swarm-io/shared';
 import { ObjectPool, resetProjectile, resetEnemy, resetXPOrb } from '../systems/ObjectPool';
@@ -98,6 +99,9 @@ export class GameState extends Schema {
   // World state is always fully synced
   world!: WorldSchema;
 
+  // P5.1: World events (meteor showers, invasions, etc.)
+  worldEvents!: MapSchema<WorldEventSchema>;
+
   // Object pools for reducing GC pressure (not synced)
   // Pre-allocate commonly created/destroyed entities
   private projectilePool = new ObjectPool<ProjectileSchema>(
@@ -130,6 +134,7 @@ export class GameState extends Schema {
     this.projectiles = new MapSchema<ProjectileSchema>();
     this.xpOrbs = new MapSchema<XPOrbSchema>();
     this.world = new WorldSchema();
+    this.worldEvents = new MapSchema<WorldEventSchema>();
   }
 
   addPlayer(id: string, x: number, y: number, nickname?: string): PlayerSchema {
@@ -260,6 +265,39 @@ export class GameState extends Schema {
       xpOrbs: this.xpOrbPool.available
     };
   }
+
+  /**
+   * P5.1: Add a world event
+   */
+  addWorldEvent(
+    type: string,
+    x: number,
+    y: number,
+    radius: number,
+    duration: number,
+    startTime: number
+  ): WorldEventSchema {
+    const id = generateId();
+    const event = new WorldEventSchema();
+    event.id = id;
+    event.type = type;
+    event.x = x;
+    event.y = y;
+    event.radius = radius;
+    event.duration = duration;
+    event.startTime = startTime;
+    event.active = true;
+
+    this.worldEvents.set(id, event);
+    return event;
+  }
+
+  /**
+   * P5.1: Remove a world event
+   */
+  removeWorldEvent(id: string): void {
+    this.worldEvents.delete(id);
+  }
 }
 
 // Use defineTypes for esbuild/tsx compatibility (decorators don't work properly)
@@ -269,7 +307,8 @@ defineTypes(GameState, {
   enemies: { map: EnemySchema },
   projectiles: { map: ProjectileSchema },
   xpOrbs: { map: XPOrbSchema },
-  world: WorldSchema
+  world: WorldSchema,
+  worldEvents: { map: WorldEventSchema }
 });
 
 // Apply filter decorators manually (these work differently than @type)
@@ -283,3 +322,4 @@ export { ProjectileSchema } from './ProjectileSchema';
 export { XPOrbSchema } from './XPOrbSchema';
 export { WeaponSchema } from './WeaponSchema';
 export { WorldSchema } from './WorldSchema';
+export { WorldEventSchema } from './WorldEventSchema';

@@ -7,7 +7,8 @@ import {
   SpawnSystem,
   WeaponSystem,
   CombatSystem,
-  XPSystem
+  XPSystem,
+  WorldEventSystem
 } from '../systems/index.js';
 import { GAME_CONSTANTS, randomPointOnCircle } from '@swarm-io/shared';
 import { InputMessage, UpgradeMessage, TradeOfferMessage, TradeResponseMessage } from '@swarm-io/shared';
@@ -47,6 +48,7 @@ export class GameRoom extends Room<GameState> {
   private weaponSystem = new WeaponSystem();
   private combatSystem = new CombatSystem();
   private xpSystem = new XPSystem();
+  private worldEventSystem = new WorldEventSystem(); // P5.1: Random world events
 
   // Client management
   private clientData = new Map<string, ClientData>();
@@ -438,6 +440,7 @@ export class GameRoom extends Room<GameState> {
     this.weaponSystem.reset();
     this.combatSystem.reset();
     this.xpSystem.reset();
+    this.worldEventSystem.reset(); // P5.1: Reset world events
 
     gameRoomLogger.info('Room disposed');
   }
@@ -464,8 +467,9 @@ export class GameRoom extends Room<GameState> {
       this.physicsSystem.update(this.state, deltaTime);
       this.weaponSystem.update(this.state, this.spatialHash, deltaTime);
       this.combatSystem.update(this.state, this.spatialHash, deltaTime);
-      this.xpSystem.update(this.state, this.spatialHash, deltaTime);
+      this.xpSystem.update(this.state, this.spatialHash, deltaTime, this.worldEventSystem);
       this.spawnSystem.update(this.state, deltaTime);
+      this.worldEventSystem.update(this.state, deltaTime); // P5.1: World events
 
       // Update player timers and states
       this.updatePlayerTimers(deltaTime);
@@ -1259,13 +1263,15 @@ export class GameRoom extends Room<GameState> {
       enemyCount: this.state.enemies.size,
       projectileCount: this.state.projectiles.size,
       xpOrbCount: this.state.xpOrbs.size,
+      worldEventCount: this.state.worldEvents.size, // P5.1
       gameTime: this.state.world.gameTime,
       currentWave: this.state.world.currentWave,
       worldRadius: this.state.world.worldRadius,
       inputMetrics: this.inputSystem.getSecurityMetrics(),
       spawnMetrics: this.spawnSystem.getSpawnMetrics(),
       combatMetrics: this.combatSystem.getCombatMetrics(),
-      xpMetrics: this.xpSystem.getXPMetrics()
+      xpMetrics: this.xpSystem.getXPMetrics(),
+      worldEventMetrics: this.worldEventSystem.getMetrics() // P5.1
     };
   }
 }
