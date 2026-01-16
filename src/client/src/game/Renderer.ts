@@ -199,6 +199,11 @@ export class Renderer {
   private projectileSprites: Map<string, THREE.Sprite> = new Map();
   private powerUpSprites: Map<string, THREE.Sprite> = new Map(); // P5.2: Power-up sprites
 
+  // BUG-038 FIX: Track entities that failed sprite creation for procedural fallback
+  private enemySpriteFailures: Set<string> = new Set();
+  private projectileSpriteFailures: Set<string> = new Set();
+  private xpOrbSpriteFailures: Set<string> = new Set();
+
   // Post-processing (P1.10 CRT shader)
   // Types are 'any' because modules are lazily loaded to reduce bundle size
   private composer: any = null;
@@ -1117,11 +1122,12 @@ export class Renderer {
   /**
    * Update enemies using sprite-based rendering (P1.9)
    * Uses enemy type sprites with idle animation
+   * BUG-038 FIX: Enemies that fail sprite creation are rendered procedurally
    */
   private updateEnemiesSprite(enemies: Map<string, EnemyState>) {
     const dt = 1 / 60; // Approximate frame time
 
-    // Remove sprites for dead enemies
+    // Remove sprites for dead enemies and clear their failure status
     const currentIds = new Set(enemies.keys());
     this.enemySprites.forEach((sprite, id) => {
       if (!currentIds.has(id)) {
@@ -1131,8 +1137,16 @@ export class Renderer {
         this.enemyPrevPositions.delete(id);
       }
     });
+    // BUG-038 FIX: Clean up failure tracking for dead enemies
+    this.enemySpriteFailures.forEach(id => {
+      if (!currentIds.has(id)) {
+        this.enemySpriteFailures.delete(id);
+      }
+    });
 
     const time = Date.now() / 1000;
+    // BUG-038 FIX: Collect enemies that need procedural fallback rendering
+    const fallbackEnemies = new Map<string, EnemyState>();
 
     // Update/create enemy sprites
     enemies.forEach((enemy, id) => {
@@ -1151,6 +1165,12 @@ export class Renderer {
       const isMiniSlime = enemy.type === 'mini_slime';
 
       if (!sprite) {
+        // BUG-038 FIX: Check if we already tried and failed to create this sprite
+        if (this.enemySpriteFailures.has(id)) {
+          fallbackEnemies.set(id, enemy);
+          return;
+        }
+
         // Create new sprite for this enemy
         const spriteName = `${baseName}_idle_0`;
         const material = this.spriteLoader.createAtlasSpriteMaterial('main', spriteName);
@@ -1166,7 +1186,10 @@ export class Renderer {
           // Initialize previous position
           this.enemyPrevPositions.set(id, { x: enemy.x, y: enemy.y });
         } else {
-          // Fallback handled by procedural rendering
+          // BUG-038 FIX: Track failure and add to procedural fallback
+          this.enemySpriteFailures.add(id);
+          fallbackEnemies.set(id, enemy);
+          rendererLogger.warn({ spriteName, enemyType: enemy.type }, 'Enemy sprite creation failed, using procedural fallback');
           return;
         }
       }
@@ -1214,8 +1237,13 @@ export class Renderer {
       sprite.position.set(enemy.x, 1.0, enemy.y);
     });
 
-    // Hide procedural meshes when using sprites
-    this.enemyMeshes.forEach(mesh => mesh.count = 0);
+    // BUG-038 FIX: Render failed enemies using procedural method
+    if (fallbackEnemies.size > 0) {
+      this.updateEnemiesProceduralPartial(fallbackEnemies);
+    } else {
+      // Hide procedural meshes when no fallback needed
+      this.enemyMeshes.forEach(mesh => mesh.count = 0);
+    }
   }
 
   /**
@@ -1281,6 +1309,61 @@ export class Renderer {
 
       mesh.instanceMatrix.needsUpdate = true;
       mesh.frustumCulled = false; // Disable frustum culling on mesh itself
+    });
+  }
+
+  /**
+   * BUG-038 FIX: Update a subset of enemies using procedural rendering
+   * Used for fallback when sprite creation fails for specific enemies
+   * Unlike updateEnemiesProcedural, this doesn't reset mesh counts first
+   */
+  private updateEnemiesProceduralPartial(enemies: Map<string, EnemyState>) {
+    // Group enemies by type (frustum culling already done in sprite method)
+    const enemiesByType = new Map<string, EnemyState[]>();
+
+    enemies.forEach(enemy => {
+      if (!enemiesByType.has(enemy.type)) {
+        enemiesByType.set(enemy.type, []);
+      }
+      enemiesByType.get(enemy.type)!.push(enemy);
+    });
+
+    // Reset counts for meshes that will be used, leave others at 0
+    this.enemyMeshes.forEach(mesh => mesh.count = 0);
+
+    // Update each type's InstancedMesh
+    enemiesByType.forEach((typeEnemies, type) => {
+      let mesh = this.enemyMeshes.get(type);
+      if (!mesh) {
+        // Create pool for new enemy type
+        this.createEnemyPool(type, 0xff0000, 200);
+        mesh = this.enemyMeshes.get(type)!;
+      }
+
+      mesh.count = typeEnemies.length;
+
+      const time = Date.now() / 1000;
+
+      typeEnemies.forEach((enemy, index) => {
+        this.dummy.position.set(enemy.x, 1.0, enemy.y);
+        this.dummy.rotation.set(0, 0, 0);
+
+        const isBoss = type.startsWith('boss_');
+        let scale = isBoss ? 3.0 : 1.5;
+
+        if (isBoss) {
+          const pulseOffset = enemy.x * 0.1 + enemy.y * 0.1;
+          const pulse = 1 + Math.sin((time + pulseOffset) * 2) * 0.08;
+          scale *= pulse;
+        }
+
+        this.dummy.scale.set(scale, scale, scale);
+        this.dummy.updateMatrix();
+        mesh!.setMatrixAt(index, this.dummy.matrix);
+      });
+
+      mesh.instanceMatrix.needsUpdate = true;
+      mesh.frustumCulled = false;
     });
   }
 
@@ -1383,6 +1466,7 @@ export class Renderer {
 
   /**
    * Update projectiles using sprite-based rendering (P1.9)
+   * BUG-038 FIX: Projectiles that fail sprite creation are rendered procedurally
    */
   private updateProjectilesSprite(projectiles: Map<string, ProjectileState>) {
     // Remove sprites for destroyed projectiles
@@ -1393,6 +1477,15 @@ export class Renderer {
         this.projectileSprites.delete(id);
       }
     });
+    // BUG-038 FIX: Clean up failure tracking for destroyed projectiles
+    this.projectileSpriteFailures.forEach(id => {
+      if (!currentIds.has(id)) {
+        this.projectileSpriteFailures.delete(id);
+      }
+    });
+
+    // BUG-038 FIX: Collect projectiles that need procedural fallback rendering
+    const fallbackProjectiles = new Map<string, ProjectileState>();
 
     // Update/create projectile sprites
     projectiles.forEach((projectile, id) => {
@@ -1409,6 +1502,12 @@ export class Renderer {
       const spriteName = this.getProjectileSpriteName(projectile.type);
 
       if (!sprite) {
+        // BUG-038 FIX: Check if we already tried and failed to create this sprite
+        if (this.projectileSpriteFailures.has(id)) {
+          fallbackProjectiles.set(id, projectile);
+          return;
+        }
+
         // Create new sprite for this projectile
         const material = this.spriteLoader.createAtlasSpriteMaterial('main', spriteName);
         if (material) {
@@ -1417,7 +1516,10 @@ export class Renderer {
           this.projectileSprites.set(id, sprite);
           this.scene.add(sprite);
         } else {
-          // Fallback handled by procedural rendering
+          // BUG-038 FIX: Track failure and add to procedural fallback
+          this.projectileSpriteFailures.add(id);
+          fallbackProjectiles.set(id, projectile);
+          rendererLogger.warn({ spriteName, projectileType: projectile.type }, 'Projectile sprite creation failed, using procedural fallback');
           return;
         }
       }
@@ -1441,9 +1543,14 @@ export class Renderer {
       sprite.position.set(projectile.x, 1.0, projectile.y);
     });
 
-    // Hide procedural meshes when using sprites
-    this.projectileMesh.count = 0;
-    this.projectileMeshLOD.count = 0;
+    // BUG-038 FIX: Render failed projectiles using procedural method
+    if (fallbackProjectiles.size > 0) {
+      this.updateProjectilesProceduralPartial(fallbackProjectiles);
+    } else {
+      // Hide procedural meshes when no fallback needed
+      this.projectileMesh.count = 0;
+      this.projectileMeshLOD.count = 0;
+    }
   }
 
   /**
@@ -1507,6 +1614,59 @@ export class Renderer {
     }
   }
 
+  /**
+   * BUG-038 FIX: Update a subset of projectiles using procedural rendering
+   * Used for fallback when sprite creation fails for specific projectiles
+   */
+  private updateProjectilesProceduralPartial(projectiles: Map<string, ProjectileState>) {
+    let indexHi = 0;
+    let indexLo = 0;
+    const time = Date.now() / 1000;
+
+    projectiles.forEach(projectile => {
+      // Frustum culling already done in sprite method
+      this.dummy.position.set(projectile.x, 1.0, projectile.y);
+
+      const rotationSpeed = this.getProjectileRotationSpeed(projectile.type);
+      if (rotationSpeed > 0) {
+        const rotationOffset = (projectile.x + projectile.y) * 0.5;
+        const rotation = (time + rotationOffset) * rotationSpeed;
+        this.dummy.rotation.set(0, rotation, rotation * 0.3);
+      } else {
+        this.dummy.rotation.set(0, 0, 0);
+      }
+
+      const visualSize = this.getProjectileVisualSize(projectile.type);
+      this.dummy.scale.setScalar(visualSize);
+      this.dummy.updateMatrix();
+
+      const color = this.getProjectileColor(projectile.type);
+      this.tempColor.setHex(color);
+
+      if (this.shouldUseLOD(projectile.x, projectile.y)) {
+        this.projectileMeshLOD.setMatrixAt(indexLo, this.dummy.matrix);
+        this.projectileMeshLOD.setColorAt(indexLo, this.tempColor);
+        indexLo++;
+      } else {
+        this.projectileMesh.setMatrixAt(indexHi, this.dummy.matrix);
+        this.projectileMesh.setColorAt(indexHi, this.tempColor);
+        indexHi++;
+      }
+    });
+
+    this.projectileMesh.count = indexHi;
+    this.projectileMesh.instanceMatrix.needsUpdate = true;
+    if (this.projectileMesh.instanceColor) {
+      this.projectileMesh.instanceColor.needsUpdate = true;
+    }
+
+    this.projectileMeshLOD.count = indexLo;
+    this.projectileMeshLOD.instanceMatrix.needsUpdate = true;
+    if (this.projectileMeshLOD.instanceColor) {
+      this.projectileMeshLOD.instanceColor.needsUpdate = true;
+    }
+  }
+
   private updateXPOrbs(orbs: Map<string, XPOrbState>) {
     if (this.isSpriteMode()) {
       this.updateXPOrbsSprite(orbs);
@@ -1518,6 +1678,7 @@ export class Renderer {
   /**
    * Update XP orbs using sprite-based rendering (P1.9)
    * Uses xp_orb_small/medium/large sprites from atlas
+   * BUG-038 FIX: XP orbs that fail sprite creation are rendered procedurally
    */
   private updateXPOrbsSprite(orbs: Map<string, XPOrbState>) {
     // Remove sprites for collected orbs
@@ -1528,6 +1689,15 @@ export class Renderer {
         this.xpOrbSprites.delete(id);
       }
     });
+    // BUG-038 FIX: Clean up failure tracking for collected orbs
+    this.xpOrbSpriteFailures.forEach(id => {
+      if (!currentIds.has(id)) {
+        this.xpOrbSpriteFailures.delete(id);
+      }
+    });
+
+    // BUG-038 FIX: Collect orbs that need procedural fallback rendering
+    const fallbackOrbs = new Map<string, XPOrbState>();
 
     // Update/create orb sprites
     orbs.forEach((orb, id) => {
@@ -1544,6 +1714,12 @@ export class Renderer {
       const spriteName = `xp_orb_${orb.size}`;
 
       if (!sprite) {
+        // BUG-038 FIX: Check if we already tried and failed to create this sprite
+        if (this.xpOrbSpriteFailures.has(id)) {
+          fallbackOrbs.set(id, orb);
+          return;
+        }
+
         // Create new sprite for this orb
         const material = this.spriteLoader.createAtlasSpriteMaterial('main', spriteName);
         if (material) {
@@ -1552,7 +1728,10 @@ export class Renderer {
           this.xpOrbSprites.set(id, sprite);
           this.scene.add(sprite);
         } else {
-          // Fallback to procedural if sprite not available
+          // BUG-038 FIX: Track failure and add to procedural fallback
+          this.xpOrbSpriteFailures.add(id);
+          fallbackOrbs.set(id, orb);
+          rendererLogger.warn({ spriteName, orbSize: orb.size }, 'XP orb sprite creation failed, using procedural fallback');
           return;
         }
       }
@@ -1568,9 +1747,14 @@ export class Renderer {
       sprite.position.set(orb.x, 0.5 + bobOffset, orb.y);
     });
 
-    // Hide procedural meshes when using sprites
-    this.xpOrbMesh.count = 0;
-    this.xpOrbMeshLOD.count = 0;
+    // BUG-038 FIX: Render failed orbs using procedural method
+    if (fallbackOrbs.size > 0) {
+      this.updateXPOrbsProceduralPartial(fallbackOrbs);
+    } else {
+      // Hide procedural meshes when no fallback needed
+      this.xpOrbMesh.count = 0;
+      this.xpOrbMeshLOD.count = 0;
+    }
   }
 
   /**
@@ -1596,6 +1780,39 @@ export class Renderer {
       this.dummy.updateMatrix();
 
       // Use LOD based on distance from camera center
+      if (this.shouldUseLOD(orb.x, orb.y)) {
+        this.xpOrbMeshLOD.setMatrixAt(indexLo, this.dummy.matrix);
+        indexLo++;
+      } else {
+        this.xpOrbMesh.setMatrixAt(indexHi, this.dummy.matrix);
+        indexHi++;
+      }
+    });
+
+    this.xpOrbMesh.count = indexHi;
+    this.xpOrbMesh.instanceMatrix.needsUpdate = true;
+    this.xpOrbMeshLOD.count = indexLo;
+    this.xpOrbMeshLOD.instanceMatrix.needsUpdate = true;
+  }
+
+  /**
+   * BUG-038 FIX: Update a subset of XP orbs using procedural rendering
+   * Used for fallback when sprite creation fails for specific orbs
+   */
+  private updateXPOrbsProceduralPartial(orbs: Map<string, XPOrbState>) {
+    let indexHi = 0;
+    let indexLo = 0;
+
+    orbs.forEach(orb => {
+      // Frustum culling already done in sprite method
+      const scale = orb.size === 'large' ? 1.0 : orb.size === 'medium' ? 0.7 : 0.5;
+      const bobOffset = Math.sin(Date.now() * 0.005 + orb.x) * 0.2;
+
+      this.dummy.position.set(orb.x, 0.5 + bobOffset, orb.y);
+      this.dummy.rotation.set(0, 0, 0);
+      this.dummy.scale.setScalar(scale);
+      this.dummy.updateMatrix();
+
       if (this.shouldUseLOD(orb.x, orb.y)) {
         this.xpOrbMeshLOD.setMatrixAt(indexLo, this.dummy.matrix);
         indexLo++;
