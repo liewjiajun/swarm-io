@@ -49,6 +49,14 @@ interface AudioSettings {
 type AudioSettingsCallback = (settings: AudioSettings) => void;
 type CRTSettingsCallback = (enabled: boolean) => void;
 
+interface UISoundCallbacks {
+  playClick: () => void;
+  playHover: () => void;
+  playModalOpen: () => void;
+  playModalClose: () => void;
+  playUpgradeSelect: () => void;
+}
+
 interface PlayerState {
   id: string;
   x: number;
@@ -102,6 +110,7 @@ export class HUD {
   private elements!: HUDElements;
   private onAudioSettingsChange: AudioSettingsCallback | null = null;
   private onCRTSettingsChange: CRTSettingsCallback | null = null;
+  private uiSounds: UISoundCallbacks | null = null;
   private currentSettings: AudioSettings = {
     masterVolume: 0.7,
     sfxVolume: 0.8,
@@ -135,6 +144,14 @@ export class HUD {
    */
   setCRTSettingsCallback(callback: CRTSettingsCallback): void {
     this.onCRTSettingsChange = callback;
+  }
+
+  /**
+   * Sets the UI sound callbacks for button interactions
+   * These are called when user interacts with UI elements
+   */
+  setUISoundCallbacks(callbacks: UISoundCallbacks): void {
+    this.uiSounds = callbacks;
   }
 
   /**
@@ -1163,17 +1180,23 @@ export class HUD {
       })
       .join('');
 
-    // Attach click handlers
+    // Attach click and hover handlers
     this.elements.upgradeChoices.querySelectorAll('.upgrade-choice').forEach(el => {
       el.addEventListener('click', () => {
         const id = el.getAttribute('data-id');
         if (id) {
+          this.uiSounds?.playUpgradeSelect();
           onSelect(id);
           this.hideUpgradeUI();
         }
       });
+      el.addEventListener('mouseenter', () => {
+        this.uiSounds?.playHover();
+      });
     });
 
+    // Play modal open sound
+    this.uiSounds?.playModalOpen();
     this.elements.upgradeModal.classList.remove('hidden');
   }
 
@@ -1203,10 +1226,13 @@ export class HUD {
     this.elements.respawnBtn = newBtn;
 
     this.elements.respawnBtn.addEventListener('click', () => {
+      this.uiSounds?.playClick();
       onRespawn();
       this.hideDeathScreen();
     });
 
+    // Play modal open sound for death screen
+    this.uiSounds?.playModalOpen();
     this.elements.deathScreen.classList.remove('hidden');
   }
 
@@ -1222,12 +1248,18 @@ export class HUD {
    */
   private setupSettingsListeners(): void {
     // Settings button opens modal
-    this.elements.settingsBtn.addEventListener('click', () => this.showSettings());
+    this.elements.settingsBtn.addEventListener('click', () => {
+      this.uiSounds?.playClick();
+      this.showSettings();
+    });
 
     // Close button closes modal
     const closeBtn = this.container.querySelector('.settings-close-btn');
     if (closeBtn) {
-      closeBtn.addEventListener('click', () => this.hideSettings());
+      closeBtn.addEventListener('click', () => {
+        this.uiSounds?.playClick();
+        this.hideSettings();
+      });
     }
 
     // Click outside modal to close
@@ -1319,6 +1351,7 @@ export class HUD {
    * Shows the settings modal
    */
   showSettings(): void {
+    this.uiSounds?.playModalOpen();
     this.elements.settingsModal.classList.remove('hidden');
   }
 
@@ -1326,6 +1359,7 @@ export class HUD {
    * Hides the settings modal
    */
   hideSettings(): void {
+    this.uiSounds?.playModalClose();
     this.elements.settingsModal.classList.add('hidden');
   }
 
@@ -1375,6 +1409,7 @@ export class HUD {
       startBtn.parentNode?.replaceChild(newBtn, startBtn);
 
       newBtn.addEventListener('click', () => {
+        this.uiSounds?.playClick();
         localStorage.setItem('swarm-io-tutorial-seen', 'true');
         this.hideTutorial();
         onComplete();
@@ -1393,6 +1428,7 @@ export class HUD {
    * Shows the pause overlay
    */
   showPause(onResume: () => void, onSettings: () => void): void {
+    this.uiSounds?.playModalOpen();
     this.elements.pauseOverlay.classList.remove('hidden');
 
     // Setup resume button handler
@@ -1403,6 +1439,7 @@ export class HUD {
       const newResumeBtn = resumeBtn.cloneNode(true) as HTMLElement;
       resumeBtn.parentNode?.replaceChild(newResumeBtn, resumeBtn);
       newResumeBtn.addEventListener('click', () => {
+        this.uiSounds?.playClick();
         this.hidePause();
         onResume();
       });
@@ -1412,6 +1449,7 @@ export class HUD {
       const newSettingsBtn = settingsBtn.cloneNode(true) as HTMLElement;
       settingsBtn.parentNode?.replaceChild(newSettingsBtn, settingsBtn);
       newSettingsBtn.addEventListener('click', () => {
+        this.uiSounds?.playClick();
         this.hidePause();
         onSettings();
         this.showSettings();

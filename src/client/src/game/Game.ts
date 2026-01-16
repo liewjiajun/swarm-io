@@ -35,6 +35,10 @@ export class Game {
   private knownProjectileIds: Set<string> = new Set();
   private lastEnemyPositions: Map<string, { x: number; y: number; type: string }> = new Map();
 
+  // Track boss presence for music switching
+  private bossPresent: boolean = false;
+  private lastBossPresent: boolean = false;
+
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new Renderer(canvas);
     this.input = new InputManager();
@@ -115,6 +119,15 @@ export class Game {
     this.hud.setCRTSettingsCallback((enabled) => {
       this.renderer.setCRTEnabled(enabled);
     });
+
+    // Set UI sound callbacks for button interactions (P2.A8)
+    this.hud.setUISoundCallbacks({
+      playClick: () => this.audio.playUIClick(),
+      playHover: () => this.audio.playUIHover(),
+      playModalOpen: () => this.audio.playModalOpen(),
+      playModalClose: () => this.audio.playModalClose(),
+      playUpgradeSelect: () => this.audio.playUpgradeSelect(),
+    });
   }
 
   async start() {
@@ -153,6 +166,9 @@ export class Game {
 
       logger.info({ playerId: this.localPlayerId }, 'Connected');
 
+      // Start gameplay music
+      this.audio.playMusic('gameplay');
+
       // Start game loop
       this.running = true;
       this.lastUpdateTime = performance.now();
@@ -162,6 +178,8 @@ export class Game {
       logger.error({ error: String(error) }, 'Failed to connect to server');
       // Fall back to mock state for testing
       this.setupMockState();
+      // Start gameplay music even in mock mode
+      this.audio.playMusic('gameplay');
       this.running = true;
       this.lastUpdateTime = performance.now();
       this.gameLoop();
@@ -520,6 +538,30 @@ export class Game {
         this.lastEnemyPositions.delete(id);
       }
     });
+
+    // Detect boss presence for music switching
+    this.bossPresent = false;
+    state.enemies.forEach((enemy: any) => {
+      if (enemy.type.startsWith('boss_')) {
+        this.bossPresent = true;
+      }
+    });
+
+    // Switch music based on boss presence
+    if (this.bossPresent && !this.lastBossPresent) {
+      // Boss just spawned - play warning and switch to boss music
+      this.audio.playBossWarning();
+      // Delay music switch until after warning sound
+      setTimeout(() => {
+        if (this.bossPresent) {
+          this.audio.playMusic('boss');
+        }
+      }, 1500);
+    } else if (!this.bossPresent && this.lastBossPresent) {
+      // Boss defeated - switch back to gameplay music
+      this.audio.playMusic('gameplay');
+    }
+    this.lastBossPresent = this.bossPresent;
   }
 
   /**
