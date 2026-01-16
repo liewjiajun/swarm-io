@@ -471,7 +471,7 @@ describe('WeaponSystem', () => {
   });
 
   describe('garlic weapon', () => {
-    it('should create explosion effects for enemies in range', () => {
+    it('should create garlic_aura effects for enemies in range', () => {
       const weapon = createMockWeapon({ type: 'garlic', level: 1, cooldownRemaining: 0 });
       const player = createMockPlayer({ x: 0, y: 0, weapons: [weapon] });
       const enemy = createMockEnemy({ x: 1, y: 1 }); // Within garlic range
@@ -480,7 +480,7 @@ describe('WeaponSystem', () => {
       weaponSystem.update(gameState, spatialHash, deltaTime);
 
       expect(gameState.addProjectile).toHaveBeenCalledWith(
-        'explosion',
+        'garlic_aura',
         player.id,
         enemy.x, enemy.y,
         0, 0, // no velocity

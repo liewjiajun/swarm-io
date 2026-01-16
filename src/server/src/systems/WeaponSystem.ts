@@ -288,9 +288,9 @@ export class WeaponSystem {
 
       if (distance <= range) {
         // Apply damage directly (will be handled by CombatSystem later)
-        // For now, create a very short-lived explosion effect
+        // Create garlic aura visual effect
         gameState.addProjectile(
-          'explosion',       // type
+          'garlic_aura',     // type
           player.id,         // ownerId
           enemy.x,           // x
           enemy.y,           // y

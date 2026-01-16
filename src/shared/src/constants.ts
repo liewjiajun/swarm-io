@@ -81,7 +81,7 @@ export const GAME_CONSTANTS = {
 
   // Player
   PLAYER_START_HEALTH: 100,
-  PLAYER_BASE_SPEED: 5,
+  PLAYER_BASE_SPEED: 8,
   PLAYER_HITBOX_RADIUS: 0.5,
   PLAYER_INVULN_TIME: 3, // Seconds after respawn
   RESPAWN_DELAY: 3, // Seconds before respawn allowed
@@ -330,7 +330,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
     type: 'bat',
     name: 'Bat',
     health: 10,
-    speed: 4,
+    speed: 6,          // Increased from 4 (BUG-037: 50% faster)
     damage: 5,
     xpValue: 1,
     size: 0.4,
@@ -340,7 +340,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
     type: 'skeleton',
     name: 'Skeleton',
     health: 25,
-    speed: 2.5,
+    speed: 3.75,       // Increased from 2.5 (BUG-037: 50% faster)
     damage: 10,
     xpValue: 3,
     size: 0.5,
@@ -350,7 +350,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
     type: 'zombie',
     name: 'Zombie',
     health: 50,
-    speed: 1.5,
+    speed: 2.25,       // Increased from 1.5 (BUG-037: 50% faster)
     damage: 15,
     xpValue: 5,
     size: 0.6,
@@ -360,7 +360,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
     type: 'ghost',
     name: 'Ghost',
     health: 15,
-    speed: 3,
+    speed: 4.5,        // Increased from 3 (BUG-037: 50% faster)
     damage: 8,
     xpValue: 4,
     size: 0.5,
@@ -370,7 +370,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
     type: 'slime',
     name: 'Slime',
     health: 20,
-    speed: 2,
+    speed: 3,          // Increased from 2 (BUG-037: 50% faster)
     damage: 8,
     xpValue: 2,
     size: 0.5,
@@ -380,7 +380,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
     type: 'mini_slime',
     name: 'Mini Slime',
     health: 8,
-    speed: 2.5,
+    speed: 3.75,       // Increased from 2.5 (BUG-037: 50% faster)
     damage: 4,
     xpValue: 1,
     size: 0.3,
@@ -390,7 +390,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
     type: 'demon',
     name: 'Demon',
     health: 40,
-    speed: 2.5,
+    speed: 3.75,       // Increased from 2.5 (BUG-037: 50% faster)
     damage: 20,
     xpValue: 8,
     size: 0.7,
@@ -400,7 +400,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
     type: 'boss_slime',
     name: 'Giant Slime',
     health: 500,
-    speed: 1,
+    speed: 1.5,        // Increased from 1 (BUG-037: 50% faster)
     damage: 30,
     xpValue: 100,
     size: 3,
@@ -410,7 +410,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
     type: 'boss_skeleton',
     name: 'Skeleton King',
     health: 800,
-    speed: 1.5,
+    speed: 2.25,       // Increased from 1.5 (BUG-037: 50% faster)
     damage: 40,
     xpValue: 150,
     size: 2.5,
@@ -420,7 +420,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
     type: 'boss_demon',
     name: 'Demon Lord',
     health: 1200,
-    speed: 2,
+    speed: 3,          // Increased from 2 (BUG-037: 50% faster)
     damage: 50,
     xpValue: 250,
     size: 3,
