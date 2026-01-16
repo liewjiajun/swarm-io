@@ -23,6 +23,9 @@ interface HUDElements {
   leaderboard: HTMLElement;
   gameInfo: HTMLElement;
   minimap: HTMLCanvasElement;
+  minimapZoomIn: HTMLElement; // P3.3d: Zoom in button
+  minimapZoomOut: HTMLElement; // P3.3d: Zoom out button
+  minimapTooltip: HTMLElement; // P3.3a: Tooltip for player names
   upgradeModal: HTMLElement;
   upgradeChoices: HTMLElement;
   deathScreen: HTMLElement;
@@ -85,6 +88,16 @@ interface WorldState {
   worldRadius: number;
 }
 
+// P3.3: Enemy state for minimap enhancements
+interface EnemyState {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  health: number;
+  maxHealth: number;
+}
+
 interface UpgradeChoice {
   id: string;
   type: 'weapon' | 'stat';
@@ -129,6 +142,12 @@ export class HUD {
   };
   private crtEnabled: boolean = false;
 
+  // P3.3: Minimap enhancements state
+  private minimapZoom: number = 1.0; // P3.3d: Zoom level (0.5 to 2.0)
+  private minimapTooltipElement: HTMLElement | null = null; // P3.3a: Tooltip for player names
+  private lastEnemies: Map<string, EnemyState> = new Map(); // P3.3b/c: Cache enemies for heatmap/boss icons
+  private playerPositionsForHover: Array<{ x: number; y: number; name: string }> = []; // P3.3a: Cache for hover detection
+
   constructor() {
     const uiContainer = document.getElementById('ui');
     if (!uiContainer) {
@@ -140,6 +159,7 @@ export class HUD {
     this.elements = this.getElements();
     this.setupSettingsListeners();
     this.setupKeyboardShortcuts();
+    this.setupMinimapListeners(); // P3.3: Setup minimap zoom and hover listeners
   }
 
   /**
@@ -211,9 +231,14 @@ export class HUD {
           </div>
         </div>
 
-        <!-- Bottom Center: Minimap -->
+        <!-- Bottom Center: Minimap (P3.3: Enhanced with zoom controls) -->
         <div class="hud-minimap">
           <canvas class="minimap" width="150" height="150"></canvas>
+          <div class="minimap-controls">
+            <button class="minimap-zoom-in" title="Zoom In">+</button>
+            <button class="minimap-zoom-out" title="Zoom Out">−</button>
+          </div>
+          <div class="minimap-tooltip hidden"></div>
         </div>
       </div>
 
@@ -547,6 +572,59 @@ export class HUD {
       .minimap {
         background: rgba(0, 0, 0, 0.5);
         border: 2px solid white;
+      }
+
+      /* P3.3d: Minimap zoom controls */
+      .minimap-controls {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .minimap-zoom-in,
+      .minimap-zoom-out {
+        width: 20px;
+        height: 20px;
+        background: rgba(0, 0, 0, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        color: white;
+        font-size: 14px;
+        font-family: 'Press Start 2P', monospace;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        line-height: 1;
+        transition: all 0.2s ease;
+      }
+
+      .minimap-zoom-in:hover,
+      .minimap-zoom-out:hover {
+        background: rgba(78, 205, 196, 0.5);
+        border-color: #4ecdc4;
+      }
+
+      /* P3.3a: Minimap tooltip for player nicknames on hover */
+      .minimap-tooltip {
+        position: absolute;
+        background: rgba(0, 0, 0, 0.9);
+        border: 1px solid #4ecdc4;
+        color: white;
+        font-size: 8px;
+        padding: 3px 6px;
+        font-family: 'Press Start 2P', monospace;
+        pointer-events: none;
+        white-space: nowrap;
+        z-index: 10;
+        text-shadow: 1px 1px 0 #000;
+      }
+
+      .minimap-tooltip.hidden {
+        display: none;
       }
 
       /* Upgrade Modal */
@@ -1226,6 +1304,9 @@ export class HUD {
       leaderboard: this.container.querySelector('.leaderboard-entries') as HTMLElement,
       gameInfo: this.container.querySelector('.game-info') as HTMLElement,
       minimap: this.container.querySelector('.minimap') as HTMLCanvasElement,
+      minimapZoomIn: this.container.querySelector('.minimap-zoom-in') as HTMLElement, // P3.3d
+      minimapZoomOut: this.container.querySelector('.minimap-zoom-out') as HTMLElement, // P3.3d
+      minimapTooltip: this.container.querySelector('.minimap-tooltip') as HTMLElement, // P3.3a
       upgradeModal: this.container.querySelector('.upgrade-modal') as HTMLElement,
       upgradeChoices: this.container.querySelector('.upgrade-choices') as HTMLElement,
       deathScreen: this.container.querySelector('.death-screen') as HTMLElement,
@@ -1250,12 +1331,14 @@ export class HUD {
 
   /**
    * Main update method - called every frame
+   * P3.3: Now accepts enemies for minimap enhancements
    */
   update(
     player: PlayerState | undefined,
     world: WorldState | undefined,
     allPlayers: Map<string, PlayerState>,
-    localPlayerId: string
+    localPlayerId: string,
+    enemies?: Map<string, EnemyState>
   ): void {
     if (!player) return;
 
@@ -1280,7 +1363,8 @@ export class HUD {
     // Update game info
     if (world) {
       this.updateGameInfo(world);
-      this.updateMinimap(player, allPlayers, world);
+      // P3.3: Pass enemies to minimap for heatmap and boss icons
+      this.updateMinimap(player, allPlayers, world, enemies);
     }
   }
 
@@ -1386,11 +1470,13 @@ export class HUD {
 
   /**
    * Updates minimap canvas
+   * P3.3: Enhanced with enemy heatmap, boss icons, player hover names, and zoom
    */
   private updateMinimap(
     player: PlayerState,
     allPlayers: Map<string, PlayerState>,
-    world: WorldState
+    world: WorldState,
+    enemies?: Map<string, EnemyState>
   ): void {
     const canvas = this.elements.minimap;
     const ctx = canvas.getContext('2d');
@@ -1398,7 +1484,14 @@ export class HUD {
 
     const size = 150;
     const worldRadius = world.worldRadius || 500;
-    const scale = size / (worldRadius * 2.5);
+    // P3.3d: Apply zoom level to scale calculation
+    const baseScale = size / (worldRadius * 2.5);
+    const scale = baseScale * this.minimapZoom;
+
+    // Cache enemies for hover detection
+    if (enemies) {
+      this.lastEnemies = enemies;
+    }
 
     // Clear canvas
     ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
@@ -1411,25 +1504,207 @@ export class HUD {
     ctx.arc(size / 2, size / 2, worldRadius * scale, 0, Math.PI * 2);
     ctx.stroke();
 
-    // Draw other players (blue dots)
-    ctx.fillStyle = '#4a90d9';
-    allPlayers.forEach(p => {
-      if (p.id !== player.id && !p.dead) {
-        const x = size / 2 + p.x * scale;
-        const y = size / 2 + p.y * scale;
-        ctx.beginPath();
-        ctx.arc(x, y, 2, 0, Math.PI * 2);
-        ctx.fill();
+    // P3.3b: Draw enemy density heatmap
+    if (this.lastEnemies.size > 0) {
+      this.drawEnemyHeatmap(ctx, size, scale, player);
+    }
+
+    // P3.3c: Draw boss locations with special icons
+    this.lastEnemies.forEach(enemy => {
+      if (enemy.type.startsWith('boss_')) {
+        const ex = size / 2 + (enemy.x - player.x * (this.minimapZoom - 1)) * scale;
+        const ey = size / 2 + (enemy.y - player.y * (this.minimapZoom - 1)) * scale;
+        // Only draw if within canvas bounds
+        if (ex >= 0 && ex <= size && ey >= 0 && ey <= size) {
+          // Draw pulsing boss icon (skull symbol)
+          ctx.fillStyle = '#ff4444';
+          ctx.strokeStyle = '#ffff00';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(ex, ey, 5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          // Draw skull symbol
+          ctx.fillStyle = '#ffff00';
+          ctx.font = '8px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('💀', ex, ey);
+        }
       }
     });
 
-    // Draw local player (green dot, larger)
+    // P3.3a: Clear and rebuild player positions for hover detection
+    this.playerPositionsForHover = [];
+
+    // Draw other players (blue dots) - P3.3a: Store positions for hover
+    ctx.fillStyle = '#4a90d9';
+    allPlayers.forEach(p => {
+      if (p.id !== player.id && !p.dead) {
+        // When zoomed, adjust for player-centric view
+        const x = size / 2 + (p.x - player.x * (this.minimapZoom - 1)) * scale;
+        const y = size / 2 + (p.y - player.y * (this.minimapZoom - 1)) * scale;
+        // Only draw if within canvas bounds
+        if (x >= 0 && x <= size && y >= 0 && y <= size) {
+          ctx.beginPath();
+          ctx.arc(x, y, 2, 0, Math.PI * 2);
+          ctx.fill();
+          // P3.3a: Store position and name for hover tooltip
+          this.playerPositionsForHover.push({
+            x,
+            y,
+            name: p.nickname || `Player`
+          });
+        }
+      }
+    });
+
+    // Draw local player (teal dot, larger)
     ctx.fillStyle = '#4ecdc4';
     const px = size / 2 + player.x * scale;
     const py = size / 2 + player.y * scale;
     ctx.beginPath();
     ctx.arc(px, py, 3, 0, Math.PI * 2);
     ctx.fill();
+    // Store local player position for hover too
+    this.playerPositionsForHover.push({
+      x: px,
+      y: py,
+      name: player.nickname || 'YOU'
+    });
+  }
+
+  /**
+   * P3.3b: Draw enemy density heatmap on minimap
+   * Uses a grid-based approach to show enemy concentration
+   */
+  private drawEnemyHeatmap(
+    ctx: CanvasRenderingContext2D,
+    size: number,
+    scale: number,
+    player: PlayerState
+  ): void {
+    // Create density grid (10x10 cells)
+    const gridSize = 10;
+    const cellSize = size / gridSize;
+    const density: number[][] = Array(gridSize).fill(null).map(() => Array(gridSize).fill(0));
+
+    // Count enemies in each cell
+    this.lastEnemies.forEach(enemy => {
+      // Skip bosses (they get special icons)
+      if (enemy.type.startsWith('boss_')) return;
+
+      const ex = size / 2 + (enemy.x - player.x * (this.minimapZoom - 1)) * scale;
+      const ey = size / 2 + (enemy.y - player.y * (this.minimapZoom - 1)) * scale;
+
+      // Calculate grid cell
+      const cellX = Math.floor(ex / cellSize);
+      const cellY = Math.floor(ey / cellSize);
+
+      // Only count if within bounds
+      if (cellX >= 0 && cellX < gridSize && cellY >= 0 && cellY < gridSize) {
+        density[cellY][cellX]++;
+      }
+    });
+
+    // Find max density for normalization
+    let maxDensity = 0;
+    for (let y = 0; y < gridSize; y++) {
+      for (let x = 0; x < gridSize; x++) {
+        if (density[y][x] > maxDensity) {
+          maxDensity = density[y][x];
+        }
+      }
+    }
+
+    // Draw heatmap cells
+    if (maxDensity > 0) {
+      for (let y = 0; y < gridSize; y++) {
+        for (let x = 0; x < gridSize; x++) {
+          const count = density[y][x];
+          if (count > 0) {
+            // Normalize density and create color gradient (green -> yellow -> red)
+            const normalizedDensity = count / maxDensity;
+            const alpha = Math.min(0.5, normalizedDensity * 0.6); // Max 50% opacity
+
+            // Color gradient: low = green, medium = yellow, high = red
+            let r: number, g: number, b: number;
+            if (normalizedDensity < 0.5) {
+              // Green to yellow
+              r = Math.floor(normalizedDensity * 2 * 255);
+              g = 200;
+              b = 0;
+            } else {
+              // Yellow to red
+              r = 255;
+              g = Math.floor((1 - (normalizedDensity - 0.5) * 2) * 200);
+              b = 0;
+            }
+
+            ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+            ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * P3.3: Setup minimap event listeners for zoom and hover
+   */
+  private setupMinimapListeners(): void {
+    // P3.3d: Zoom in button
+    this.elements.minimapZoomIn.addEventListener('click', () => {
+      this.uiSounds?.playClick();
+      this.minimapZoom = Math.min(2.0, this.minimapZoom + 0.25);
+    });
+
+    // P3.3d: Zoom out button
+    this.elements.minimapZoomOut.addEventListener('click', () => {
+      this.uiSounds?.playClick();
+      this.minimapZoom = Math.max(0.5, this.minimapZoom - 0.25);
+    });
+
+    // P3.3a: Hover detection for player nicknames
+    this.elements.minimap.addEventListener('mousemove', (e) => {
+      const rect = this.elements.minimap.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      // Check if mouse is near any player
+      let foundPlayer: { x: number; y: number; name: string } | null = null;
+      const hoverRadius = 8; // pixels
+
+      for (const playerPos of this.playerPositionsForHover) {
+        const dx = mouseX - playerPos.x;
+        const dy = mouseY - playerPos.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance <= hoverRadius) {
+          foundPlayer = playerPos;
+          break;
+        }
+      }
+
+      if (foundPlayer) {
+        // Show tooltip
+        this.elements.minimapTooltip.textContent = foundPlayer.name;
+        this.elements.minimapTooltip.classList.remove('hidden');
+        // Position tooltip near the player dot but ensure it stays within minimap bounds
+        const tooltipX = Math.min(Math.max(5, foundPlayer.x - 20), 100);
+        const tooltipY = Math.max(5, foundPlayer.y - 20);
+        this.elements.minimapTooltip.style.left = `${tooltipX}px`;
+        this.elements.minimapTooltip.style.top = `${tooltipY}px`;
+      } else {
+        // Hide tooltip
+        this.elements.minimapTooltip.classList.add('hidden');
+      }
+    });
+
+    // Hide tooltip when mouse leaves minimap
+    this.elements.minimap.addEventListener('mouseleave', () => {
+      this.elements.minimapTooltip.classList.add('hidden');
+    });
   }
 
   /**

@@ -503,8 +503,8 @@ export class Game {
     // Render all entities
     this.renderer.render(state, this.localPlayerId);
 
-    // Update HUD with current state
-    this.hud.update(localPlayer, state.world, state.players, this.localPlayerId);
+    // Update HUD with current state (P3.3: Now includes enemies for minimap enhancements)
+    this.hud.update(localPlayer, state.world, state.players, this.localPlayerId, state.enemies);
   }
 
   /**
