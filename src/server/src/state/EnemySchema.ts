@@ -31,6 +31,11 @@ export class EnemySchema extends Schema {
   // BUG-018 FIX: Track who last damaged this enemy for kill credit
   lastDamagedBy: string = '';
 
+  // P4.4: Combo system - track different players hitting this enemy
+  comboCount: number = 0;
+  comboLastHitTime: number = 0;
+  comboLastPlayerId: string = '';
+
   constructor() {
     super();
     // Initialize synced values through the setters

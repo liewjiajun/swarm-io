@@ -10,6 +10,7 @@ interface XPMetrics {
   upgradesApplied: number;
   magnetizationEvents: number;
   securityViolations: number;
+  coopXPShared: number; // P4.1: Track cooperative XP sharing
 }
 
 interface UpgradeChoice {
@@ -28,7 +29,8 @@ export class XPSystem {
     levelsGained: 0,
     upgradesApplied: 0,
     magnetizationEvents: 0,
-    securityViolations: 0
+    securityViolations: 0,
+    coopXPShared: 0
   };
 
   constructor() {
@@ -121,6 +123,9 @@ export class XPSystem {
     // Award XP to player (handles hostility reduction)
     player.addXP(validatedValue);
 
+    // P4.1: Cooperative XP Sharing - share XP with nearby players
+    this.shareXPWithNearbyPlayers(gameState, player, validatedValue);
+
     // Mark orb as collected
     orb.collected = true;
 
@@ -129,6 +134,40 @@ export class XPSystem {
     this.xpMetrics.orbsCollected++;
 
     xpSystemLogger.debug({ playerId: player.id, xpCollected: validatedValue, totalXp: player.xp }, 'Player collected XP');
+  }
+
+  /**
+   * P4.1: Share XP with nearby players within COOP_XP_SHARE_RADIUS
+   * Nearby players receive a percentage of the collected XP
+   */
+  private shareXPWithNearbyPlayers(gameState: GameState, collector: PlayerSchema, xpValue: number): void {
+    const shareRadius = GAME_CONSTANTS.COOP_XP_SHARE_RADIUS;
+    const sharePercentage = GAME_CONSTANTS.COOP_XP_SHARE_PERCENTAGE;
+    const sharedXP = Math.floor(xpValue * sharePercentage);
+
+    if (sharedXP <= 0) return;
+
+    // Find nearby living players (excluding the collector)
+    gameState.players.forEach(player => {
+      if (player.id === collector.id || player.dead) return;
+
+      const distance = Math.sqrt(
+        (player.x - collector.x) ** 2 + (player.y - collector.y) ** 2
+      );
+
+      if (distance <= shareRadius) {
+        // Award shared XP to nearby player
+        player.addXP(sharedXP);
+        this.xpMetrics.coopXPShared += sharedXP;
+
+        xpSystemLogger.debug({
+          collectorId: collector.id,
+          recipientId: player.id,
+          sharedXP,
+          distance: distance.toFixed(2)
+        }, 'Shared XP with nearby player');
+      }
+    });
   }
 
   private processLevelUps(gameState: GameState): void {
@@ -423,7 +462,8 @@ export class XPSystem {
       levelsGained: 0,
       upgradesApplied: 0,
       magnetizationEvents: 0,
-      securityViolations: 0
+      securityViolations: 0,
+      coopXPShared: 0
     };
     xpSystemLogger.info('Reset for new game');
   }

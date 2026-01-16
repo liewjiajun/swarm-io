@@ -30,7 +30,7 @@
 | **#1** | **Visual Overhaul** - Sprite integration (P1.7-P1.9) | P1.7, P1.8, P1.9 ALL DONE |
 | **#2** | **Audio Overhaul** - Procedural chiptune audio system (P2.A1-P2.A8) | COMPLETE |
 | **#3** | **Multiplayer Experience** - Nicknames, leaderboard, minimap (P3.1-P3.3) | COMPLETE |
-| **#4** | **Multiplayer Mechanics** - Co-op features, revival, combos (P4.1-P4.6) | NOT STARTED |
+| **#4** | **Multiplayer Mechanics** - Co-op features, revival, combos (P4.1-P4.6) | P4.1-P4.5 COMPLETE, P4.6 pending |
 | **#5** | **Surprise Mechanics** - World events, secrets, hazards (P5.1-P5.7) | NOT STARTED |
 | **#6** | **Balance Playtesting** - Tune difficulty and bosses (P6.1-P6.2) | NOT STARTED |
 
@@ -242,11 +242,11 @@
 
 **Current mechanics are single-player focused. Add multiplayer-specific features:**
 
-- [ ] **P4.1** Cooperative XP sharing - players near each other share XP from kills
-- [ ] **P4.2** Revival mechanic - alive players can revive dead teammates within time limit
-- [ ] **P4.3** Team zones - areas where players buff each other's damage/defense
-- [ ] **P4.4** Combo system - sequential hits by different players multiply damage
-- [ ] **P4.5** Shared boss aggro - bosses target multiple players, requiring coordination
+- [x] **P4.1** Cooperative XP sharing - players within 10 radius share 50% of XP from kills
+- [x] **P4.2** Revival mechanic - alive players can revive dead teammates (3 second revive time, keeps level/weapons)
+- [x] **P4.3** Team zones - areas where players buff each other's damage/defense (15% damage bonus, 10% damage reduction per ally, max 45%)
+- [x] **P4.4** Combo system - sequential hits by different players multiply damage (25% damage bonus per different player hit, max 3x)
+- [x] **P4.5** Shared boss aggro - bosses target multiple players dynamically (switch targets every 5 seconds with 30% chance)
 - [ ] **P4.6** Trading/gifting upgrades between nearby players
 
 ---
@@ -586,6 +586,12 @@ npm run test:memory --players=20 --duration=30
 ## CHANGELOG SUMMARY
 
 **Recent (2026-01-16):**
+- **P4.1-P4.5 COMPLETE**: Multiplayer Game Mechanics
+  - P4.1 COMPLETE: Cooperative XP sharing (50% shared with players within 10 radius)
+  - P4.2 COMPLETE: Revival mechanic (3 second revive time, keeps level/weapons)
+  - P4.3 COMPLETE: Team zones (15% damage bonus, 10% damage reduction per ally, max 45%)
+  - P4.4 COMPLETE: Combo system (25% damage bonus per different player hit, max 3x)
+  - P4.5 COMPLETE: Shared boss aggro (bosses switch targets every 5 seconds with 30% chance)
 - **P3.3 COMPLETE**: Minimap Enhancements
   - P3.3a: Player positions with nicknames on hover
   - P3.3b: Enemy density heatmap showing enemy concentration

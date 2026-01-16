@@ -54,6 +54,10 @@ function createMockEnemy(overrides: Partial<{
   damage: number;
   xpValue: number;
   size: number;
+  // P4.4: Combo system fields
+  comboCount: number;
+  comboLastHitTime: number;
+  comboLastPlayerId: string;
 }> = {}) {
   return {
     id: overrides.id ?? `enemy-${Math.random().toString(36).substr(2, 9)}`,
@@ -64,7 +68,12 @@ function createMockEnemy(overrides: Partial<{
     maxHealth: overrides.maxHealth ?? 10,
     damage: overrides.damage ?? 5,
     xpValue: overrides.xpValue ?? 1,
-    size: overrides.size ?? 0.5
+    size: overrides.size ?? 0.5,
+    // P4.4: Combo system initialization
+    comboCount: overrides.comboCount ?? 0,
+    comboLastHitTime: overrides.comboLastHitTime ?? 0,
+    comboLastPlayerId: overrides.comboLastPlayerId ?? '',
+    lastDamagedBy: '' // BUG-018 field
   } as any;
 }
 

@@ -11,6 +11,8 @@ interface CombatMetrics {
   contactDamageEvents: number;
   securityViolations: number;
   damageValidationErrors: number;
+  comboDamageDealt: number; // P4.4: Track combo bonus damage
+  maxComboReached: number; // P4.4: Track highest combo
 }
 
 interface DamageEvent {
@@ -29,7 +31,9 @@ export class CombatSystem {
     projectileHits: 0,
     contactDamageEvents: 0,
     securityViolations: 0,
-    damageValidationErrors: 0
+    damageValidationErrors: 0,
+    comboDamageDealt: 0,
+    maxComboReached: 0
   };
 
   private recentDamageEvents: DamageEvent[] = [];
@@ -120,12 +124,28 @@ export class CombatSystem {
 
   private processProjectileHit(gameState: GameState, projectile: ProjectileSchema, enemy: EnemySchema): void {
     // Validate damage before applying
-    const validatedDamage = this.validateDamage(
+    let validatedDamage = this.validateDamage(
       projectile.damage,
       'projectile',
       projectile.type,
       1 // Default level for validation
     );
+
+    // P4.3: Apply team zone damage bonus
+    const teamZoneBonus = this.calculateTeamZoneDamageBonus(gameState, projectile.ownerId);
+    if (teamZoneBonus > 0) {
+      validatedDamage = Math.floor(validatedDamage * (1 + teamZoneBonus));
+    }
+
+    // P4.4: Apply combo damage multiplier
+    const comboMultiplier = this.updateComboAndGetMultiplier(enemy, projectile.ownerId);
+    const comboBonusDamage = validatedDamage * (comboMultiplier - 1);
+    validatedDamage = Math.floor(validatedDamage * comboMultiplier);
+
+    // Track combo damage
+    if (comboBonusDamage > 0) {
+      this.combatMetrics.comboDamageDealt += comboBonusDamage;
+    }
 
     // Apply damage to enemy
     enemy.health -= validatedDamage;
@@ -168,6 +188,123 @@ export class CombatSystem {
     }
   }
 
+  /**
+   * P4.3: Calculate team zone damage bonus based on nearby allies
+   * Players near each other deal bonus damage
+   */
+  private calculateTeamZoneDamageBonus(gameState: GameState, playerId: string): number {
+    const player = gameState.players.get(playerId);
+    if (!player || player.dead) return 0;
+
+    let nearbyAllies = 0;
+    const zoneRadius = GAME_CONSTANTS.TEAM_ZONE_RADIUS;
+
+    gameState.players.forEach(other => {
+      if (other.id === playerId || other.dead) return;
+
+      const distance = Math.sqrt(
+        (other.x - player.x) ** 2 + (other.y - player.y) ** 2
+      );
+
+      if (distance <= zoneRadius) {
+        nearbyAllies++;
+      }
+    });
+
+    // Calculate bonus (capped at max)
+    const bonus = Math.min(
+      nearbyAllies * GAME_CONSTANTS.TEAM_ZONE_DAMAGE_BONUS,
+      GAME_CONSTANTS.TEAM_ZONE_MAX_BONUS
+    );
+
+    if (bonus > 0) {
+      combatSystemLogger.debug({
+        playerId,
+        nearbyAllies,
+        damageBonus: `${(bonus * 100).toFixed(0)}%`
+      }, 'Team zone damage bonus applied');
+    }
+
+    return bonus;
+  }
+
+  /**
+   * P4.3: Calculate team zone defense bonus based on nearby allies
+   * Players near each other take reduced damage
+   */
+  private calculateTeamZoneDefenseBonus(gameState: GameState, playerId: string): number {
+    const player = gameState.players.get(playerId);
+    if (!player || player.dead) return 0;
+
+    let nearbyAllies = 0;
+    const zoneRadius = GAME_CONSTANTS.TEAM_ZONE_RADIUS;
+
+    gameState.players.forEach(other => {
+      if (other.id === playerId || other.dead) return;
+
+      const distance = Math.sqrt(
+        (other.x - player.x) ** 2 + (other.y - player.y) ** 2
+      );
+
+      if (distance <= zoneRadius) {
+        nearbyAllies++;
+      }
+    });
+
+    // Calculate bonus (capped at max)
+    const bonus = Math.min(
+      nearbyAllies * GAME_CONSTANTS.TEAM_ZONE_DEFENSE_BONUS,
+      GAME_CONSTANTS.TEAM_ZONE_MAX_BONUS
+    );
+
+    return bonus;
+  }
+
+  /**
+   * P4.4: Update combo system for an enemy and return the damage multiplier
+   * Combos increase when different players hit the same enemy in sequence
+   */
+  private updateComboAndGetMultiplier(enemy: EnemySchema, attackerId: string): number {
+    const now = Date.now();
+    const comboWindow = GAME_CONSTANTS.COMBO_WINDOW * 1000; // Convert to ms
+
+    // Check if combo has expired
+    if (now - enemy.comboLastHitTime > comboWindow) {
+      // Combo expired, reset
+      enemy.comboCount = 0;
+      enemy.comboLastPlayerId = '';
+    }
+
+    // Check if this is a different player than the last hit
+    if (attackerId !== enemy.comboLastPlayerId && enemy.comboLastPlayerId !== '') {
+      // Different player, increase combo!
+      enemy.comboCount++;
+      this.combatMetrics.maxComboReached = Math.max(
+        this.combatMetrics.maxComboReached,
+        enemy.comboCount
+      );
+
+      combatSystemLogger.debug({
+        enemyId: enemy.id,
+        attackerId,
+        previousAttacker: enemy.comboLastPlayerId,
+        comboCount: enemy.comboCount
+      }, 'Combo increased');
+    }
+
+    // Update tracking
+    enemy.comboLastHitTime = now;
+    enemy.comboLastPlayerId = attackerId;
+
+    // Calculate multiplier (1.0 base + increment per combo, capped at max)
+    const multiplier = Math.min(
+      1 + enemy.comboCount * GAME_CONSTANTS.COMBO_INCREMENT,
+      GAME_CONSTANTS.COMBO_MAX_MULTIPLIER
+    );
+
+    return multiplier;
+  }
+
   private processProjectilePlayerHit(gameState: GameState, projectile: ProjectileSchema, player: PlayerSchema): void {
     // Get source player for hostility tracking
     const sourcePlayer = gameState.players.get(projectile.ownerId);
@@ -205,7 +342,13 @@ export class CombatSystem {
 
   private processEnemyProjectilePlayerHit(gameState: GameState, projectile: ProjectileSchema, player: PlayerSchema): void {
     // Validate damage - enemy projectiles deal full damage
-    const validatedDamage = this.validateDamage(projectile.damage, 'projectile', projectile.type, 1);
+    let validatedDamage = this.validateDamage(projectile.damage, 'projectile', projectile.type, 1);
+
+    // P4.3: Apply team zone defense bonus (damage reduction)
+    const defenseBonus = this.calculateTeamZoneDefenseBonus(gameState, player.id);
+    if (defenseBonus > 0) {
+      validatedDamage = Math.floor(validatedDamage * (1 - defenseBonus));
+    }
 
     // Apply damage to player (not PvP, so no hostility tracking)
     player.takeDamage(validatedDamage, projectile.ownerId, false);
@@ -255,7 +398,13 @@ export class CombatSystem {
           const damagePerSecond = enemy.damage;
           const damage = damagePerSecond * deltaTime;
 
-          const validatedDamage = this.validateDamage(damage, 'contact', enemy.type, 1);
+          let validatedDamage = this.validateDamage(damage, 'contact', enemy.type, 1);
+
+          // P4.3: Apply team zone defense bonus (damage reduction)
+          const defenseBonus = this.calculateTeamZoneDefenseBonus(gameState, player.id);
+          if (defenseBonus > 0) {
+            validatedDamage = Math.floor(validatedDamage * (1 - defenseBonus));
+          }
 
           // Apply damage to player
           player.takeDamage(validatedDamage, enemy.id, false);
@@ -468,7 +617,9 @@ export class CombatSystem {
       projectileHits: 0,
       contactDamageEvents: 0,
       securityViolations: 0,
-      damageValidationErrors: 0
+      damageValidationErrors: 0,
+      comboDamageDealt: 0,
+      maxComboReached: 0
     };
     this.recentDamageEvents = [];
     combatSystemLogger.info('Reset for new game');

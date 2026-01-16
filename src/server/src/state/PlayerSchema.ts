@@ -27,6 +27,11 @@ export class PlayerSchema extends Schema {
   lastProcessedSequence!: number; // For client-side prediction reconciliation
   weapons!: ArraySchema<WeaponSchema>;
 
+  // P4.2: Revival Mechanic - synchronized fields for revival UI
+  revivalProgress!: number; // 0-1 progress of being revived
+  revivingPlayerId!: string; // ID of player currently reviving this one
+  revivalCooldown!: number; // Seconds until can be revived again
+
   // Not synchronized - server only (can use regular initializers)
   pendingChoices: any[] = [];
   deathTime: number = 0;
@@ -57,6 +62,11 @@ export class PlayerSchema extends Schema {
     this.magnetRange = GAME_CONSTANTS.XP_MAGNET_RADIUS;
     this.lastProcessedSequence = 0;
     this.weapons = new ArraySchema<WeaponSchema>();
+
+    // P4.2: Revival Mechanic
+    this.revivalProgress = 0;
+    this.revivingPlayerId = '';
+    this.revivalCooldown = 0;
   }
 
   addWeapon(type: string) {
@@ -155,6 +165,30 @@ export class PlayerSchema extends Schema {
   get isInvulnerable(): boolean {
     return this.invulnerableTime > 0;
   }
+
+  /**
+   * P4.2: Revive a dead player at their current position
+   * Unlike respawn, revival keeps the player's level, weapons, and progress
+   */
+  revive(): void {
+    if (!this.dead) return;
+
+    this.dead = false;
+    this.health = Math.floor(this.maxHealth * 0.5); // Revive with 50% health
+    this.invulnerableTime = GAME_CONSTANTS.PLAYER_INVULN_TIME;
+    this.killedBy = '';
+    this.revivalProgress = 0;
+    this.revivingPlayerId = '';
+    this.revivalCooldown = GAME_CONSTANTS.REVIVAL_COOLDOWN;
+    // Note: Keep level, weapons, xp, kills, timeAlive, etc.
+  }
+
+  /**
+   * P4.2: Check if this player can be revived
+   */
+  get canBeRevived(): boolean {
+    return this.dead && this.revivalCooldown <= 0;
+  }
 }
 
 // Use defineTypes for esbuild/tsx compatibility (decorators don't work properly)
@@ -181,5 +215,9 @@ defineTypes(PlayerSchema, {
   armor: 'number',
   magnetRange: 'number',
   lastProcessedSequence: 'number',
-  weapons: [WeaponSchema]
+  weapons: [WeaponSchema],
+  // P4.2: Revival Mechanic
+  revivalProgress: 'number',
+  revivingPlayerId: 'string',
+  revivalCooldown: 'number'
 });

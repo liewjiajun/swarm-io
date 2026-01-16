@@ -91,6 +91,26 @@ export const GAME_CONSTANTS = {
   XP_MAGNET_RADIUS: 3, // Radius for magnetizing XP orbs
   XP_ORB_SPEED: 8, // Speed when magnetized
 
+  // P4.1: Cooperative XP Sharing - players near each other share XP from kills
+  COOP_XP_SHARE_RADIUS: 10, // Radius within which players share XP
+  COOP_XP_SHARE_PERCENTAGE: 0.5, // 50% of XP shared with nearby players
+
+  // P4.2: Revival Mechanic - alive players can revive dead teammates
+  REVIVAL_RADIUS: 3, // How close you need to be to revive
+  REVIVAL_TIME: 3, // Seconds to hold to revive
+  REVIVAL_COOLDOWN: 10, // Cooldown before revived player can be revived again
+
+  // P4.4: Combo System - sequential hits by different players multiply damage
+  COMBO_WINDOW: 2, // Seconds between hits to maintain combo
+  COMBO_MAX_MULTIPLIER: 3, // Maximum combo damage multiplier
+  COMBO_INCREMENT: 0.25, // Damage multiplier increase per combo
+
+  // P4.3: Team Zones - areas where players buff each other
+  TEAM_ZONE_RADIUS: 8, // Radius to count as being in a team zone with another player
+  TEAM_ZONE_DAMAGE_BONUS: 0.15, // +15% damage per nearby ally
+  TEAM_ZONE_DEFENSE_BONUS: 0.10, // -10% damage taken per nearby ally
+  TEAM_ZONE_MAX_BONUS: 0.45, // Maximum bonus (capped at 3 allies worth)
+
   // Combat
   PVP_DAMAGE_MULTIPLIER: 0.15, // 15% damage to other players
   HOSTILITY_DECAY_RATE: 0.1, // Per second

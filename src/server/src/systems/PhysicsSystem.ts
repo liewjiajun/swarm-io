@@ -1,10 +1,23 @@
 import type { GameState } from '../state/GameState';
 import type { SpatialHash } from './SpatialHash';
-import { GAME_CONSTANTS, ENEMY_ATTACK_CONFIGS, BOSS_ABILITY_CONFIGS } from '@swarm-io/shared';
+import { GAME_CONSTANTS, ENEMY_ATTACK_CONFIGS, BOSS_ABILITY_CONFIGS, ENEMY_CONFIGS } from '@swarm-io/shared';
 import { direction, distance } from '@swarm-io/shared';
 import { physicsSystemLogger } from '../utils/logger.js';
 
+// P4.5: Boss aggro tracking for shared aggro system
+interface BossAggroEntry {
+  targetTime: number; // How long the boss has targeted this player
+  lastSwitchTime: number; // When the boss last switched targets
+}
+
+// P4.5: Constants for shared boss aggro
+const BOSS_AGGRO_SWITCH_INTERVAL = 5; // Seconds between potential target switches
+const BOSS_AGGRO_SWITCH_CHANCE = 0.3; // 30% chance to switch to a different nearby player
+
 export class PhysicsSystem {
+  // P4.5: Track boss aggro state for target switching
+  private bossAggroState: Map<string, BossAggroEntry> = new Map();
+
   constructor(private spatialHash: SpatialHash) {}
 
   update(state: GameState, dt: number) {
@@ -120,15 +133,29 @@ export class PhysicsSystem {
   }
 
   private updateEnemyAI(state: GameState, enemy: any, dt: number) {
-    // Find nearest player
-    const nearestPlayer = this.spatialHash.queryNearestOfType(
-      enemy.x, enemy.y, 'player', GAME_CONSTANTS.ENEMY_DETECTION_RANGE
-    );
+    // Check if this is a boss enemy
+    const enemyConfig = ENEMY_CONFIGS[enemy.type];
+    const isBoss = enemyConfig?.isBoss ?? false;
+
+    // P4.5: Use shared aggro system for bosses to target multiple players
+    let targetPlayer: { x: number; y: number; id: string } | null = null;
+
+    if (isBoss) {
+      targetPlayer = this.getBossTarget(state, enemy, dt);
+    } else {
+      // Find nearest player for non-boss enemies
+      targetPlayer = this.spatialHash.queryNearestOfType(
+        enemy.x, enemy.y, 'player', GAME_CONSTANTS.ENEMY_DETECTION_RANGE
+      );
+    }
 
     // Check if this enemy has ranged attack capability
     const attackConfig = ENEMY_ATTACK_CONFIGS[enemy.type];
     // Check for boss abilities
     const bossAbility = BOSS_ABILITY_CONFIGS[enemy.type];
+
+    // Use targetPlayer instead of nearestPlayer
+    const nearestPlayer = targetPlayer;
 
     // Decrement ability cooldown for bosses
     if (bossAbility && enemy.abilityCooldown > 0) {
@@ -305,6 +332,106 @@ export class PhysicsSystem {
     enemy.velocityY = (dy / dist) * chargeSpeed;
     enemy.x += enemy.velocityX * dt;
     enemy.y += enemy.velocityY * dt;
+  }
+
+  /**
+   * P4.5: Get boss target with shared aggro system
+   * Bosses periodically switch between nearby players to engage multiple targets
+   */
+  private getBossTarget(
+    state: GameState,
+    enemy: any,
+    dt: number
+  ): { x: number; y: number; id: string } | null {
+    // Get or create aggro state for this boss
+    let aggroState = this.bossAggroState.get(enemy.id);
+    if (!aggroState) {
+      aggroState = { targetTime: 0, lastSwitchTime: 0 };
+      this.bossAggroState.set(enemy.id, aggroState);
+    }
+
+    // Update targeting time
+    aggroState.targetTime += dt;
+    aggroState.lastSwitchTime += dt;
+
+    // Find all nearby players
+    const nearbyPlayers = this.spatialHash.queryRadius(
+      enemy.x, enemy.y, GAME_CONSTANTS.ENEMY_DETECTION_RANGE, 'player'
+    ).filter(p => {
+      const player = p.entity as any;
+      return player && !player.dead;
+    });
+
+    if (nearbyPlayers.length === 0) {
+      return null;
+    }
+
+    // If only one player, target them
+    if (nearbyPlayers.length === 1) {
+      const player = nearbyPlayers[0].entity as any;
+      enemy.targetPlayerId = player.id;
+      return { x: player.x, y: player.y, id: player.id };
+    }
+
+    // Multiple players nearby - implement shared aggro
+    const currentTarget = enemy.targetPlayerId
+      ? nearbyPlayers.find(p => (p.entity as any).id === enemy.targetPlayerId)
+      : null;
+
+    // Check if we should switch targets
+    if (aggroState.lastSwitchTime >= BOSS_AGGRO_SWITCH_INTERVAL) {
+      aggroState.lastSwitchTime = 0;
+
+      // Roll for target switch
+      if (Math.random() < BOSS_AGGRO_SWITCH_CHANCE) {
+        // Pick a random different player
+        const otherPlayers = nearbyPlayers.filter(p => (p.entity as any).id !== enemy.targetPlayerId);
+        if (otherPlayers.length > 0) {
+          const newTarget = otherPlayers[Math.floor(Math.random() * otherPlayers.length)];
+          const player = newTarget.entity as any;
+          enemy.targetPlayerId = player.id;
+          aggroState.targetTime = 0;
+
+          physicsSystemLogger.debug({
+            bossId: enemy.id,
+            bossType: enemy.type,
+            newTargetId: player.id,
+            playerCount: nearbyPlayers.length
+          }, 'Boss switched aggro target');
+
+          return { x: player.x, y: player.y, id: player.id };
+        }
+      }
+    }
+
+    // Keep current target if valid, otherwise pick nearest
+    if (currentTarget) {
+      const player = currentTarget.entity as any;
+      return { x: player.x, y: player.y, id: player.id };
+    }
+
+    // Find nearest player as fallback
+    let nearestPlayer = nearbyPlayers[0];
+    let nearestDist = distance(
+      { x: enemy.x, y: enemy.y },
+      { x: (nearestPlayer.entity as any).x, y: (nearestPlayer.entity as any).y }
+    );
+
+    for (let i = 1; i < nearbyPlayers.length; i++) {
+      const p = nearbyPlayers[i];
+      const d = distance(
+        { x: enemy.x, y: enemy.y },
+        { x: (p.entity as any).x, y: (p.entity as any).y }
+      );
+      if (d < nearestDist) {
+        nearestDist = d;
+        nearestPlayer = p;
+      }
+    }
+
+    const player = nearestPlayer.entity as any;
+    enemy.targetPlayerId = player.id;
+    return { x: player.x, y: player.y, id: player.id };
   }
 
   private fireEnemyProjectile(

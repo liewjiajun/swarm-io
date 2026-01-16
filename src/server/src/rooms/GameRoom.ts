@@ -297,6 +297,15 @@ export class GameRoom extends Room<GameState> {
     this.onMessage('respawn', (client) => {
       this.handleRespawnMessage(client);
     });
+
+    // P4.2: Revival mechanic - start/stop reviving another player
+    this.onMessage('start_revive', (client, message: { targetPlayerId: string }) => {
+      this.handleStartReviveMessage(client, message);
+    });
+
+    this.onMessage('stop_revive', (client) => {
+      this.handleStopReviveMessage(client);
+    });
   }
 
   onJoin(client: Client, options: any) {
@@ -531,8 +540,91 @@ export class GameRoom extends Room<GameState> {
         if (player.hostility > 0) {
           player.hostility = Math.max(0, player.hostility - deltaTime * GAME_CONSTANTS.HOSTILITY_DECAY_RATE);
         }
+      } else {
+        // P4.2: Update revival cooldown for dead players
+        if (player.revivalCooldown > 0) {
+          player.revivalCooldown = Math.max(0, player.revivalCooldown - deltaTime);
+        }
       }
     });
+
+    // P4.2: Process revival progress for players being revived
+    this.processRevivalProgress(deltaTime);
+  }
+
+  /**
+   * P4.2: Process revival mechanics - update revival progress for players being revived
+   */
+  private processRevivalProgress(deltaTime: number) {
+    this.state.players.forEach(deadPlayer => {
+      if (!deadPlayer.dead) return;
+
+      // If being actively revived
+      if (deadPlayer.revivingPlayerId) {
+        // Find the player doing the reviving
+        const reviver = this.state.players.get(deadPlayer.revivingPlayerId);
+        if (!reviver || reviver.dead) {
+          // Reviver is no longer valid, reset revival progress
+          deadPlayer.revivingPlayerId = '';
+          deadPlayer.revivalProgress = 0;
+          return;
+        }
+
+        // Check if reviver is still in range
+        const distance = Math.sqrt(
+          (reviver.x - deadPlayer.x) ** 2 + (reviver.y - deadPlayer.y) ** 2
+        );
+
+        if (distance > GAME_CONSTANTS.REVIVAL_RADIUS) {
+          // Reviver moved out of range, reset progress
+          deadPlayer.revivingPlayerId = '';
+          deadPlayer.revivalProgress = 0;
+          return;
+        }
+
+        // Increment revival progress
+        deadPlayer.revivalProgress += deltaTime / GAME_CONSTANTS.REVIVAL_TIME;
+
+        // Check if revival is complete
+        if (deadPlayer.revivalProgress >= 1) {
+          this.completeRevival(deadPlayer, reviver);
+        }
+      } else if (deadPlayer.revivalProgress > 0) {
+        // Decay progress when not being revived (lose progress at 50% rate)
+        deadPlayer.revivalProgress = Math.max(0, deadPlayer.revivalProgress - deltaTime / (GAME_CONSTANTS.REVIVAL_TIME * 2));
+      }
+    });
+  }
+
+  /**
+   * P4.2: Complete the revival of a dead player
+   */
+  private completeRevival(deadPlayer: any, reviver: any) {
+    // Revive the player (keeps level, weapons, etc.)
+    deadPlayer.revive();
+
+    gameRoomLogger.info({
+      revivedPlayerId: deadPlayer.id,
+      reviverId: reviver.id
+    }, 'Player revived by teammate');
+
+    // Notify both clients
+    const revivedClient = this.clients.find(c => c.sessionId === deadPlayer.id);
+    const reviverClient = this.clients.find(c => c.sessionId === reviver.id);
+
+    if (revivedClient) {
+      revivedClient.send('revived', {
+        revivedBy: reviver.id,
+        reviverNickname: reviver.nickname || `Player ${reviver.id.slice(0, 4)}`
+      });
+    }
+
+    if (reviverClient) {
+      reviverClient.send('revival_complete', {
+        revivedPlayerId: deadPlayer.id,
+        revivedNickname: deadPlayer.nickname || `Player ${deadPlayer.id.slice(0, 4)}`
+      });
+    }
   }
 
   /**
@@ -702,6 +794,87 @@ export class GameRoom extends Room<GameState> {
     client.send('respawn_complete', {
       x: spawnPos.x,
       y: spawnPos.y
+    });
+  }
+
+  /**
+   * P4.2: Handle start revive message - alive player starts reviving a dead teammate
+   */
+  private handleStartReviveMessage(client: Client, message: { targetPlayerId: string }) {
+    const reviver = this.state.players.get(client.sessionId);
+    if (!reviver || reviver.dead) {
+      gameRoomLogger.warn({ playerId: client.sessionId }, 'Dead player cannot revive');
+      return;
+    }
+
+    const targetPlayer = this.state.players.get(message.targetPlayerId);
+    if (!targetPlayer || !targetPlayer.dead) {
+      gameRoomLogger.warn({ playerId: client.sessionId, targetId: message.targetPlayerId }, 'Target cannot be revived');
+      return;
+    }
+
+    // Check if target can be revived (not on cooldown)
+    if (!targetPlayer.canBeRevived) {
+      client.send('revive_failed', {
+        reason: 'cooldown',
+        remainingCooldown: targetPlayer.revivalCooldown
+      });
+      return;
+    }
+
+    // Check if reviver is in range
+    const distance = Math.sqrt(
+      (reviver.x - targetPlayer.x) ** 2 + (reviver.y - targetPlayer.y) ** 2
+    );
+
+    if (distance > GAME_CONSTANTS.REVIVAL_RADIUS) {
+      client.send('revive_failed', {
+        reason: 'out_of_range',
+        distance,
+        requiredDistance: GAME_CONSTANTS.REVIVAL_RADIUS
+      });
+      return;
+    }
+
+    // Check if someone else is already reviving this player
+    if (targetPlayer.revivingPlayerId && targetPlayer.revivingPlayerId !== client.sessionId) {
+      client.send('revive_failed', {
+        reason: 'already_being_revived'
+      });
+      return;
+    }
+
+    // Start the revival process
+    targetPlayer.revivingPlayerId = client.sessionId;
+    // Don't reset progress if continuing from before
+    if (targetPlayer.revivalProgress === 0 || targetPlayer.revivingPlayerId !== client.sessionId) {
+      targetPlayer.revivalProgress = 0;
+    }
+
+    gameRoomLogger.debug({
+      reviverId: client.sessionId,
+      targetId: message.targetPlayerId
+    }, 'Revival started');
+  }
+
+  /**
+   * P4.2: Handle stop revive message - player stopped holding revive button
+   */
+  private handleStopReviveMessage(client: Client) {
+    // Find any player being revived by this client and cancel
+    this.state.players.forEach(player => {
+      if (player.dead && player.revivingPlayerId === client.sessionId) {
+        // Don't fully reset progress - decay it slowly instead
+        // This allows players to briefly let go without losing all progress
+        player.revivingPlayerId = '';
+        // Progress will naturally decay to 0 if not continued
+
+        gameRoomLogger.debug({
+          reviverId: client.sessionId,
+          targetId: player.id,
+          lostProgress: player.revivalProgress
+        }, 'Revival stopped');
+      }
     });
   }
 
