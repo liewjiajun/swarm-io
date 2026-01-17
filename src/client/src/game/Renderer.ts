@@ -616,6 +616,11 @@ export class Renderer {
     this.projectileMesh = new THREE.InstancedMesh(projGeometry, projMaterial, 1000);
     this.projectileMesh.count = 0;
     this.projectileMesh.frustumCulled = false;
+    // BUG-049 FIX: Initialize instanceColor attribute for setColorAt() to work
+    // InstancedMesh.setColorAt() fails silently without this initialization
+    this.projectileMesh.instanceColor = new THREE.InstancedBufferAttribute(
+      new Float32Array(1000 * 3), 3
+    );
     this.scene.add(this.projectileMesh);
 
     // Projectile pool - LOD (4x4 segments = 32 triangles per sphere, 75% reduction)
@@ -624,6 +629,10 @@ export class Renderer {
     this.projectileMeshLOD = new THREE.InstancedMesh(projGeometryLOD, projMaterialLOD, 1000);
     this.projectileMeshLOD.count = 0;
     this.projectileMeshLOD.frustumCulled = false;
+    // BUG-049 FIX: Initialize instanceColor attribute for setColorAt() to work
+    this.projectileMeshLOD.instanceColor = new THREE.InstancedBufferAttribute(
+      new Float32Array(1000 * 3), 3
+    );
     this.scene.add(this.projectileMeshLOD);
 
     // XP orb pool - High detail
