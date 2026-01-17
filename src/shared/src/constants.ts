@@ -169,6 +169,13 @@ export const GAME_CONSTANTS = {
   HOSTILITY_DECAY_RATE: 0.1, // Per second
   HOSTILITY_XP_PENALTY_THRESHOLD: 10,
 
+  // P9.8: Knockback - enemies get pushed back when hit
+  KNOCKBACK_BASE_FORCE: 8, // Base knockback velocity
+  KNOCKBACK_DAMAGE_SCALE: 0.2, // Additional knockback per damage point
+  KNOCKBACK_DURATION: 0.15, // Duration in seconds (100-200ms range)
+  KNOCKBACK_BOSS_REDUCTION: 0.3, // Bosses only receive 30% knockback
+  KNOCKBACK_STUN_DURATION: 0.1, // Brief stun during knockback (100ms)
+
   // Network
   SERVER_TICK_RATE: 16, // Milliseconds (60Hz)
   NETWORK_SEND_RATE: 20, // Hz

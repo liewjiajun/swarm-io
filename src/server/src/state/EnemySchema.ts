@@ -36,6 +36,12 @@ export class EnemySchema extends Schema {
   comboLastHitTime: number = 0;
   comboLastPlayerId: string = '';
 
+  // P9.8: Knockback state - enemies get pushed back when hit
+  knockbackVX: number = 0;       // Knockback velocity X component
+  knockbackVY: number = 0;       // Knockback velocity Y component
+  knockbackEndTime: number = 0;  // When knockback ends (game time in seconds)
+  isKnockedBack: boolean = false; // Whether currently in knockback state
+
   constructor() {
     super();
     // Initialize synced values through the setters

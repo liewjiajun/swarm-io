@@ -187,6 +187,11 @@ export class CombatSystem {
       timestamp: Date.now()
     });
 
+    // P9.8: Apply knockback to enemy (if still alive)
+    if (enemy.health > 0) {
+      this.applyKnockback(enemy, projectile.x, projectile.y, projectile.velocityX, projectile.velocityY, validatedDamage);
+    }
+
     // Check if projectile should be destroyed (piercing limit reached)
     // BUG-004 fix: Only check piercing limit if piercing > 0 (0 means unlimited)
     if (projectile.piercing > 0 && projectile.hitEnemies.size >= projectile.piercing) {
@@ -309,6 +314,58 @@ export class CombatSystem {
     );
 
     return multiplier;
+  }
+
+  /**
+   * P9.8: Apply knockback to an enemy when hit by a projectile
+   * Knockback direction is based on projectile velocity or direction from source
+   * Bosses receive reduced knockback
+   */
+  private applyKnockback(
+    enemy: EnemySchema,
+    sourceX: number,
+    sourceY: number,
+    velocityX: number,
+    velocityY: number,
+    damage: number
+  ): void {
+    // Calculate knockback direction from projectile velocity
+    // If velocity is near zero (e.g., garlic aura), use direction from source to enemy
+    let dirX = velocityX;
+    let dirY = velocityY;
+    const velMagnitude = Math.sqrt(dirX * dirX + dirY * dirY);
+
+    if (velMagnitude < 0.1) {
+      // Use direction from source to enemy for stationary/aura effects
+      dirX = enemy.x - sourceX;
+      dirY = enemy.y - sourceY;
+    }
+
+    // Normalize direction
+    const magnitude = Math.sqrt(dirX * dirX + dirY * dirY);
+    if (magnitude < 0.01) {
+      // If no direction available, push in random direction
+      const angle = Math.random() * Math.PI * 2;
+      dirX = Math.cos(angle);
+      dirY = Math.sin(angle);
+    } else {
+      dirX /= magnitude;
+      dirY /= magnitude;
+    }
+
+    // Calculate knockback force based on damage
+    let force = GAME_CONSTANTS.KNOCKBACK_BASE_FORCE + damage * GAME_CONSTANTS.KNOCKBACK_DAMAGE_SCALE;
+
+    // Reduce knockback for bosses
+    if (enemy.type.startsWith('boss_')) {
+      force *= GAME_CONSTANTS.KNOCKBACK_BOSS_REDUCTION;
+    }
+
+    // Apply knockback
+    enemy.knockbackVX = dirX * force;
+    enemy.knockbackVY = dirY * force;
+    enemy.knockbackEndTime = Date.now() / 1000 + GAME_CONSTANTS.KNOCKBACK_DURATION;
+    enemy.isKnockedBack = true;
   }
 
   private processProjectilePlayerHit(gameState: GameState, projectile: ProjectileSchema, player: PlayerSchema): void {

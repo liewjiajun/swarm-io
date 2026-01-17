@@ -59,20 +59,8 @@ Significantly impacts gameplay experience. Should be addressed soon.
 - [x] **P9.7: Screen Shake on Weapon Impact** - COMPLETED 2026-01-17
   - See COMPLETED TASKS section for details
 
-- [ ] **P9.8: Knockback on Hit** - NOT IMPLEMENTED (Zero code)
-  - Status: No knockback keyword found in CombatSystem.ts or PhysicsSystem.ts
-  - Current Enemy Movement: velocityX/velocityY only set by AI in PhysicsSystem.ts lines 206-239
-  - Files:
-    - `src/server/src/systems/CombatSystem.ts` lines 125-195 (processProjectileHit) - Apply knockback
-    - `src/server/src/state/EnemySchema.ts` - Add knockback state fields
-    - `src/server/src/systems/PhysicsSystem.ts` - Blend knockback with AI velocity
-    - `src/shared/src/constants.ts` - Add KNOCKBACK_FORCE, KNOCKBACK_DURATION constants
-  - Requirements:
-    - Knockback force scales with weapon damage
-    - Direction: away from player or projectile direction
-    - Heavy enemies (boss) have reduced knockback
-    - Knockback has brief stun (100-200ms)
-  - Dependencies: None
+- [x] **P9.8: Knockback on Hit** - COMPLETED 2026-01-17
+  - See COMPLETED TASKS section for details
 
 #### Track 2: Core Redesign
 
@@ -340,6 +328,15 @@ Blocking production deployment. Should be addressed in parallel with feature wor
 
 #### Recently Fixed Bugs
 
+- [x] **P9.8: Knockback on Hit** - COMPLETED 2026-01-17
+  - Added knockback constants to GAME_CONSTANTS (KNOCKBACK_BASE_FORCE, KNOCKBACK_DAMAGE_SCALE, KNOCKBACK_DURATION, KNOCKBACK_BOSS_REDUCTION, KNOCKBACK_STUN_DURATION)
+  - Added knockback state fields to EnemySchema (knockbackVX, knockbackVY, knockbackEndTime, isKnockedBack)
+  - Added applyKnockback() method to CombatSystem that calculates knockback direction and force
+  - Modified PhysicsSystem.updateEnemyAI() to handle knockback state with quadratic decay
+  - Updated ObjectPool.resetEnemy() to reset knockback fields
+  - Bosses receive 30% knockback (reduced)
+  - Files Modified: constants.ts, EnemySchema.ts, CombatSystem.ts, PhysicsSystem.ts, ObjectPool.ts, ObjectPool.test.ts
+
 - [x] **P9.7: Screen Shake on Weapon Impact** - COMPLETED 2026-01-17
   - Added shake state properties to Renderer.ts (shakeIntensity, shakeDuration, shakeStartTime, shakeOffsetX, shakeOffsetY)
   - Added triggerScreenShake(), triggerHitShake(), triggerKillShake(), triggerBossShake() methods
@@ -405,7 +402,7 @@ Post-implementation testing criteria.
 - [ ] Walk left, fire knife - knife should spawn from LEFT side of character
 - [ ] View weapon sprites - should match Game Boy Pokemon aesthetic
 - [x] Hit enemy - screen should shake (subtle but noticeable) - IMPLEMENTED P9.7
-- [ ] Hit enemy - enemy should be pushed back slightly
+- [x] Hit enemy - enemy should be pushed back slightly - IMPLEMENTED P9.8
 
 #### Track 2 Verification (Core Redesign)
 - [ ] Die - death screen shows personal best score
@@ -486,7 +483,7 @@ Post-implementation testing criteria.
 | Hidden power-ups (P5.2) | Working | 5 types, 47 tests |
 | Audio system | Working | All 8 weapon sounds, UI, boss music |
 | Screen shake | Working | P9.7 complete (exponential decay) |
-| Knockback | NOT STARTED | Zero implementation |
+| Knockback | Working | P9.8 complete (quadratic decay, boss reduction) |
 | Persistent high score | Working | P9.1 complete (16 tests) |
 | Server leaderboard | NOT STARTED | No LeaderboardService |
 | Character classes | NOT STARTED | No class definitions |
@@ -1138,20 +1135,25 @@ WAVE_DURATION: 60,   // Compress waves (was ~120)
 
 ---
 
-### P9.8: Knockback on Hit [NOT STARTED]
+### P9.8: Knockback on Hit [COMPLETED 2026-01-17]
 
 **Description:** Enemies get pushed back when hit, creating space and improving combat feel.
 
-**Requirements:**
-- Knockback force scales with weapon damage
-- Direction: away from player or projectile direction
-- Knockback distance: 0.5-2 tiles based on weapon
-- Heavy enemies (boss) have reduced knockback
-- Knockback has brief stun (100-200ms)
+**Implementation:**
+- Added knockback constants to GAME_CONSTANTS (KNOCKBACK_BASE_FORCE, KNOCKBACK_DAMAGE_SCALE, KNOCKBACK_DURATION, KNOCKBACK_BOSS_REDUCTION, KNOCKBACK_STUN_DURATION)
+- Added knockback state fields to EnemySchema (knockbackVX, knockbackVY, knockbackEndTime, isKnockedBack)
+- Added applyKnockback() method to CombatSystem that calculates knockback direction and force
+- Modified PhysicsSystem.updateEnemyAI() to handle knockback state with quadratic decay
+- Updated ObjectPool.resetEnemy() to reset knockback fields
+- Bosses receive 30% knockback (reduced)
 
-**Location:**
-- `src/server/src/systems/CombatSystem.ts` - Apply knockback
-- `src/shared/src/constants.ts` - Knockback values per weapon
+**Files Modified:**
+- `src/shared/src/constants.ts` - Knockback constants
+- `src/server/src/state/EnemySchema.ts` - Knockback state fields
+- `src/server/src/systems/CombatSystem.ts` - applyKnockback() method
+- `src/server/src/systems/PhysicsSystem.ts` - Knockback state handling
+- `src/server/src/systems/ObjectPool.ts` - Reset knockback fields
+- `src/server/src/systems/__tests__/ObjectPool.test.ts` - Knockback reset tests
 
 ---
 
@@ -1166,7 +1168,7 @@ After implementing the redesign, verify the following:
 - [ ] Walk left, fire knife - knife should spawn from LEFT side of character
 - [ ] View weapon sprites - should match Game Boy Pokemon aesthetic
 - [x] Hit enemy - screen should shake (subtle but noticeable) - IMPLEMENTED P9.7
-- [ ] Hit enemy - enemy should be pushed back slightly
+- [x] Hit enemy - enemy should be pushed back slightly - IMPLEMENTED P9.8
 
 ### Track 2 Verification (Core Redesign)
 - [ ] Die - death screen shows personal best score

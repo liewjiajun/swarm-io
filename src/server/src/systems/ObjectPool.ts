@@ -156,6 +156,11 @@ export function resetEnemy(e: {
   comboCount: number;
   comboLastHitTime: number;
   comboLastPlayerId: string;
+  // P9.8: Knockback state fields
+  knockbackVX: number;
+  knockbackVY: number;
+  knockbackEndTime: number;
+  isKnockedBack: boolean;
 }): void {
   e.id = '';
   e.type = '';
@@ -177,6 +182,11 @@ export function resetEnemy(e: {
   e.comboCount = 0;
   e.comboLastHitTime = 0;
   e.comboLastPlayerId = '';
+  // P9.8: Reset knockback state fields
+  e.knockbackVX = 0;
+  e.knockbackVY = 0;
+  e.knockbackEndTime = 0;
+  e.isKnockedBack = false;
 }
 
 /**

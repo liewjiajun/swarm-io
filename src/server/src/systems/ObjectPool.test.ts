@@ -225,6 +225,11 @@ describe('resetEnemy', () => {
       comboCount: 5,
       comboLastHitTime: 12345,
       comboLastPlayerId: 'player-3',
+      // Knockback state fields (P9.8)
+      knockbackVX: 5,
+      knockbackVY: 3,
+      knockbackEndTime: 99999,
+      isKnockedBack: true,
     };
 
     resetEnemy(enemy);
@@ -250,6 +255,11 @@ describe('resetEnemy', () => {
     expect(enemy.comboCount).toBe(0);
     expect(enemy.comboLastHitTime).toBe(0);
     expect(enemy.comboLastPlayerId).toBe('');
+    // Verify knockback fields are properly reset (P9.8)
+    expect(enemy.knockbackVX).toBe(0);
+    expect(enemy.knockbackVY).toBe(0);
+    expect(enemy.knockbackEndTime).toBe(0);
+    expect(enemy.isKnockedBack).toBe(false);
   });
 });
 

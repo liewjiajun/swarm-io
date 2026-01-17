@@ -133,6 +133,29 @@ export class PhysicsSystem {
   }
 
   private updateEnemyAI(state: GameState, enemy: any, dt: number) {
+    // P9.8: Handle knockback state - enemy is pushed back and cannot move normally
+    const currentTime = Date.now() / 1000;
+    if (enemy.isKnockedBack) {
+      if (currentTime < enemy.knockbackEndTime) {
+        // Apply knockback velocity with decay
+        const knockbackProgress = 1 - (enemy.knockbackEndTime - currentTime) / GAME_CONSTANTS.KNOCKBACK_DURATION;
+        const decayFactor = 1 - knockbackProgress * knockbackProgress; // Quadratic decay
+
+        enemy.x += enemy.knockbackVX * decayFactor * dt;
+        enemy.y += enemy.knockbackVY * decayFactor * dt;
+
+        // Enemies in knockback cannot take normal AI actions (stunned)
+        enemy.velocityX = 0;
+        enemy.velocityY = 0;
+        return;
+      } else {
+        // Knockback ended, reset state
+        enemy.isKnockedBack = false;
+        enemy.knockbackVX = 0;
+        enemy.knockbackVY = 0;
+      }
+    }
+
     // Check if this is a boss enemy
     const enemyConfig = ENEMY_CONFIGS[enemy.type];
     const isBoss = enemyConfig?.isBoss ?? false;
