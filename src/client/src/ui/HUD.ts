@@ -14,6 +14,8 @@
  * Follows pixel-art aesthetic with "Press Start 2P" font.
  */
 
+import { updateStatsAfterGame, getBestStats } from '../storage/PlayerStats';
+
 interface HUDElements {
   healthBar: HTMLElement;
   healthText: HTMLElement;
@@ -31,6 +33,8 @@ interface HUDElements {
   deathScreen: HTMLElement;
   deathRank: HTMLElement; // P3.2d: Player's final rank display
   deathStats: HTMLElement;
+  deathPersonalBest: HTMLElement; // P9.1: Personal best display
+  deathNewRecord: HTMLElement; // P9.1: NEW RECORD banner
   deathLeaderboard: HTMLElement; // P3.2d: End-of-game leaderboard container
   respawnBtn: HTMLElement;
   settingsBtn: HTMLElement;
@@ -248,12 +252,14 @@ export class HUD {
         <div class="upgrade-choices"></div>
       </div>
 
-      <!-- Death Screen (P3.2d: Enhanced with end-of-game leaderboard) -->
+      <!-- Death Screen (P3.2d: Enhanced with end-of-game leaderboard, P9.1: Personal best) -->
       <div class="death-screen hidden">
         <div class="death-content">
+          <div class="death-new-record hidden">NEW RECORD!</div>
           <div class="death-title">YOU DIED</div>
           <div class="death-rank"></div>
           <div class="death-stats"></div>
+          <div class="death-personal-best"></div>
           <div class="death-leaderboard">
             <div class="death-leaderboard-title">TOP SURVIVORS</div>
             <div class="death-leaderboard-entries"></div>
@@ -772,6 +778,71 @@ export class HUD {
         font-size: 8px;
         color: #aaa;
         margin-top: 4px;
+      }
+
+      /* P9.1: NEW RECORD banner animation */
+      .death-new-record {
+        font-size: 24px;
+        color: #ffd700;
+        text-shadow: 0 0 10px #ffd700, 0 0 20px #ffa500, 2px 2px 0 #000;
+        margin-bottom: 10px;
+        animation: newRecordPulse 0.5s ease-in-out infinite, newRecordGlow 1s ease-in-out infinite;
+      }
+
+      .death-new-record.hidden {
+        display: none;
+      }
+
+      @keyframes newRecordPulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+      }
+
+      @keyframes newRecordGlow {
+        0%, 100% { text-shadow: 0 0 10px #ffd700, 0 0 20px #ffa500, 2px 2px 0 #000; }
+        50% { text-shadow: 0 0 20px #ffd700, 0 0 40px #ffa500, 0 0 60px #ff6b6b, 2px 2px 0 #000; }
+      }
+
+      /* P9.1: Personal best display */
+      .death-personal-best {
+        font-size: 10px;
+        color: #888;
+        margin-bottom: 20px;
+        text-shadow: 1px 1px 0 #000;
+      }
+
+      .death-personal-best .best-label {
+        color: #888;
+        margin-bottom: 8px;
+      }
+
+      .death-personal-best .best-stats {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+
+      .death-personal-best .best-stat {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .death-personal-best .best-stat-value {
+        font-size: 14px;
+        color: #666;
+      }
+
+      .death-personal-best .best-stat-value.new-record {
+        color: #ffd700;
+        text-shadow: 0 0 5px #ffd700;
+      }
+
+      .death-personal-best .best-stat-label {
+        font-size: 8px;
+        color: #555;
+        margin-top: 2px;
       }
 
       /* P3.2d: End-of-game leaderboard in death screen */
@@ -1320,6 +1391,8 @@ export class HUD {
       deathScreen: this.container.querySelector('.death-screen') as HTMLElement,
       deathRank: this.container.querySelector('.death-rank') as HTMLElement, // P3.2d
       deathStats: this.container.querySelector('.death-stats') as HTMLElement,
+      deathPersonalBest: this.container.querySelector('.death-personal-best') as HTMLElement, // P9.1
+      deathNewRecord: this.container.querySelector('.death-new-record') as HTMLElement, // P9.1
       deathLeaderboard: this.container.querySelector('.death-leaderboard-entries') as HTMLElement, // P3.2d
       respawnBtn: this.container.querySelector('.respawn-btn') as HTMLElement,
       settingsBtn: this.container.querySelector('.settings-btn') as HTMLElement,
@@ -1774,10 +1847,26 @@ export class HUD {
   /**
    * Shows death screen with stats, rank, and end-of-game leaderboard
    * P3.2d: Enhanced with final rank display and top 5 players leaderboard
+   * P9.1: Enhanced with personal best comparison and NEW RECORD celebration
    */
   showDeathScreen(stats: DeathStats, onRespawn: () => void): void {
     // Hide upgrade modal if it's showing (player died while selecting upgrade)
     this.hideUpgradeUI();
+
+    // P9.1: Update player stats and check for new records
+    const recordResult = updateStatsAfterGame({
+      score: stats.score,
+      survivalTime: stats.timeAlive,
+      kills: stats.kills,
+      level: stats.level,
+    });
+
+    // P9.1: Show/hide NEW RECORD banner
+    if (recordResult.isNewRecord) {
+      this.elements.deathNewRecord.classList.remove('hidden');
+    } else {
+      this.elements.deathNewRecord.classList.add('hidden');
+    }
 
     // P3.2d: Display final rank
     const rankSuffix = this.getOrdinalSuffix(stats.rank);
@@ -1802,6 +1891,30 @@ export class HUD {
       <div class="death-stat">
         <span class="death-stat-value">${stats.level}</span>
         <span class="death-stat-label">LEVEL</span>
+      </div>
+    `;
+
+    // P9.1: Personal best display with record highlighting
+    const bestStats = getBestStats();
+    this.elements.deathPersonalBest.innerHTML = `
+      <div class="best-label">PERSONAL BEST</div>
+      <div class="best-stats">
+        <div class="best-stat">
+          <span class="best-stat-value ${recordResult.newRecords.score ? 'new-record' : ''}">${bestStats.score}</span>
+          <span class="best-stat-label">SCORE</span>
+        </div>
+        <div class="best-stat">
+          <span class="best-stat-value ${recordResult.newRecords.kills ? 'new-record' : ''}">${bestStats.kills}</span>
+          <span class="best-stat-label">KILLS</span>
+        </div>
+        <div class="best-stat">
+          <span class="best-stat-value ${recordResult.newRecords.survivalTime ? 'new-record' : ''}">${this.formatTime(bestStats.survivalTime)}</span>
+          <span class="best-stat-label">TIME</span>
+        </div>
+        <div class="best-stat">
+          <span class="best-stat-value ${recordResult.newRecords.level ? 'new-record' : ''}">${bestStats.level}</span>
+          <span class="best-stat-label">LEVEL</span>
+        </div>
       </div>
     `;
 
