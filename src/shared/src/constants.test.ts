@@ -9,6 +9,8 @@ import {
   getXPForLevel,
   ENEMY_ATTACK_CONFIGS,
   BOSS_ABILITY_CONFIGS,
+  WEAPON_CATEGORIES,
+  getRandomStartingWeapons,
 } from './constants';
 
 describe('GAME_CONSTANTS', () => {
@@ -337,5 +339,94 @@ describe('UPGRADE_POOL', () => {
     const ids = UPGRADE_POOL.map((u) => u.id);
     const uniqueIds = new Set(ids);
     expect(uniqueIds.size).toBe(ids.length);
+  });
+});
+
+// P9.6: Starting Weapon Configuration Tests
+describe('WEAPON_CATEGORIES', () => {
+  it('should have ranged weapons defined', () => {
+    expect(WEAPON_CATEGORIES.RANGED.length).toBeGreaterThanOrEqual(3);
+    // Verify all ranged weapons exist in WEAPON_CONFIGS
+    WEAPON_CATEGORIES.RANGED.forEach(weapon => {
+      expect(WEAPON_CONFIGS[weapon]).toBeDefined();
+    });
+  });
+
+  it('should have melee/AOE weapons defined', () => {
+    expect(WEAPON_CATEGORIES.MELEE_AOE.length).toBeGreaterThanOrEqual(5);
+    // Verify all melee weapons exist in WEAPON_CONFIGS
+    WEAPON_CATEGORIES.MELEE_AOE.forEach(weapon => {
+      expect(WEAPON_CONFIGS[weapon]).toBeDefined();
+    });
+  });
+
+  it('should have no overlapping weapons between categories', () => {
+    const rangedSet = new Set<string>(WEAPON_CATEGORIES.RANGED);
+    const meleeSet = new Set<string>(WEAPON_CATEGORIES.MELEE_AOE);
+
+    // Check for overlaps
+    WEAPON_CATEGORIES.RANGED.forEach(weapon => {
+      expect(meleeSet.has(weapon)).toBe(false);
+    });
+    WEAPON_CATEGORIES.MELEE_AOE.forEach(weapon => {
+      expect(rangedSet.has(weapon)).toBe(false);
+    });
+  });
+});
+
+describe('getRandomStartingWeapons', () => {
+  it('should return 2-3 weapons', () => {
+    // Run multiple times to test randomness
+    for (let i = 0; i < 20; i++) {
+      const weapons = getRandomStartingWeapons();
+      expect(weapons.length).toBeGreaterThanOrEqual(GAME_CONSTANTS.STARTING_WEAPON_MIN);
+      expect(weapons.length).toBeLessThanOrEqual(GAME_CONSTANTS.STARTING_WEAPON_MAX);
+    }
+  });
+
+  it('should include at least one ranged weapon', () => {
+    const rangedSet = new Set<string>(WEAPON_CATEGORIES.RANGED);
+
+    // Run multiple times to verify consistency
+    for (let i = 0; i < 20; i++) {
+      const weapons = getRandomStartingWeapons();
+      const hasRanged = weapons.some(w => rangedSet.has(w));
+      expect(hasRanged).toBe(true);
+    }
+  });
+
+  it('should include at least one melee/AOE weapon', () => {
+    const meleeSet = new Set<string>(WEAPON_CATEGORIES.MELEE_AOE);
+
+    // Run multiple times to verify consistency
+    for (let i = 0; i < 20; i++) {
+      const weapons = getRandomStartingWeapons();
+      const hasMelee = weapons.some(w => meleeSet.has(w));
+      expect(hasMelee).toBe(true);
+    }
+  });
+
+  it('should return unique weapons (no duplicates)', () => {
+    // Run multiple times to verify uniqueness
+    for (let i = 0; i < 20; i++) {
+      const weapons = getRandomStartingWeapons();
+      const uniqueWeapons = new Set(weapons);
+      expect(uniqueWeapons.size).toBe(weapons.length);
+    }
+  });
+
+  it('should only return valid weapon types', () => {
+    const allValidWeapons = new Set<string>([
+      ...WEAPON_CATEGORIES.RANGED,
+      ...WEAPON_CATEGORIES.MELEE_AOE
+    ]);
+
+    // Run multiple times to verify all weapons are valid
+    for (let i = 0; i < 20; i++) {
+      const weapons = getRandomStartingWeapons();
+      weapons.forEach(weapon => {
+        expect(allValidWeapons.has(weapon)).toBe(true);
+      });
+    }
   });
 });

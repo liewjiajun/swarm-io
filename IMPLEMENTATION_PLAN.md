@@ -78,19 +78,8 @@ Significantly impacts gameplay experience. Should be addressed soon.
   - Target: Reach level 8 by minute 3 (currently ~6-7 minutes)
   - Dependencies: None
 
-- [ ] **P9.6: Randomized Starting Weapons (2-3)** - NOT STARTED
-  - Status: All players start with exactly 1 knife (GameState.addPlayer line 164)
-  - Current Flow: onJoin → addPlayer(id, x, y, nickname) → player.addWeapon('knife')
-  - Respawn also resets to knife only (PlayerSchema.respawn line 233)
-  - Files:
-    - `src/server/src/state/GameState.ts` line 164 - addPlayer() weapon assignment
-    - `src/server/src/state/PlayerSchema.ts` lines 99-108, 233 - addWeapon(), respawn()
-    - `src/shared/src/constants.ts` - Add STARTING_WEAPON_COUNT config
-    - `src/client/src/ui/HUD.ts` - Display starting loadout notification
-  - Requirements:
-    - Randomly select 2-3 weapons from pool of 8
-    - Ensure at least 1 ranged (wand/fireball/lightning) and 1 melee/AOE (knife/garlic/whip/axe/bible)
-  - Dependencies: None
+- [x] **P9.6: Randomized Starting Weapons (2-3)** - COMPLETED 2026-01-17
+  - See COMPLETED TASKS section for details
 
 ---
 
@@ -351,6 +340,15 @@ Blocking production deployment. Should be addressed in parallel with feature wor
   - Golden glow animation on new record values
   - Files: PlayerStats.ts, HUD.ts (death screen updates)
 
+- [x] **P9.6: Randomized Starting Weapons** - COMPLETED 2026-01-17
+  - Added STARTING_WEAPON_MIN/MAX constants (2-3 weapons)
+  - Added WEAPON_CATEGORIES with RANGED (wand, fireball, lightning) and MELEE_AOE (knife, garlic, whip, axe, bible)
+  - Added getRandomStartingWeapons() function that ensures at least 1 ranged and 1 melee weapon
+  - Updated GameState.addPlayer() to use random starting weapons
+  - Updated PlayerSchema.respawn() to use random starting weapons
+  - Added 8 new tests for weapon categories and random selection
+  - Files Modified: constants.ts, GameState.ts, PlayerSchema.ts, constants.test.ts, GameState.test.ts, PlayerSchema.test.ts
+
 - [x] **BUG-050** Character Facing Resets After Stopping - FIXED 2026-01-17
   - Root cause: Client calculated direction from velocity, which becomes 0 when stopped
   - Fix: Use server-provided facingX/facingY to determine direction when idle
@@ -409,7 +407,7 @@ Post-implementation testing criteria.
 - [ ] Beat personal best - "NEW RECORD" animation appears
 - [ ] Reload browser - personal best persists (localStorage)
 - [ ] Play 5-minute session - verify power spike at minute 2-3 (level 6-8)
-- [ ] Spawn - verify 2-3 random starting weapons assigned
+- [x] Spawn - verify 2-3 random starting weapons assigned - IMPLEMENTED P9.6
 - [ ] Check leaderboard - shows all-time top 100 (server-side)
 - [ ] Max out a weapon - verify evolution triggers
 
@@ -485,6 +483,7 @@ Post-implementation testing criteria.
 | Screen shake | Working | P9.7 complete (exponential decay) |
 | Knockback | Working | P9.8 complete (quadratic decay, boss reduction) |
 | Persistent high score | Working | P9.1 complete (16 tests) |
+| Random starting weapons | Working | P9.6 complete (2-3 weapons, 8 tests) |
 | Server leaderboard | NOT STARTED | No LeaderboardService |
 | Character classes | NOT STARTED | No class definitions |
 | Weapon evolution | NOT STARTED | No evolution configs |
@@ -1091,24 +1090,25 @@ WAVE_DURATION: 60,   // Compress waves (was ~120)
 
 ---
 
-### P9.6: Randomized Starting Weapons [NOT STARTED]
+### P9.6: Randomized Starting Weapons [COMPLETED 2026-01-17]
 
 **Description:** Players start with 2-3 random weapons from the pool of 8, making each run feel different.
 
-**Requirements:**
-- On spawn, randomly select 2-3 weapons (not duplicates)
-- All weapons start at level 1
-- Weapon pool: Knife, Wand, Fireball, Garlic, Whip, Axe, Bible, Cross
-- Display starting weapons on spawn notification
+**Implementation:**
+- Added STARTING_WEAPON_MIN/MAX constants (2-3 weapons)
+- Added WEAPON_CATEGORIES with RANGED (wand, fireball, lightning) and MELEE_AOE (knife, garlic, whip, axe, bible)
+- Added getRandomStartingWeapons() function that ensures at least 1 ranged and 1 melee weapon
+- Updated GameState.addPlayer() to use random starting weapons
+- Updated PlayerSchema.respawn() to use random starting weapons
+- Added 8 new tests for weapon categories and random selection
 
-**Balancing:**
-- Ensure at least 1 ranged and 1 melee/AOE weapon
-- Or fully random with reroll option (costs 1 level)
-
-**Location:**
-- `src/server/src/rooms/GameRoom.ts` - Player spawn logic
-- `src/shared/src/constants.ts` - Starting weapon count config
-- `src/client/src/ui/HUD.ts` - Display starting loadout
+**Files Modified:**
+- `src/shared/src/constants.ts` - STARTING_WEAPON_MIN/MAX, WEAPON_CATEGORIES, getRandomStartingWeapons()
+- `src/server/src/state/GameState.ts` - addPlayer() uses random starting weapons
+- `src/server/src/state/PlayerSchema.ts` - respawn() uses random starting weapons
+- `src/shared/src/__tests__/constants.test.ts` - Tests for weapon categories and random selection
+- `src/server/src/state/__tests__/GameState.test.ts` - Tests for random starting weapons
+- `src/server/src/state/__tests__/PlayerSchema.test.ts` - Tests for respawn with random weapons
 
 ---
 
@@ -1175,7 +1175,7 @@ After implementing the redesign, verify the following:
 - [ ] Beat personal best - "NEW RECORD" animation appears
 - [ ] Reload browser - personal best persists (localStorage)
 - [ ] Play 5-minute session - verify power spike at minute 2-3 (level 6-8)
-- [ ] Spawn - verify 2-3 random starting weapons assigned
+- [x] Spawn - verify 2-3 random starting weapons assigned - IMPLEMENTED P9.6
 - [ ] Check leaderboard - shows all-time top 100 (server-side)
 - [ ] Max out a weapon - verify evolution triggers
 

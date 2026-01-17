@@ -223,12 +223,18 @@ describe('PlayerSchema', () => {
         expect(player.hostility).toBe(0);
       });
 
-      it('should reset to starting weapon only', () => {
+      it('should reset to random starting weapons (2-3)', () => {
         player.respawn(0, 0);
-        expect(player.weapons.length).toBe(1);
-        const knife = player.weapons.find(w => w.type === 'knife');
-        expect(knife).toBeDefined();
-        expect(knife!.type).toBe('knife');
+        // P9.6: Players now start with 2-3 random weapons
+        expect(player.weapons.length).toBeGreaterThanOrEqual(2);
+        expect(player.weapons.length).toBeLessThanOrEqual(3);
+        // Verify at least one ranged and one melee weapon
+        const rangedTypes = new Set(['wand', 'fireball', 'lightning']);
+        const meleeTypes = new Set(['knife', 'garlic', 'whip', 'axe', 'bible']);
+        const hasRanged = player.weapons.some(w => rangedTypes.has(w.type));
+        const hasMelee = player.weapons.some(w => meleeTypes.has(w.type));
+        expect(hasRanged).toBe(true);
+        expect(hasMelee).toBe(true);
       });
 
       it('should clear killedBy', () => {

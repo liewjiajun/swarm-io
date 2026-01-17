@@ -1,6 +1,6 @@
 import { Schema, ArraySchema, defineTypes } from '@colyseus/schema';
 import { WeaponSchema } from './WeaponSchema';
-import { GAME_CONSTANTS, WEAPON_CONFIGS, getXPForLevel } from '@swarm-io/shared';
+import { GAME_CONSTANTS, WEAPON_CONFIGS, getXPForLevel, getRandomStartingWeapons } from '@swarm-io/shared';
 
 export class PlayerSchema extends Schema {
   // Don't use class field initializers - they bypass prototype getters/setters
@@ -240,7 +240,11 @@ export class PlayerSchema extends Schema {
     this.magnetBoostTime = 0;
 
     this.weapons.clear();
-    this.addWeapon('knife');
+    // P9.6: Get random starting weapons on respawn (same as initial spawn)
+    const startingWeapons = getRandomStartingWeapons();
+    for (const weapon of startingWeapons) {
+      this.addWeapon(weapon);
+    }
   }
 
   get isInvulnerable(): boolean {

@@ -7,7 +7,7 @@ import { XPOrbSchema } from './XPOrbSchema';
 import { WorldSchema } from './WorldSchema';
 import { WorldEventSchema } from './WorldEventSchema';
 import { PowerUpSchema } from './PowerUpSchema';
-import { generateId } from '@swarm-io/shared';
+import { generateId, getRandomStartingWeapons } from '@swarm-io/shared';
 import { GAME_CONSTANTS } from '@swarm-io/shared';
 import { ObjectPool, resetProjectile, resetEnemy, resetXPOrb, resetPowerUp } from '../systems/ObjectPool';
 
@@ -160,8 +160,11 @@ export class GameState extends Schema {
     player.speed = GAME_CONSTANTS.PLAYER_BASE_SPEED;
     player.invulnerableTime = GAME_CONSTANTS.PLAYER_INVULN_TIME;
 
-    // Start with knife weapon
-    player.addWeapon('knife');
+    // P9.6: Start with random weapons (2-3, balanced between ranged and melee)
+    const startingWeapons = getRandomStartingWeapons();
+    for (const weapon of startingWeapons) {
+      player.addWeapon(weapon);
+    }
 
     this.players.set(id, player);
     return player;

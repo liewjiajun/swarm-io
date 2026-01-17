@@ -49,11 +49,19 @@ describe('GameState', () => {
         expect(player.invulnerableTime).toBe(GAME_CONSTANTS.PLAYER_INVULN_TIME);
       });
 
-      it('should give player starting knife weapon', () => {
+      it('should give player random starting weapons (2-3)', () => {
         const player = state.addPlayer('player-1', 0, 0);
 
-        expect(player.weapons.length).toBe(1);
-        expect(player.hasWeapon('knife')).toBe(true);
+        // P9.6: Players now start with 2-3 random weapons
+        expect(player.weapons.length).toBeGreaterThanOrEqual(2);
+        expect(player.weapons.length).toBeLessThanOrEqual(3);
+        // Verify at least one ranged and one melee weapon
+        const rangedTypes = new Set(['wand', 'fireball', 'lightning']);
+        const meleeTypes = new Set(['knife', 'garlic', 'whip', 'axe', 'bible']);
+        const hasRanged = player.weapons.some((w: any) => rangedTypes.has(w.type));
+        const hasMelee = player.weapons.some((w: any) => meleeTypes.has(w.type));
+        expect(hasRanged).toBe(true);
+        expect(hasMelee).toBe(true);
       });
 
       it('should store player in map by id', () => {

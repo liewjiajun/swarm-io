@@ -205,7 +205,63 @@ export const GAME_CONSTANTS = {
   // Entities beyond worldRadius + margin are cleaned up to prevent memory leaks
   PROJECTILE_BOUNDARY_MARGIN: 50, // Projectiles removed at worldRadius + 50
   ENEMY_BOUNDARY_MARGIN: 100, // Enemies removed at worldRadius + 100
+
+  // P9.6: Randomized Starting Weapons - players start with 2-3 random weapons
+  STARTING_WEAPON_MIN: 2, // Minimum weapons to start with
+  STARTING_WEAPON_MAX: 3, // Maximum weapons to start with
 } as const;
+
+// =============================================================================
+// P9.6: STARTING WEAPON CONFIGURATION
+// =============================================================================
+// Weapon categories for balanced random selection
+// Ensures at least 1 ranged and 1 melee/AOE weapon
+
+export const WEAPON_CATEGORIES = {
+  // Ranged weapons - projectiles that travel to hit enemies at distance
+  RANGED: ['wand', 'fireball', 'lightning'] as const,
+  // Melee/AOE weapons - close combat or area damage
+  MELEE_AOE: ['knife', 'garlic', 'whip', 'axe', 'bible'] as const,
+} as const;
+
+/**
+ * Get a random set of starting weapons for a new player
+ * Ensures balanced loadout with at least 1 ranged and 1 melee/AOE weapon
+ * @returns Array of weapon type strings (2-3 weapons)
+ */
+export function getRandomStartingWeapons(): string[] {
+  const { STARTING_WEAPON_MIN, STARTING_WEAPON_MAX } = GAME_CONSTANTS;
+
+  // Determine number of weapons (2-3)
+  const weaponCount = Math.floor(Math.random() * (STARTING_WEAPON_MAX - STARTING_WEAPON_MIN + 1)) + STARTING_WEAPON_MIN;
+
+  const selectedWeapons: string[] = [];
+
+  // Select 1 random ranged weapon
+  const rangedWeapons = [...WEAPON_CATEGORIES.RANGED];
+  const rangedIndex = Math.floor(Math.random() * rangedWeapons.length);
+  selectedWeapons.push(rangedWeapons[rangedIndex]);
+
+  // Select 1 random melee/AOE weapon
+  const meleeWeapons = [...WEAPON_CATEGORIES.MELEE_AOE];
+  const meleeIndex = Math.floor(Math.random() * meleeWeapons.length);
+  selectedWeapons.push(meleeWeapons[meleeIndex]);
+
+  // If we need 3 weapons, add one more random weapon from either category
+  if (weaponCount >= 3) {
+    // Combine remaining weapons from both categories
+    const remainingRanged = rangedWeapons.filter((_, i) => i !== rangedIndex);
+    const remainingMelee = meleeWeapons.filter((_, i) => i !== meleeIndex);
+    const remaining = [...remainingRanged, ...remainingMelee];
+
+    if (remaining.length > 0) {
+      const extraIndex = Math.floor(Math.random() * remaining.length);
+      selectedWeapons.push(remaining[extraIndex]);
+    }
+  }
+
+  return selectedWeapons;
+}
 
 // =============================================================================
 // WEAPON CONFIGURATIONS
