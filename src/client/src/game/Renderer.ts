@@ -985,6 +985,14 @@ export class Renderer {
             const direction = this.animationController.getDirectionFromVelocity(velocityX, velocityY);
             this.animationController.setAnimation(animState, 'player', `walk_${direction}`);
           } else {
+            // BUG-050 FIX: Use server-provided facing direction when idle
+            // This preserves the last facing direction instead of resetting to 'down'
+            const facingDirection = this.animationController.getDirectionFromVelocity(
+              player.facingX,
+              player.facingY
+            );
+            // Update the animation state's direction to match server facing
+            animState.direction = facingDirection;
             this.animationController.setAnimation(animState, 'player', 'idle');
           }
           this.animationController.update(animState, 'player', dt);

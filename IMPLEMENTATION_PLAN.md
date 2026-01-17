@@ -6,7 +6,7 @@
 **Implementation Progress:** 119/85 tasks completed (140%)
 **Test Count:** 803+ tests - ALL PASSING (17 test files)
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
-**Critical Bugs:** 1 | **Medium Bugs:** 7 | **Low Bugs:** 2 | **In Progress:** 1 (BUG-035)
+**Critical Bugs:** 0 | **Medium Bugs:** 8 | **Low Bugs:** 2 | **In Progress:** 1 (BUG-035)
 **Code Quality:** Excellent (0 TODOs, 0 FIXMEs, 0 skipped tests, 4 console.warn, ~26 `any` types)
 **CI/CD Status:** NO GitHub workflows configured, NO pre-commit hooks
 
@@ -29,16 +29,8 @@ Must be fixed immediately. Blocking core gameplay.
 - [x] **BUG-049: Garlic/Wand Invisibility** - FIXED 2026-01-17
   - See FIXED BUGS section for details
 
-- [ ] **BUG-050: Character Facing Resets After Stopping** - NOT FIXED
-  - Status: Server correctly preserves facing direction but client ignores it
-  - Root Cause: AnimationController.getDirectionFromVelocity() returns 'down' when velocity is 0
-  - Server Implementation: CORRECT - InputSystem.ts lines 285-292 only updates facing when moving
-  - Client Problem: Renderer.ts lines 973-980 calculates velocity from position interpolation
-  - Files:
-    - `src/client/src/game/AnimationController.ts` lines 302-326 (getDirectionFromVelocity)
-    - `src/client/src/game/Renderer.ts` lines 973-980 (direction calculation)
-  - Fix Required: Client must read `facingX`/`facingY` from player state instead of deriving from velocity
-  - Dependencies: None
+- [x] **BUG-050: Character Facing Resets After Stopping** - FIXED 2026-01-17
+  - See FIXED BUGS section for details
 
 #### Track 2: Core Redesign
 
@@ -374,6 +366,11 @@ Blocking production deployment. Should be addressed in parallel with feature wor
 
 #### Recently Fixed Bugs
 
+- [x] **BUG-050** Character Facing Resets After Stopping - FIXED 2026-01-17
+  - Root cause: Client calculated direction from velocity, which becomes 0 when stopped
+  - Fix: Use server-provided facingX/facingY to determine direction when idle
+  - Location: `src/client/src/game/Renderer.ts` lines 988-996
+
 - [x] **BUG-049** Garlic/Wand Invisibility - FIXED 2026-01-17
   - Root cause: InstancedMesh.setColorAt() fails silently without instanceColor initialization
   - Fix: Initialize instanceColor buffer on projectileMesh and projectileMeshLOD creation
@@ -483,7 +480,7 @@ Post-implementation testing criteria.
 | Total Tasks | 85 | Across 6 phases |
 | Completed | 119 | 140% (all phases complete + extras) |
 | Critical Bugs | 0 | All critical bugs fixed |
-| Medium Bugs | 9 | BUG-040-045, BUG-050-052 |
+| Medium Bugs | 8 | BUG-040-045, BUG-051-052 |
 | Test Coverage | 803+ tests | All passing (17 test files) |
 | Testing Gaps | CRITICAL | Renderer (0), GameRoom (0), Integration (0) |
 | Code Quality | Excellent | 0 TODOs, 0 FIXMEs, 0 skipped tests |
@@ -495,7 +492,7 @@ Post-implementation testing criteria.
 | Server game loop | Working | 60Hz tick, all systems functional |
 | All 8 weapons | Working | Server logic correct |
 | Weapon visuals | Working | Fixed: BUG-049 (instanceColor init) |
-| Character facing | BROKEN | Resets after stopping (BUG-050) |
+| Character facing | Working | Fixed: BUG-050 (use server facingX/Y) |
 | Multiplayer (P4.1-P4.6) | Working | All 6 features implemented |
 | World events (P5.1) | Working | Server + client rendering |
 | Hidden power-ups (P5.2) | Working | 5 types, 47 tests |
@@ -595,6 +592,47 @@ Post-implementation testing criteria.
 ---
 
 ## FIXED BUGS
+
+### BUG-050: Character Facing Resets After Stopping [FIXED]
+
+**Symptom:** When a player stops moving, their character sprite resets to facing 'down' instead of maintaining the last movement direction.
+
+**Root Cause:** The client calculated direction from velocity (position change between frames). When the player stops, velocity becomes zero, and `getDirectionFromVelocity(0, 0)` returns the default 'down' direction. The client ignored the server-provided `facingX`/`facingY` values which correctly preserve the last movement direction.
+
+**Server Behavior (Correct):**
+```typescript
+// InputSystem.ts lines 285-292
+if (dx !== 0 || dy !== 0) {
+  player.facingX = dx / length;
+  player.facingY = dy / length;
+}
+// Facing only updated when moving - preserved when stationary
+```
+
+**Client Problem (Before Fix):**
+```typescript
+// When velocity = 0, direction defaulted to 'down'
+const direction = this.animationController.getDirectionFromVelocity(velocityX, velocityY);
+```
+
+**Fix Applied:**
+```typescript
+// Use server-provided facing direction when idle
+const facingDirection = this.animationController.getDirectionFromVelocity(
+  player.facingX,
+  player.facingY
+);
+animState.direction = facingDirection;
+```
+
+**Files Modified:**
+- `src/client/src/game/Renderer.ts` lines 988-996
+
+**Tests:** All 521 tests pass (447 server + 74 shared). TypeScript compilation succeeds.
+
+**Fixed:** 2026-01-17
+
+---
 
 ### BUG-049: Garlic/Wand Invisibility (InstancedMesh instanceColor) [FIXED]
 
@@ -845,23 +883,6 @@ Added missing fields to `resetEnemy()` function in ObjectPool.ts:
 - Expanding ring or aura effect
 - Visual should be noticeable but not obstructive
 - Level up effect should be visible ON the player sprite
-
----
-
-### BUG-050: Character Facing Resets to Middle After Stopping [MEDIUM]
-
-**Symptom:** When a character stops walking, the facing direction automatically resets to face the center/default direction instead of maintaining the last movement direction.
-
-**Expected Behavior:** Character should continue facing the last direction they were moving when they stop.
-
-**Location:**
-- `src/client/src/game/Renderer.ts` - player sprite facing logic
-- `src/server/src/systems/PhysicsSystem.ts` - facing direction updates
-
-**Fix Required:**
-- Only update facing direction when there is actual movement input
-- Preserve last facing direction when velocity is zero
-- Ensure server sends correct facing state on stop
 
 ---
 
