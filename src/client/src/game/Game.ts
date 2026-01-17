@@ -553,6 +553,8 @@ export class Game {
     if (localPlayer) {
       if (localPlayer.health < this.lastPlayerHealth && this.lastPlayerHealth > 0) {
         this.audio.playPlayerDamageSound();
+        // P9.7: Screen shake when player takes damage
+        this.renderer.triggerHitShake();
       }
       this.lastPlayerHealth = localPlayer.health;
     }
@@ -598,6 +600,7 @@ export class Game {
 
     // Check for removed enemies (killed)
     let enemiesKilled = 0;
+    let bossKilled = false;
     this.lastEnemyIds.forEach(id => {
       if (!currentEnemyIds.has(id)) {
         enemiesKilled++;
@@ -605,6 +608,10 @@ export class Game {
         const lastPos = this.lastEnemyPositions.get(id);
         if (lastPos) {
           this.renderer.spawnDeathExplosion(lastPos.x, lastPos.y, lastPos.type);
+          // P9.7: Check if boss was killed for larger shake
+          if (lastPos.type.startsWith('boss_')) {
+            bossKilled = true;
+          }
           this.lastEnemyPositions.delete(id);
         }
       }
@@ -613,6 +620,15 @@ export class Game {
     // Play enemy death sound (limit to avoid audio spam)
     if (enemiesKilled > 0 && enemiesKilled <= 3) {
       this.audio.playEnemyDeathSound();
+    }
+
+    // P9.7: Screen shake on enemy kills
+    if (bossKilled) {
+      // Large shake for boss kills
+      this.renderer.triggerBossShake();
+    } else if (enemiesKilled > 0) {
+      // Medium shake for regular kills (scale slightly with kill count)
+      this.renderer.triggerKillShake();
     }
     this.lastEnemyIds = currentEnemyIds;
 

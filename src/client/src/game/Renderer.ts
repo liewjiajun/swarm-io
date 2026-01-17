@@ -215,6 +215,13 @@ export class Renderer {
   private crtTime: number = 0;
   private postProcessingInitialized: boolean = false;
 
+  // P9.7: Screen shake state for weapon impact feedback
+  private shakeIntensity: number = 0;      // Current shake intensity in pixels
+  private shakeDuration: number = 0;       // Duration of current shake in ms
+  private shakeStartTime: number = 0;      // When shake started (performance.now())
+  private shakeOffsetX: number = 0;        // Current X offset applied to camera
+  private shakeOffsetY: number = 0;        // Current Y offset applied to camera
+
   constructor(canvas: HTMLCanvasElement) {
     // Initialize sprite system (P1.1 and P1.2)
     this.spriteLoader = new SpriteLoader('/assets/sprites/');
@@ -862,10 +869,16 @@ export class Renderer {
     const lerpFactor = distanceToTarget > 50 ? 0.5 : 0.1;
     this.camera.position.x += (this.cameraTarget.x - this.camera.position.x) * lerpFactor;
     this.camera.position.z += (this.cameraTarget.y + 20 - this.camera.position.z) * lerpFactor;
+
+    // P9.7: Update and apply screen shake offset
+    this.updateScreenShake();
+    const shakeX = this.shakeOffsetX;
+    const shakeZ = this.shakeOffsetY; // Y offset maps to Z in world space
+
     this.camera.lookAt(
-      this.camera.position.x,
+      this.camera.position.x + shakeX,
       0,
-      this.camera.position.z - 20
+      this.camera.position.z - 20 + shakeZ
     );
 
     // Update frustum for culling
@@ -2354,6 +2367,91 @@ export class Renderer {
         this.screenFlash.style.opacity = '0';
       }
     }, 150);
+  }
+
+  // =============================================================================
+  // P9.7: SCREEN SHAKE SYSTEM
+  // =============================================================================
+  // Provides camera shake feedback for weapon impacts, kills, and boss hits
+  // Intensity scales with damage dealt:
+  //   - Small shake (2-4px): Normal hits
+  //   - Medium shake (6-8px): Enemy kills
+  //   - Large shake (10-15px): Boss hits/kills
+  // Shake decays over 100-200ms using exponential falloff
+
+  /**
+   * Trigger screen shake effect
+   * @param intensity - Shake intensity in world units (converted to pixels)
+   * @param duration - Duration in milliseconds (default 150ms)
+   */
+  triggerScreenShake(intensity: number, duration: number = 150): void {
+    // Only update if this shake is stronger than current (don't interrupt bigger shakes)
+    const currentProgress = this.shakeIntensity > 0
+      ? (performance.now() - this.shakeStartTime) / this.shakeDuration
+      : 1;
+    const currentEffectiveIntensity = this.shakeIntensity * Math.max(0, 1 - currentProgress);
+
+    if (intensity > currentEffectiveIntensity) {
+      this.shakeIntensity = intensity;
+      this.shakeDuration = duration;
+      this.shakeStartTime = performance.now();
+    }
+  }
+
+  /**
+   * Trigger small screen shake (normal weapon hits)
+   * 2-4 pixel range, 100ms duration
+   */
+  triggerHitShake(): void {
+    this.triggerScreenShake(0.15, 100);
+  }
+
+  /**
+   * Trigger medium screen shake (enemy kills)
+   * 6-8 pixel range, 150ms duration
+   */
+  triggerKillShake(): void {
+    this.triggerScreenShake(0.35, 150);
+  }
+
+  /**
+   * Trigger large screen shake (boss hits/kills)
+   * 10-15 pixel range, 200ms duration
+   */
+  triggerBossShake(): void {
+    this.triggerScreenShake(0.6, 200);
+  }
+
+  /**
+   * Update screen shake offset each frame
+   * Uses exponential decay and random direction for natural feel
+   */
+  private updateScreenShake(): void {
+    if (this.shakeIntensity <= 0) {
+      this.shakeOffsetX = 0;
+      this.shakeOffsetY = 0;
+      return;
+    }
+
+    const elapsed = performance.now() - this.shakeStartTime;
+    const progress = Math.min(1, elapsed / this.shakeDuration);
+
+    if (progress >= 1) {
+      // Shake finished
+      this.shakeIntensity = 0;
+      this.shakeOffsetX = 0;
+      this.shakeOffsetY = 0;
+      return;
+    }
+
+    // Exponential decay for smooth shake-out
+    const decay = 1 - progress * progress;
+    const currentIntensity = this.shakeIntensity * decay;
+
+    // Random offset direction (changes each frame for jitter effect)
+    const angle = Math.random() * Math.PI * 2;
+    this.shakeOffsetX = Math.cos(angle) * currentIntensity;
+    this.shakeOffsetY = Math.sin(angle) * currentIntensity;
   }
 
   /**

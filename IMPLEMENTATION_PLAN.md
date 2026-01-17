@@ -56,23 +56,8 @@ Significantly impacts gameplay experience. Should be addressed soon.
   - Fix Required: Sync client projectile spawn visual with player interpolated position
   - Dependencies: BUG-050 (uses same facing direction system)
 
-- [ ] **P9.7: Screen Shake on Weapon Impact** - NOT IMPLEMENTED (Zero code)
-  - Status: No shake infrastructure exists; camera lerp system in place (Renderer.ts lines 847-860)
-  - Current Camera: OrthographicCamera at (0, 20, 20) with smooth follow via lerp (0.5 far, 0.1 near)
-  - Files:
-    - `src/client/src/game/Renderer.ts` lines 841-920 (render loop) - Add shake offset
-    - `src/client/src/game/Renderer.ts` line 147 (cameraTarget) - Add shake state
-    - `src/client/src/game/Game.ts` lines 552-558 (damage detection) - Trigger shake
-  - Integration Points:
-    - Player damage: Game.ts line 554 (processAudioEvents)
-    - Enemy death: Game.ts line 607 (death explosion trigger)
-    - Level up: Game.ts line 289 (already has flash trigger)
-  - Requirements:
-    - Small shake (2-4px) on normal hits
-    - Medium shake (6-8px) on kills
-    - Large shake (10-15px) on boss hits
-    - Shake decays over 100-200ms
-  - Dependencies: None
+- [x] **P9.7: Screen Shake on Weapon Impact** - COMPLETED 2026-01-17
+  - See COMPLETED TASKS section for details
 
 - [ ] **P9.8: Knockback on Hit** - NOT IMPLEMENTED (Zero code)
   - Status: No knockback keyword found in CombatSystem.ts or PhysicsSystem.ts
@@ -355,6 +340,13 @@ Blocking production deployment. Should be addressed in parallel with feature wor
 
 #### Recently Fixed Bugs
 
+- [x] **P9.7: Screen Shake on Weapon Impact** - COMPLETED 2026-01-17
+  - Added shake state properties to Renderer.ts (shakeIntensity, shakeDuration, shakeStartTime, shakeOffsetX, shakeOffsetY)
+  - Added triggerScreenShake(), triggerHitShake(), triggerKillShake(), triggerBossShake() methods
+  - Added updateScreenShake() for exponential decay animation
+  - Integrated shake triggers in Game.ts processAudioEvents() for player damage, enemy kills, and boss kills
+  - Files Modified: Renderer.ts, Game.ts
+
 - [x] **P9.1** Persistent High Score (localStorage) - COMPLETED 2026-01-17
   - Created `src/client/src/storage/PlayerStats.ts` with 16 tests
   - Stores: bestScore, bestSurvivalTime, bestKills, bestLevel, totalGamesPlayed
@@ -412,7 +404,7 @@ Post-implementation testing criteria.
 - [ ] Walk in any direction, stop - character should maintain facing direction
 - [ ] Walk left, fire knife - knife should spawn from LEFT side of character
 - [ ] View weapon sprites - should match Game Boy Pokemon aesthetic
-- [ ] Hit enemy - screen should shake (subtle but noticeable)
+- [x] Hit enemy - screen should shake (subtle but noticeable) - IMPLEMENTED P9.7
 - [ ] Hit enemy - enemy should be pushed back slightly
 
 #### Track 2 Verification (Core Redesign)
@@ -493,7 +485,7 @@ Post-implementation testing criteria.
 | World events (P5.1) | Working | Server + client rendering |
 | Hidden power-ups (P5.2) | Working | 5 types, 47 tests |
 | Audio system | Working | All 8 weapon sounds, UI, boss music |
-| Screen shake | NOT STARTED | Zero implementation |
+| Screen shake | Working | P9.7 complete (exponential decay) |
 | Knockback | NOT STARTED | Zero implementation |
 | Persistent high score | Working | P9.1 complete (16 tests) |
 | Server leaderboard | NOT STARTED | No LeaderboardService |
@@ -1123,18 +1115,24 @@ WAVE_DURATION: 60,   // Compress waves (was ~120)
 
 ---
 
-### P9.7: Screen Shake on Weapon Impact [NOT STARTED]
+### P9.7: Screen Shake on Weapon Impact [COMPLETED 2026-01-17]
 
 **Description:** Add camera shake when weapons hit enemies for game feel ("juice").
 
-**Requirements:**
+**Implementation:**
+- Added shake state properties to Renderer.ts (shakeIntensity, shakeDuration, shakeStartTime, shakeOffsetX, shakeOffsetY)
+- Added triggerScreenShake(), triggerHitShake(), triggerKillShake(), triggerBossShake() methods
+- Added updateScreenShake() for exponential decay animation
+- Integrated shake triggers in Game.ts processAudioEvents() for player damage, enemy kills, and boss kills
+
+**Requirements (Completed):**
 - Small shake (2-4px) on normal hits
 - Medium shake (6-8px) on kills
 - Large shake (10-15px) on boss hits
 - Shake intensity scales with damage
 - Shake decays over 100-200ms
 
-**Location:**
+**Files Modified:**
 - `src/client/src/game/Renderer.ts` - Camera shake implementation
 - `src/client/src/game/Game.ts` - Trigger shake on hit events
 
@@ -1167,7 +1165,7 @@ After implementing the redesign, verify the following:
 - [ ] Walk in any direction, stop - character should maintain facing direction
 - [ ] Walk left, fire knife - knife should spawn from LEFT side of character
 - [ ] View weapon sprites - should match Game Boy Pokemon aesthetic
-- [ ] Hit enemy - screen should shake (subtle but noticeable)
+- [x] Hit enemy - screen should shake (subtle but noticeable) - IMPLEMENTED P9.7
 - [ ] Hit enemy - enemy should be pushed back slightly
 
 ### Track 2 Verification (Core Redesign)
