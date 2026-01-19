@@ -1482,21 +1482,22 @@ export class Renderer {
 
   // Map server projectile types to atlas sprite names
   private static readonly PROJECTILE_SPRITE_NAMES: Record<string, string> = {
-    slash: 'projectile_slash',
+    slash: 'projectile_slash',        // Has animation frames _0, _1
     bullet: 'projectile_bullet',
-    orb: 'projectile_orb',
-    lightning_bolt: 'projectile_lightning',
-    axe_spin: 'projectile_axe',      // Has animation frames _0, _1
-    fireball: 'projectile_fireball', // Has animation frames _0, _1
+    orb: 'projectile_orb',            // Has animation frames _0, _1
+    expanding_orb: 'projectile_orb',  // Evolved Bible uses same sprite as orb
+    lightning_bolt: 'projectile_lightning', // Has animation frames _0, _1
+    axe_spin: 'projectile_axe',       // Has animation frames _0, _1
+    fireball: 'projectile_fireball',  // Has animation frames _0, _1
     explosion: 'projectile_fireball', // Reuse fireball sprite
-    whip_strike: 'projectile_whip',
+    whip_strike: 'projectile_whip',   // Has animation frames _0, _1
     garlic_aura: 'projectile_garlic',
     demon_fireball: 'projectile_fireball', // Reuse fireball sprite for enemy attacks
   };
 
-  // Projectiles with animation frames
+  // Projectiles with animation frames (BUG-052 improvement: added slash, orb, lightning_bolt, whip_strike)
   private static readonly PROJECTILE_HAS_ANIMATION: Set<string> = new Set([
-    'axe_spin', 'fireball', 'demon_fireball', 'explosion'
+    'slash', 'orb', 'expanding_orb', 'lightning_bolt', 'axe_spin', 'fireball', 'demon_fireball', 'explosion', 'whip_strike'
   ]);
 
   /**

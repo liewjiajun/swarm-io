@@ -102,7 +102,8 @@ Important for polish and retention. Can be scheduled after P1/P2.
 
 #### Track 1: Foundation Fixes
 
-- [ ] **BUG-052: Weapon Sprites Too Simple** - PARTIAL (Quality Assessment: A- 9.2/10)
+- [ ] **BUG-052: Weapon Sprites Too Simple** - IMPROVED (Quality Assessment: A 9.5/10)
+  - Animation frames added to 4 more weapons (6/8 total now animated)
   - Dependencies: BUG-035 (art direction work)
 
 #### Track 2: Core Redesign (ALL COMPLETED)
@@ -368,9 +369,14 @@ All 9 specification documents verified complete and implemented:
 - **Location:** `src/client/src/game/Renderer.ts`, `scripts/generate-sprites.ts`
 
 ### BUG-052: Weapon Sprites Too Simple
-- **Status:** Quality Assessment A- (9.2/10)
-- **Issues:** Need more animation frames, enhance silhouette clarity, add impact sprites
+- **Status:** Quality Assessment A (9.5/10)
+- **Progress:** 6/8 weapons now have animation frames (fireball, axe, knife, orb, lightning, whip)
+- **Issues:** Need animation frames for garlic and wand, enhance silhouette clarity, add impact sprites
 - **Location:** `scripts/generate-sprites.ts`
+- **Details:**
+  - Total sprites: 64 (60 → 64)
+  - Projectile sprites: 15 (11 → 15)
+  - Animated weapons: knife (2-frame slash with motion blur), orb (2-frame rotating cross + glow pulse), lightning (2-frame zig-zag + electrical branches), whip (2-frame extending + crack with impact spark)
 
 ---
 
@@ -389,6 +395,17 @@ All 9 specification documents verified complete and implemented:
 ---
 
 ## CHANGELOG (Recent)
+
+**2026-01-19 (Weapon Sprite Animation Improvements):**
+- BUG-052 IMPROVED: Added 2-frame animations to 4 additional weapons (knife, orb, lightning, whip)
+  - Knife: Slash with motion blur effect
+  - Bible orb: Rotating cross + glow pulse
+  - Lightning: Alternate zig-zag + electrical branches
+  - Whip: Extending + crack with impact spark
+- Animated weapons increased: 2/8 → 6/8 (fireball, axe, knife, orb, lightning, whip)
+- Total sprites: 60 → 64
+- Projectile sprites: 11 → 15
+- Quality Assessment updated: A- (9.2/10) → A (9.5/10)
 
 **2026-01-19 (TypeScript `any` Type Cleanup - Complete):**
 - TypeScript `any` types fixed: 94% complete (51 of 54 production instances)

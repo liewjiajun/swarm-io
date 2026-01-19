@@ -626,23 +626,41 @@ function drawXPOrb(canvas: PixelCanvas, x: number, y: number, size: 'small' | 'm
   }
 }
 
-function drawProjectileSlash(canvas: PixelCanvas, x: number, y: number): void {
+function drawProjectileSlash(canvas: PixelCanvas, x: number, y: number, frame: number = 0): void {
   const cx = x + 12;
   const cy = y + 12;
 
-  // Arc slash effect
-  for (let i = 0; i < 8; i++) {
-    const angle = (Math.PI / 4) + (i * Math.PI / 16);
-    const r1 = 4;
-    const r2 = 10;
+  // Animation: Frame 0 = start arc, Frame 1 = full arc with motion blur
+  const arcStart = frame === 0 ? Math.PI / 6 : Math.PI / 8;
+  const arcLines = frame === 0 ? 6 : 10;
+  const arcSpread = frame === 0 ? Math.PI / 20 : Math.PI / 16;
+
+  // Arc slash effect with animation
+  for (let i = 0; i < arcLines; i++) {
+    const angle = arcStart + (i * arcSpread);
+    const r1 = frame === 0 ? 3 : 4;
+    const r2 = frame === 0 ? 8 : 10;
     const x1 = cx + Math.cos(angle) * r1;
     const y1 = cy + Math.sin(angle) * r1;
     const x2 = cx + Math.cos(angle) * r2;
     const y2 = cy + Math.sin(angle) * r2;
     canvas.drawLine(Math.round(x1), Math.round(y1), Math.round(x2), Math.round(y2), COLORS.PROJ_KNIFE);
   }
-  // Center glow
-  canvas.fillCircle(cx, cy, 3, { ...COLORS.WHITE, a: 150 });
+
+  // Motion blur trail on frame 1
+  if (frame === 1) {
+    for (let i = 0; i < 4; i++) {
+      const angle = arcStart - (i * Math.PI / 24);
+      const r2 = 8;
+      const x2 = cx + Math.cos(angle) * r2;
+      const y2 = cy + Math.sin(angle) * r2;
+      canvas.setPixel(Math.round(x2), Math.round(y2), { ...COLORS.PROJ_KNIFE, a: 100 });
+    }
+  }
+
+  // Center glow (brighter on frame 1)
+  const glowAlpha = frame === 0 ? 120 : 180;
+  canvas.fillCircle(cx, cy, 3, { ...COLORS.WHITE, a: glowAlpha });
 }
 
 function drawProjectileBullet(canvas: PixelCanvas, x: number, y: number): void {
@@ -655,32 +673,72 @@ function drawProjectileBullet(canvas: PixelCanvas, x: number, y: number): void {
   canvas.setPixel(cx - 1, cy - 1, COLORS.WHITE);
 }
 
-function drawProjectileOrb(canvas: PixelCanvas, x: number, y: number): void {
+function drawProjectileOrb(canvas: PixelCanvas, x: number, y: number, frame: number = 0): void {
   const cx = x + 12;
   const cy = y + 12;
 
+  // Animation: Frame 0 = bright with upright cross, Frame 1 = dim with rotated cross
+  const glowAlpha = frame === 0 ? 255 : 200;
+  const innerAlpha = frame === 0 ? 255 : 230;
+
+  // Outer glow (pulsing)
+  if (frame === 0) {
+    canvas.fillCircle(cx, cy, 9, { r: 255, g: 230, b: 100, a: 80 });
+  }
+
   // Bible orb (holy golden)
-  canvas.fillCircle(cx, cy, 8, COLORS.PROJ_BIBLE);
-  canvas.fillCircle(cx, cy, 6, { r: 255, g: 230, b: 100, a: 255 });
-  // Cross pattern
-  canvas.fillRect(cx - 1, cy - 4, 2, 8, { r: 255, g: 255, b: 200, a: 255 });
-  canvas.fillRect(cx - 3, cy - 1, 6, 2, { r: 255, g: 255, b: 200, a: 255 });
+  canvas.fillCircle(cx, cy, 8, { ...COLORS.PROJ_BIBLE, a: glowAlpha });
+  canvas.fillCircle(cx, cy, 6, { r: 255, g: 230, b: 100, a: innerAlpha });
+
+  // Cross pattern (rotated on frame 1)
+  if (frame === 0) {
+    // Upright cross
+    canvas.fillRect(cx - 1, cy - 4, 2, 8, { r: 255, g: 255, b: 200, a: 255 });
+    canvas.fillRect(cx - 3, cy - 1, 6, 2, { r: 255, g: 255, b: 200, a: 255 });
+  } else {
+    // 45-degree rotated cross (X pattern)
+    canvas.drawLine(cx - 3, cy - 3, cx + 3, cy + 3, { r: 255, g: 255, b: 200, a: 255 });
+    canvas.drawLine(cx + 3, cy - 3, cx - 3, cy + 3, { r: 255, g: 255, b: 200, a: 255 });
+    // Thicken the X
+    canvas.drawLine(cx - 3, cy - 2, cx + 2, cy + 3, { r: 255, g: 255, b: 200, a: 255 });
+    canvas.drawLine(cx + 2, cy - 3, cx - 3, cy + 2, { r: 255, g: 255, b: 200, a: 255 });
+  }
 }
 
-function drawProjectileLightning(canvas: PixelCanvas, x: number, y: number): void {
+function drawProjectileLightning(canvas: PixelCanvas, x: number, y: number, frame: number = 0): void {
   // Lightning bolt (16x32)
   const bx = x + 8;
   const by = y + 16;
 
-  // Zig-zag pattern
-  canvas.fillRect(bx - 2, by - 14, 6, 4, COLORS.PROJ_LIGHTNING);
-  canvas.fillRect(bx - 4, by - 10, 6, 4, COLORS.PROJ_LIGHTNING);
-  canvas.fillRect(bx - 2, by - 6, 6, 4, COLORS.PROJ_LIGHTNING);
-  canvas.fillRect(bx, by - 2, 6, 4, COLORS.PROJ_LIGHTNING);
-  canvas.fillRect(bx + 2, by + 2, 4, 6, COLORS.PROJ_LIGHTNING);
+  // Animation: Frame 0 = standard bolt, Frame 1 = alternate zig-zag + branches
+  const offset = frame === 0 ? 0 : 1;
 
-  // White core
-  canvas.fillRect(bx, by - 12, 2, 20, COLORS.WHITE);
+  // Outer glow (electrical aura)
+  const glowColor = { r: 100, g: 255, b: 255, a: 60 };
+  if (frame === 1) {
+    canvas.fillCircle(bx, by - 6, 6, glowColor);
+    canvas.fillCircle(bx, by + 2, 5, glowColor);
+  }
+
+  // Zig-zag pattern (alternates position each frame)
+  canvas.fillRect(bx - 2 + offset, by - 14, 6, 4, COLORS.PROJ_LIGHTNING);
+  canvas.fillRect(bx - 4 - offset, by - 10, 6, 4, COLORS.PROJ_LIGHTNING);
+  canvas.fillRect(bx - 2 + offset, by - 6, 6, 4, COLORS.PROJ_LIGHTNING);
+  canvas.fillRect(bx - offset, by - 2, 6, 4, COLORS.PROJ_LIGHTNING);
+  canvas.fillRect(bx + 2 + offset, by + 2, 4, 6, COLORS.PROJ_LIGHTNING);
+
+  // Electrical branches on frame 1
+  if (frame === 1) {
+    // Left branch
+    canvas.setPixel(bx - 5, by - 8, COLORS.PROJ_LIGHTNING);
+    canvas.setPixel(bx - 6, by - 7, COLORS.PROJ_LIGHTNING);
+    // Right branch
+    canvas.setPixel(bx + 5, by - 4, COLORS.PROJ_LIGHTNING);
+    canvas.setPixel(bx + 6, by - 3, COLORS.PROJ_LIGHTNING);
+  }
+
+  // White core (slightly offset for animation)
+  canvas.fillRect(bx + offset, by - 12, 2, 20, COLORS.WHITE);
 }
 
 function drawProjectileAxe(canvas: PixelCanvas, x: number, y: number, frame: number): void {
@@ -728,20 +786,37 @@ function drawProjectileFireball(canvas: PixelCanvas, x: number, y: number, frame
   }
 }
 
-function drawProjectileWhip(canvas: PixelCanvas, x: number, y: number): void {
+function drawProjectileWhip(canvas: PixelCanvas, x: number, y: number, frame: number = 0): void {
   // Whip (48x24)
   const by = y + 12;
 
-  // Whip curve
-  canvas.fillRect(x + 2, by - 2, 4, 4, { r: 100, g: 60, b: 30, a: 255 }); // Handle
-  canvas.fillRect(x + 6, by - 1, 8, 2, COLORS.PROJ_WHIP);
-  canvas.fillRect(x + 14, by - 3, 8, 2, COLORS.PROJ_WHIP);
-  canvas.fillRect(x + 22, by - 1, 10, 2, COLORS.PROJ_WHIP);
-  canvas.fillRect(x + 32, by + 1, 10, 2, COLORS.PROJ_WHIP);
-  canvas.fillRect(x + 42, by + 3, 4, 2, COLORS.PROJ_WHIP);
+  // Animation: Frame 0 = extending, Frame 1 = crack with impact effect
+  const handleColor = { r: 100, g: 60, b: 30, a: 255 };
 
-  // Tip
-  canvas.setPixel(x + 45, by + 4, { r: 200, g: 80, b: 80, a: 255 });
+  // Handle (always same position)
+  canvas.fillRect(x + 2, by - 2, 4, 4, handleColor);
+
+  if (frame === 0) {
+    // Extending whip - more curved wave pattern
+    canvas.fillRect(x + 6, by - 1, 8, 2, COLORS.PROJ_WHIP);
+    canvas.fillRect(x + 14, by - 3, 8, 2, COLORS.PROJ_WHIP);
+    canvas.fillRect(x + 22, by - 1, 10, 2, COLORS.PROJ_WHIP);
+    canvas.fillRect(x + 32, by + 1, 8, 2, COLORS.PROJ_WHIP);
+    // Tip moving
+    canvas.setPixel(x + 40, by + 2, COLORS.PROJ_WHIP);
+  } else {
+    // Crack frame - straighter with impact spark
+    canvas.fillRect(x + 6, by, 10, 2, COLORS.PROJ_WHIP);
+    canvas.fillRect(x + 16, by - 1, 10, 2, COLORS.PROJ_WHIP);
+    canvas.fillRect(x + 26, by, 10, 2, COLORS.PROJ_WHIP);
+    canvas.fillRect(x + 36, by + 1, 8, 2, COLORS.PROJ_WHIP);
+    // Impact crack effect at tip
+    canvas.fillRect(x + 44, by, 3, 2, { r: 255, g: 200, b: 100, a: 255 });
+    // Spark particles
+    canvas.setPixel(x + 45, by - 2, { r: 255, g: 255, b: 200, a: 255 });
+    canvas.setPixel(x + 46, by + 3, { r: 255, g: 255, b: 200, a: 255 });
+    canvas.setPixel(x + 43, by + 4, { r: 255, g: 200, b: 100, a: 200 });
+  }
 }
 
 function drawProjectileGarlic(canvas: PixelCanvas, x: number, y: number): void {
@@ -1151,17 +1226,34 @@ async function generateAtlas(): Promise<void> {
   drawXPOrb(canvas, 144, 32, 'medium'); // 24x24
   drawXPOrb(canvas, 168, 32, 'large');  // 32x32
 
-  // Projectiles (row 1, starting at x=200)
-  drawProjectileSlash(canvas, 200, 32);   // 24x24
-  drawProjectileBullet(canvas, 224, 32);  // 16x16
-  drawProjectileOrb(canvas, 240, 32);     // 24x24
-  drawProjectileLightning(canvas, 264, 32); // 16x32
-  drawProjectileAxe(canvas, 280, 32, 0);  // 24x24
-  drawProjectileAxe(canvas, 304, 32, 1);  // 24x24
+  // Projectiles (row 1, starting at x=200) - Now with animation frames
+  // Slash: 2 frames (animated)
+  drawProjectileSlash(canvas, 200, 32, 0);   // 24x24 - frame 0
+  drawProjectileSlash(canvas, 456, 32, 1);   // 24x24 - frame 1 (new position)
+
+  drawProjectileBullet(canvas, 224, 32);     // 16x16 - static
+
+  // Orb (Bible): 2 frames (animated)
+  drawProjectileOrb(canvas, 240, 32, 0);     // 24x24 - frame 0
+  drawProjectileOrb(canvas, 480, 32, 1);     // 24x24 - frame 1 (new position at row end)
+
+  // Lightning: 2 frames (animated) - placed on row 2 for space
+  drawProjectileLightning(canvas, 264, 32, 0); // 16x32 - frame 0
+  drawProjectileLightning(canvas, 160, 64, 1); // 16x32 - frame 1 (row 2)
+
+  // Axe: 2 frames (already animated)
+  drawProjectileAxe(canvas, 280, 32, 0);     // 24x24
+  drawProjectileAxe(canvas, 304, 32, 1);     // 24x24
+
+  // Fireball: 2 frames (already animated)
   drawProjectileFireball(canvas, 328, 32, 0); // 24x24
   drawProjectileFireball(canvas, 352, 32, 1); // 24x24
-  drawProjectileWhip(canvas, 376, 32);    // 48x24
-  drawProjectileGarlic(canvas, 424, 32);  // 32x32
+
+  // Whip: 2 frames (animated) - placed on row 2 for space
+  drawProjectileWhip(canvas, 376, 32, 0);    // 48x24 - frame 0
+  drawProjectileWhip(canvas, 176, 64, 1);    // 48x24 - frame 1 (row 2)
+
+  drawProjectileGarlic(canvas, 424, 32);     // 32x32 - static (garlic is AOE, doesn't need animation)
 
   // =============================================================================
   // P1.7: ENVIRONMENT TILES (row 5, y=160)
@@ -1203,10 +1295,10 @@ async function generateAtlas(): Promise<void> {
   console.log('  - Player sprites: 20 (idle + 4-direction walk)');
   console.log('  - Enemy sprites: 12 (6 types x 2 frames)');
   console.log('  - XP orb sprites: 3 (small, medium, large)');
-  console.log('  - Projectile sprites: 11');
+  console.log('  - Projectile sprites: 15 (slash x2, bullet, orb x2, lightning x2, axe x2, fireball x2, whip x2, garlic)');
   console.log('  - Environment tiles: 5 (P1.7)');
   console.log('  - UI frames: 9 (P1.8)');
-  console.log('  Total: 60 sprites');
+  console.log('  Total: 64 sprites');
 }
 
 generateAtlas().catch(console.error);

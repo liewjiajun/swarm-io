@@ -151,20 +151,32 @@
       "frame": { "x": 168, "y": 32, "w": 32, "h": 32 },
       "sourceSize": { "w": 32, "h": 32 }
     },
-    "projectile_slash": {
+    "projectile_slash_0": {
       "frame": { "x": 200, "y": 32, "w": 24, "h": 24 },
+      "sourceSize": { "w": 24, "h": 24 }
+    },
+    "projectile_slash_1": {
+      "frame": { "x": 456, "y": 32, "w": 24, "h": 24 },
       "sourceSize": { "w": 24, "h": 24 }
     },
     "projectile_bullet": {
       "frame": { "x": 224, "y": 32, "w": 16, "h": 16 },
       "sourceSize": { "w": 16, "h": 16 }
     },
-    "projectile_orb": {
+    "projectile_orb_0": {
       "frame": { "x": 240, "y": 32, "w": 24, "h": 24 },
       "sourceSize": { "w": 24, "h": 24 }
     },
-    "projectile_lightning": {
+    "projectile_orb_1": {
+      "frame": { "x": 480, "y": 32, "w": 24, "h": 24 },
+      "sourceSize": { "w": 24, "h": 24 }
+    },
+    "projectile_lightning_0": {
       "frame": { "x": 264, "y": 32, "w": 16, "h": 32 },
+      "sourceSize": { "w": 16, "h": 32 }
+    },
+    "projectile_lightning_1": {
+      "frame": { "x": 160, "y": 64, "w": 16, "h": 32 },
       "sourceSize": { "w": 16, "h": 32 }
     },
     "projectile_axe_0": {
@@ -183,8 +195,12 @@
       "frame": { "x": 352, "y": 32, "w": 24, "h": 24 },
       "sourceSize": { "w": 24, "h": 24 }
     },
-    "projectile_whip": {
+    "projectile_whip_0": {
       "frame": { "x": 376, "y": 32, "w": 48, "h": 24 },
+      "sourceSize": { "w": 48, "h": 24 }
+    },
+    "projectile_whip_1": {
+      "frame": { "x": 176, "y": 64, "w": 48, "h": 24 },
       "sourceSize": { "w": 48, "h": 24 }
     },
     "projectile_garlic": {
