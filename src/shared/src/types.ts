@@ -124,7 +124,8 @@ export type EnemyType =
   | 'demon'     // Ranged attack
   | 'boss_slime'    // Boss variant
   | 'boss_skeleton' // Boss variant
-  | 'boss_demon';   // Boss variant
+  | 'boss_demon'    // Boss variant
+  | 'secret_boss';  // P5.3: Secret boss - spawns when all players reach level 15+
 
 export interface EnemyConfig {
   type: EnemyType;

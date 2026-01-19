@@ -119,6 +119,11 @@ export class GameRoom extends Room<GameState> {
       this.kickPlayer(playerId, reason);
     });
 
+    // P5.3: Setup secret boss announcement callback
+    this.spawnSystem.setSecretBossAnnouncementCallback((message) => {
+      this.broadcastAnnouncement(message);
+    });
+
     // Register message handlers
     this.setupMessageHandlers();
 
@@ -1334,6 +1339,16 @@ export class GameRoom extends Room<GameState> {
     this.state.world.recalculateSize(playerCount);
 
     gameRoomLogger.debug({ worldRadius: this.state.world.worldRadius, playerCount }, 'World size updated');
+  }
+
+  /**
+   * P5.3: Broadcast an announcement message to all connected clients
+   */
+  private broadcastAnnouncement(message: string): void {
+    this.clients.forEach(client => {
+      client.send('announcement', { message });
+    });
+    gameRoomLogger.info({ message }, 'Broadcast announcement');
   }
 
   // Public methods for monitoring and debugging

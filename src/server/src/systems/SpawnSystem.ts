@@ -1,5 +1,5 @@
 import { GameState } from '../state/GameState.js';
-import { GAME_CONSTANTS, WAVE_SCHEDULE, ENEMY_CONFIGS } from '@swarm-io/shared';
+import { GAME_CONSTANTS, WAVE_SCHEDULE, ENEMY_CONFIGS, SECRET_BOSS_CONFIG } from '@swarm-io/shared';
 import { randomPointOnCircle } from '@swarm-io/shared';
 import { spawnSystemLogger } from '../utils/logger.js';
 
@@ -10,22 +10,36 @@ interface SpawnMetrics {
   spawnAttempts: number;
   validationErrors: number;
   lastSpawnTime: number;
+  secretBossSpawned: boolean; // P5.3: Track if secret boss has been spawned
 }
 
 export class SpawnSystem {
   private lastSpawnTime = 0;
   private bossSpawned = new Set<number>(); // Track which waves have spawned bosses
+  private secretBossTriggerTime = 0; // P5.3: Time when secret boss trigger was activated
+  private secretBossTriggered = false; // P5.3: Whether secret boss spawn has been triggered
   private spawnMetrics: SpawnMetrics = {
     totalSpawned: 0,
     enemiesSpawned: 0,
     bossesSpawned: 0,
     spawnAttempts: 0,
     validationErrors: 0,
-    lastSpawnTime: 0
+    lastSpawnTime: 0,
+    secretBossSpawned: false // P5.3
   };
+
+  // P5.3: Callback for secret boss announcements
+  private secretBossAnnouncementCallback: ((message: string) => void) | null = null;
 
   constructor() {
     spawnSystemLogger.info('Initialized with wave-based enemy spawning');
+  }
+
+  /**
+   * P5.3: Set callback for secret boss announcements
+   */
+  setSecretBossAnnouncementCallback(callback: (message: string) => void): void {
+    this.secretBossAnnouncementCallback = callback;
   }
 
   update(gameState: GameState, deltaTime: number): void {
@@ -43,6 +57,9 @@ export class SpawnSystem {
 
     // Handle boss spawning (immediate when wave becomes active)
     this.handleBossSpawning(gameState);
+
+    // P5.3: Handle secret boss spawning (triggered by all players reaching level 15+)
+    this.handleSecretBossSpawning(gameState);
 
     // Handle regular enemy spawning (rate limited)
     this.handleEnemySpawning(gameState, deltaTime);
@@ -108,6 +125,87 @@ export class SpawnSystem {
       this.spawnMetrics.totalSpawned++;
 
       spawnSystemLogger.info({ bossType: wave.bossType, x: spawnPos.x, y: spawnPos.y, wave: currentWave }, 'Boss spawned');
+    }
+  }
+
+  /**
+   * P5.3: Handle secret boss spawning
+   * Trigger: All alive players reach level 15+
+   * Spawn: At world center with announcement
+   */
+  private handleSecretBossSpawning(gameState: GameState): void {
+    // Skip if already spawned
+    if (this.spawnMetrics.secretBossSpawned) {
+      return;
+    }
+
+    const currentTime = gameState.world.gameTime;
+
+    // Get all living players
+    const livingPlayers = Array.from(gameState.players.values()).filter(p => !p.dead);
+
+    // Need at least 1 living player to trigger
+    if (livingPlayers.length === 0) {
+      return;
+    }
+
+    // Check if all living players are at or above the minimum level
+    const allPlayersQualified = livingPlayers.every(
+      p => p.level >= SECRET_BOSS_CONFIG.MIN_PLAYER_LEVEL
+    );
+
+    // Trigger phase: Set trigger time when condition first becomes true
+    if (allPlayersQualified && !this.secretBossTriggered) {
+      this.secretBossTriggered = true;
+      this.secretBossTriggerTime = currentTime;
+
+      spawnSystemLogger.info({
+        playerCount: livingPlayers.length,
+        minLevel: SECRET_BOSS_CONFIG.MIN_PLAYER_LEVEL,
+        playerLevels: livingPlayers.map(p => p.level)
+      }, 'P5.3: Secret boss trigger activated');
+
+      // Send announcement
+      if (this.secretBossAnnouncementCallback) {
+        this.secretBossAnnouncementCallback('THE ANCIENT ONE AWAKENS...');
+      }
+    }
+
+    // If not triggered yet, check if players dropped below requirement (reset trigger)
+    if (this.secretBossTriggered && !allPlayersQualified) {
+      // Players no longer qualify (perhaps one died and respawned at lower level)
+      // Reset the trigger
+      this.secretBossTriggered = false;
+      this.secretBossTriggerTime = 0;
+      spawnSystemLogger.info('P5.3: Secret boss trigger reset - players no longer qualify');
+      return;
+    }
+
+    // Spawn phase: After delay, spawn the secret boss
+    if (this.secretBossTriggered && !this.spawnMetrics.secretBossSpawned) {
+      const timeSinceTrigger = currentTime - this.secretBossTriggerTime;
+
+      if (timeSinceTrigger >= SECRET_BOSS_CONFIG.SPAWN_DELAY) {
+        // Spawn at world center (0, 0)
+        const boss = gameState.addEnemy('secret_boss', 0, 0);
+        boss.initialize('secret_boss', gameState.world.difficulty);
+
+        this.spawnMetrics.secretBossSpawned = true;
+        this.spawnMetrics.bossesSpawned++;
+        this.spawnMetrics.totalSpawned++;
+
+        spawnSystemLogger.info({
+          x: 0,
+          y: 0,
+          playerCount: livingPlayers.length,
+          gameTime: currentTime
+        }, 'P5.3: Secret boss spawned at world center');
+
+        // Send final announcement
+        if (this.secretBossAnnouncementCallback) {
+          this.secretBossAnnouncementCallback('DEFEAT THE ANCIENT ONE!');
+        }
+      }
     }
   }
 
@@ -267,14 +365,29 @@ export class SpawnSystem {
   reset(): void {
     this.lastSpawnTime = 0;
     this.bossSpawned.clear();
+    // P5.3: Reset secret boss state
+    this.secretBossTriggered = false;
+    this.secretBossTriggerTime = 0;
     this.spawnMetrics = {
       totalSpawned: 0,
       enemiesSpawned: 0,
       bossesSpawned: 0,
       spawnAttempts: 0,
       validationErrors: 0,
-      lastSpawnTime: 0
+      lastSpawnTime: 0,
+      secretBossSpawned: false // P5.3
     };
     spawnSystemLogger.info('Reset for new game');
+  }
+
+  /**
+   * P5.3: Get secret boss status for monitoring
+   */
+  getSecretBossStatus(): { triggered: boolean; spawned: boolean; triggerTime: number } {
+    return {
+      triggered: this.secretBossTriggered,
+      spawned: this.spawnMetrics.secretBossSpawned,
+      triggerTime: this.secretBossTriggerTime
+    };
   }
 }

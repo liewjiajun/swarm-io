@@ -23,7 +23,7 @@ export const COLOR_PALETTE = {
   PLAYER_LOCAL: 0x00ff00,    // Local player - bright green
   PLAYER_OTHER: 0x0088ff,    // Other players - sky blue
 
-  // Enemy colors (10)
+  // Enemy colors (11)
   ENEMY_BAT: 0x8b4513,       // Bat - brown
   ENEMY_SKELETON: 0xffffff,  // Skeleton - white
   ENEMY_ZOMBIE: 0x228b22,    // Zombie - forest green
@@ -34,6 +34,7 @@ export const COLOR_PALETTE = {
   BOSS_SLIME: 0x00ff00,      // Boss Slime - bright green
   BOSS_SKELETON: 0xffd700,   // Boss Skeleton - gold
   BOSS_DEMON: 0x8b0000,      // Boss Demon - dark red
+  SECRET_BOSS: 0x9400d3,     // P5.3: Secret Boss - dark violet (mysterious/ancient)
 
   // Projectile colors (8)
   PROJ_KNIFE: 0xc0c0c0,      // Knife slash - silver
@@ -67,6 +68,7 @@ export const DEATH_PARTICLE_COLORS: Record<string, number> = {
   boss_slime: 0x00ff88,
   boss_skeleton: 0xffffff,
   boss_demon: 0xff0000,
+  secret_boss: 0x9400d3, // P5.3: Secret Boss - dark violet
 };
 
 // =============================================================================
@@ -575,7 +577,28 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
     size: 3,
     isBoss: true,
   },
+  // P5.3: SECRET BOSS - Spawns when all alive players reach level 15+
+  secret_boss: {
+    type: 'secret_boss',
+    name: 'The Ancient One',
+    health: 2000,      // Extremely tanky - requires full team coordination
+    speed: 6,          // Fast - faster than most enemies
+    damage: 60,        // High damage - punishes positioning mistakes
+    xpValue: 1000,     // Massive XP reward for defeating
+    size: 4,           // Large collision radius
+    isBoss: true,
+  },
 };
+
+// =============================================================================
+// P5.3: SECRET BOSS CONFIGURATION
+// =============================================================================
+
+export const SECRET_BOSS_CONFIG = {
+  MIN_PLAYER_LEVEL: 15,   // All alive players must be at least this level
+  SPAWN_DELAY: 3,         // Seconds delay before spawning after trigger
+  ANNOUNCEMENT_DURATION: 5, // Seconds to show announcement
+} as const;
 
 // =============================================================================
 // XP ORBS

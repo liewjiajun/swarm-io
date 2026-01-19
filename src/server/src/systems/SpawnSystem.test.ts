@@ -537,4 +537,193 @@ describe('SpawnSystem', () => {
       expect(status.map(s => s.wave)).not.toContain(7);
     });
   });
+
+  // P5.3: Secret Boss tests
+  describe('secret boss (P5.3)', () => {
+    // Helper to create mock player with level
+    function createMockPlayerWithLevel(level: number, dead = false) {
+      return {
+        id: `player-${Math.random().toString(36).substr(2, 9)}`,
+        x: 0,
+        y: 0,
+        dead,
+        level
+      } as any;
+    }
+
+    it('should not trigger secret boss when no players are level 15+', () => {
+      const world = createMockWorld({ gameTime: 0, playerCount: 1 });
+      const player = createMockPlayerWithLevel(10);
+      const gameState = createMockGameState(world, [player]);
+
+      // Run multiple updates
+      for (let i = 0; i < 100; i++) {
+        world.gameTime += 0.1;
+        spawnSystem.update(gameState, deltaTime);
+      }
+
+      const status = spawnSystem.getSecretBossStatus();
+      expect(status.triggered).toBe(false);
+      expect(status.spawned).toBe(false);
+    });
+
+    it('should trigger secret boss when all alive players reach level 15', () => {
+      const world = createMockWorld({ gameTime: 0, playerCount: 2 });
+      const player1 = createMockPlayerWithLevel(15);
+      const player2 = createMockPlayerWithLevel(16);
+      const gameState = createMockGameState(world, [player1, player2]);
+
+      spawnSystem.update(gameState, deltaTime);
+
+      const status = spawnSystem.getSecretBossStatus();
+      expect(status.triggered).toBe(true);
+    });
+
+    it('should not trigger when one alive player is below level 15', () => {
+      const world = createMockWorld({ gameTime: 0, playerCount: 2 });
+      const player1 = createMockPlayerWithLevel(15);
+      const player2 = createMockPlayerWithLevel(10); // Below threshold
+      const gameState = createMockGameState(world, [player1, player2]);
+
+      spawnSystem.update(gameState, deltaTime);
+
+      const status = spawnSystem.getSecretBossStatus();
+      expect(status.triggered).toBe(false);
+    });
+
+    it('should ignore dead players when checking level requirement', () => {
+      const world = createMockWorld({ gameTime: 0, playerCount: 2 });
+      const alivePlayer = createMockPlayerWithLevel(15);
+      const deadPlayer = createMockPlayerWithLevel(5, true); // Dead player below threshold
+      const gameState = createMockGameState(world, [alivePlayer, deadPlayer]);
+
+      spawnSystem.update(gameState, deltaTime);
+
+      const status = spawnSystem.getSecretBossStatus();
+      expect(status.triggered).toBe(true);
+    });
+
+    it('should spawn secret boss after trigger delay', () => {
+      const world = createMockWorld({ gameTime: 0, playerCount: 1 });
+      const player = createMockPlayerWithLevel(15);
+      const gameState = createMockGameState(world, [player]);
+
+      // First update triggers
+      spawnSystem.update(gameState, deltaTime);
+      let status = spawnSystem.getSecretBossStatus();
+      expect(status.triggered).toBe(true);
+      expect(status.spawned).toBe(false);
+
+      // Wait for spawn delay (3 seconds per SECRET_BOSS_CONFIG)
+      world.gameTime = 5;
+      spawnSystem.update(gameState, deltaTime);
+
+      status = spawnSystem.getSecretBossStatus();
+      expect(status.spawned).toBe(true);
+
+      // Verify enemy was spawned at world center
+      expect(gameState.addEnemy).toHaveBeenCalledWith('secret_boss', 0, 0);
+    });
+
+    it('should call announcement callback when triggered', () => {
+      const announcementCallback = vi.fn();
+      spawnSystem.setSecretBossAnnouncementCallback(announcementCallback);
+
+      const world = createMockWorld({ gameTime: 0, playerCount: 1 });
+      const player = createMockPlayerWithLevel(15);
+      const gameState = createMockGameState(world, [player]);
+
+      spawnSystem.update(gameState, deltaTime);
+
+      expect(announcementCallback).toHaveBeenCalledWith('THE ANCIENT ONE AWAKENS...');
+    });
+
+    it('should call announcement callback when spawned', () => {
+      const announcementCallback = vi.fn();
+      spawnSystem.setSecretBossAnnouncementCallback(announcementCallback);
+
+      const world = createMockWorld({ gameTime: 0, playerCount: 1 });
+      const player = createMockPlayerWithLevel(15);
+      const gameState = createMockGameState(world, [player]);
+
+      // Trigger
+      spawnSystem.update(gameState, deltaTime);
+      announcementCallback.mockClear();
+
+      // Wait for spawn
+      world.gameTime = 5;
+      spawnSystem.update(gameState, deltaTime);
+
+      expect(announcementCallback).toHaveBeenCalledWith('DEFEAT THE ANCIENT ONE!');
+    });
+
+    it('should only spawn secret boss once', () => {
+      const world = createMockWorld({ gameTime: 0, playerCount: 1 });
+      const player = createMockPlayerWithLevel(15);
+      const gameState = createMockGameState(world, [player]);
+
+      // Trigger and spawn
+      spawnSystem.update(gameState, deltaTime);
+      world.gameTime = 5;
+      spawnSystem.update(gameState, deltaTime);
+
+      const initialCallCount = (gameState.addEnemy as any).mock.calls.filter(
+        (c: [string, number, number]) => c[0] === 'secret_boss'
+      ).length;
+      expect(initialCallCount).toBe(1);
+
+      // Continue running updates
+      for (let i = 0; i < 50; i++) {
+        world.gameTime += 1;
+        spawnSystem.update(gameState, deltaTime);
+      }
+
+      const finalCallCount = (gameState.addEnemy as any).mock.calls.filter(
+        (c: [string, number, number]) => c[0] === 'secret_boss'
+      ).length;
+      expect(finalCallCount).toBe(1);
+    });
+
+    it('should reset secret boss state on reset()', () => {
+      const world = createMockWorld({ gameTime: 0, playerCount: 1 });
+      const player = createMockPlayerWithLevel(15);
+      const gameState = createMockGameState(world, [player]);
+
+      // Trigger and spawn
+      spawnSystem.update(gameState, deltaTime);
+      world.gameTime = 5;
+      spawnSystem.update(gameState, deltaTime);
+
+      let status = spawnSystem.getSecretBossStatus();
+      expect(status.spawned).toBe(true);
+
+      // Reset
+      spawnSystem.reset();
+
+      status = spawnSystem.getSecretBossStatus();
+      expect(status.triggered).toBe(false);
+      expect(status.spawned).toBe(false);
+      expect(status.triggerTime).toBe(0);
+    });
+
+    it('should reset trigger if players no longer qualify', () => {
+      const world = createMockWorld({ gameTime: 0, playerCount: 2 });
+      const player1 = createMockPlayerWithLevel(15);
+      const player2 = createMockPlayerWithLevel(15);
+      const gameState = createMockGameState(world, [player1, player2]);
+
+      // Trigger
+      spawnSystem.update(gameState, deltaTime);
+      let status = spawnSystem.getSecretBossStatus();
+      expect(status.triggered).toBe(true);
+
+      // Player 2 drops below level 15 (e.g., died and respawned)
+      player2.level = 1;
+      world.gameTime += 0.1;
+      spawnSystem.update(gameState, deltaTime);
+
+      status = spawnSystem.getSecretBossStatus();
+      expect(status.triggered).toBe(false);
+    });
+  });
 });
