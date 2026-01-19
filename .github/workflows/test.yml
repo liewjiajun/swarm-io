@@ -32,6 +32,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Build shared package first (required for typecheck)
+        run: npm run build --workspace=@swarm-io/shared
+
       - name: TypeScript type checking
         run: npm run typecheck
 
@@ -63,6 +66,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Build shared package first (required for tests)
+        run: npm run build --workspace=@swarm-io/shared
 
       - name: Run tests with coverage
         run: npm run test -- --coverage
