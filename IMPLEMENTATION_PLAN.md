@@ -3,10 +3,10 @@
 ## Current Status: Phase 7 - Gameplay Polish & New Content
 
 **Last Updated:** 2026-01-19
-**Implementation Progress:** 141/85 core tasks completed (166%) + 4 new tasks pending
-**Test Count:** 825 tests - ALL PASSING (597 server + 121 shared + 107 client)
+**Implementation Progress:** 142/85 core tasks completed (167%) + 3 new tasks pending
+**Test Count:** 830 tests - ALL PASSING (602 server + 121 shared + 107 client)
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
-**Pending Tasks:** 4 HIGH PRIORITY tasks (see PRIORITIZED TASK LIST below)
+**Pending Tasks:** 3 HIGH PRIORITY tasks (see PRIORITIZED TASK LIST below)
 **Total Sprites:** 88 (player 9 + enemies 16 + weapons/projectiles 18 + XP orbs 8 + power-ups 6 + world events 6 + decorations 10 + hazards 6 + misc 9)
 **Code Quality:** Excellent (0 TODOs, 0 FIXMEs, 0 skipped tests, 0 lint warnings, ~2 production `any` types - intentional for security logging)
 **CI/CD Status:** GitHub Actions configured (.github/workflows/test.yml, release.yml)
@@ -19,14 +19,14 @@
 
 | Metric | Value | Notes |
 |--------|-------|-------|
-| Core Tasks | 141/85 | 166% complete |
-| **Pending Tasks** | **4** | **HIGH PRIORITY - Implement now** |
-| Test Coverage | 825 tests | All passing |
+| Core Tasks | 142/85 | 167% complete |
+| **Pending Tasks** | **3** | **HIGH PRIORITY - Implement now** |
+| Test Coverage | 830 tests | All passing |
 | Code Quality | Excellent | 0 TODOs, 0 FIXMEs, 0 skipped tests |
 
 ### System Status
 
-All core systems operational: 60Hz game loop, 8 weapons with animations, multiplayer (6 features), world events, hidden power-ups, environmental hazards, audio system, screen shake, knockback, persistent high score, random starting weapons, server leaderboard (top 100), character classes (5), weapon evolution (8 paths), level up effects, weapon impact particles.
+All core systems operational: 60Hz game loop, 8 weapons with animations, multiplayer (6 features), world events, hidden power-ups, environmental hazards, shapeshifter enemy, audio system, screen shake, knockback, persistent high score, random starting weapons, server leaderboard (top 100), character classes (5), weapon evolution (8 paths), level up effects, weapon impact particles.
 
 ---
 
@@ -117,10 +117,19 @@ These tasks improve core gameplay feel. Use suggested values.
   - Added `xp_orb_jackpot` sprite (48x48, 2 frames) to atlas
   - Pulsing and bobbing animation in `Renderer.updateXPOrbsSprite()`
 
-- [ ] **P5.6: Shape-Shifting Enemy**
-  - Copies random player's current weapons
-  - Changes appearance to match copied player
-  - Spawns after wave 5 (rare)
+- [x] **P5.6: Shape-Shifting Enemy** ✅ DONE (2026-01-19)
+  - Copies random player's current weapons and mimics their appearance
+  - Spawns after wave 5 (90s game time), 3% chance to replace regular spawn
+  - Maximum 3 active shapeshifters at once
+  - Added `shapeshifter` enemy type to `src/shared/src/types.ts`
+  - Added `SHAPESHIFTER_CONFIG` constants (MIN_GAME_TIME, SPAWN_CHANCE, MAX_ACTIVE, etc.)
+  - Added shapeshifter config to `ENEMY_CONFIGS` (150 HP, speed 7, 50 XP)
+  - Extended `EnemySchema` with `copiedPlayerId`, `copiedWeapons`, weapon cooldowns
+  - Implemented shapeshifter spawning in `SpawnSystem.ts` with player weapon copying
+  - Added shapeshifter AI in `PhysicsSystem.ts` (targets players, refreshes copy every 15s)
+  - Added weapon firing logic for all 8 weapon types at 60% damage
+  - Added magenta (0xff00ff) color and torus knot geometry for visual distinction
+  - 5 new tests in `SpawnSystem.test.ts` (now 50 total tests)
 
 - [ ] **P5.7: Day/Night Cycle**
   - 2-minute cycle (1 min day, 1 min night)
@@ -210,6 +219,7 @@ Batch spawning goes in `src/server/src/systems/SpawnSystem.ts`:
 ## CHANGELOG
 
 See git history for detailed changelog. Recent highlights:
+- 2026-01-19: P5.6 - Shape-Shifting Enemy (copies player weapons, 3% spawn chance after wave 5, magenta torus knot visual, 5 tests)
 - 2026-01-19: P5.4 - Environmental Hazards (lava DOT 15/s, ice 50% slow, teleporter pairs with 3s cooldown, 32 tests)
 - 2026-01-19: P5.5 - Jackpot XP Orbs (1% spawn chance, 500 XP, attracts enemies, golden pulsing sprite)
 - 2026-01-19: P5.3 - Secret Boss (spawns at world center when all players reach level 15+, 2000 HP, 10 new tests)

@@ -121,12 +121,12 @@ describe('WEAPON_CONFIGS', () => {
 });
 
 describe('ENEMY_CONFIGS', () => {
-  const regularEnemies = ['bat', 'skeleton', 'zombie', 'ghost', 'slime', 'mini_slime', 'demon'];
+  const regularEnemies = ['bat', 'skeleton', 'zombie', 'ghost', 'slime', 'mini_slime', 'demon', 'shapeshifter']; // P5.6: Added shapeshifter
   const bossEnemies = ['boss_slime', 'boss_skeleton', 'boss_demon', 'secret_boss']; // P5.3: Added secret_boss
 
-  it('should have all 11 enemy types', () => {
-    // P5.3: 10 original + 1 secret_boss = 11
-    expect(Object.keys(ENEMY_CONFIGS)).toHaveLength(11);
+  it('should have all 12 enemy types', () => {
+    // P5.3: 10 original + 1 secret_boss = 11, P5.6: +1 shapeshifter = 12
+    expect(Object.keys(ENEMY_CONFIGS)).toHaveLength(12);
   });
 
   it('should have valid configuration for each enemy', () => {

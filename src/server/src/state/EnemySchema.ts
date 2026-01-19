@@ -12,6 +12,9 @@ export class EnemySchema extends Schema {
   velocityX!: number;
   velocityY!: number;
   targetPlayerId!: string;
+  // P5.6: Shapeshifter fields - synced to client for visual rendering
+  copiedPlayerId!: string;  // ID of player being mimicked (empty if not shapeshifter)
+  copiedWeapons!: string;   // JSON-encoded array of weapon types
 
   // Cached config values (not synced, derived from type) - can use regular initializers
   private _speed: number = 0;
@@ -42,6 +45,10 @@ export class EnemySchema extends Schema {
   knockbackEndTime: number = 0;  // When knockback ends (game time in seconds)
   isKnockedBack: boolean = false; // Whether currently in knockback state
 
+  // P5.6: Shapeshifter state - server-only tracking
+  shapeshifterWeaponCooldowns: Map<string, number> = new Map(); // Cooldowns for each copied weapon
+  shapeshifterLastCopyTime: number = 0; // When the shapeshifter last copied a player
+
   constructor() {
     super();
     // Initialize synced values through the setters
@@ -54,6 +61,9 @@ export class EnemySchema extends Schema {
     this.velocityX = 0;
     this.velocityY = 0;
     this.targetPlayerId = '';
+    // P5.6: Shapeshifter fields
+    this.copiedPlayerId = '';
+    this.copiedWeapons = '[]';
   }
 
   initialize(type: string, difficulty: number = 1) {
@@ -112,5 +122,8 @@ defineTypes(EnemySchema, {
   maxHealth: 'number',
   velocityX: 'number',
   velocityY: 'number',
-  targetPlayerId: 'string'
+  targetPlayerId: 'string',
+  // P5.6: Shapeshifter fields (synced to client for visual rendering)
+  copiedPlayerId: 'string',
+  copiedWeapons: 'string'
 });

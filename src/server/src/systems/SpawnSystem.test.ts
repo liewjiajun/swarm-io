@@ -726,4 +726,144 @@ describe('SpawnSystem', () => {
       expect(status.triggered).toBe(false);
     });
   });
+
+  // P5.6: Shapeshifter tests
+  describe('shapeshifter (P5.6)', () => {
+    // Helper to create mock player with weapons
+    function createMockPlayerWithWeapons(weapons: string[], dead = false) {
+      return {
+        id: `player-${Math.random().toString(36).substr(2, 9)}`,
+        x: 0,
+        y: 0,
+        dead,
+        level: 5,
+        weapons: weapons.map(type => ({ type, level: 1 }))
+      } as any;
+    }
+
+    // Enhanced mock enemy for shapeshifter
+    function createMockShapeshifterEnemy(id: string) {
+      return {
+        id,
+        type: 'shapeshifter',
+        x: 0,
+        y: 0,
+        health: 150,
+        copiedPlayerId: '',
+        copiedWeapons: '[]',
+        shapeshifterWeaponCooldowns: new Map<string, number>(),
+        shapeshifterLastCopyTime: 0,
+        initialize: vi.fn()
+      } as any;
+    }
+
+    // Helper to create game state that can return shapeshifters
+    function createMockGameStateForShapeshifter(
+      world: any,
+      players: any[] = [],
+      existingShapeshifters: number = 0
+    ) {
+      const playersMap = new Map(players.map(p => [p.id, p]));
+      const enemiesMap = new Map<string, any>();
+
+      // Add existing shapeshifters
+      for (let i = 0; i < existingShapeshifters; i++) {
+        const shapeshifter = createMockShapeshifterEnemy(`shapeshifter-${i}`);
+        enemiesMap.set(shapeshifter.id, shapeshifter);
+      }
+
+      const addedEnemies: any[] = [];
+
+      return {
+        world,
+        players: playersMap,
+        enemies: enemiesMap,
+        addEnemy: vi.fn().mockImplementation((type, x, y) => {
+          const enemy = type === 'shapeshifter'
+            ? createMockShapeshifterEnemy(`enemy-${addedEnemies.length}`)
+            : createMockEnemy(`enemy-${addedEnemies.length}`);
+          enemy.type = type;
+          enemy.x = x;
+          enemy.y = y;
+          addedEnemies.push(enemy);
+          enemiesMap.set(enemy.id, enemy);
+          return enemy;
+        }),
+        _addedEnemies: addedEnemies
+      } as any;
+    }
+
+    it('should not spawn shapeshifter before minimum game time (90s)', () => {
+      // Shapeshifters only spawn after wave 5 (90s game time)
+      const world = createMockWorld({ gameTime: 50, playerCount: 1 });
+      const player = createMockPlayerWithWeapons(['knife', 'wand']);
+      const gameState = createMockGameStateForShapeshifter(world, [player]);
+
+      // Run many updates to give shapeshifter chance to spawn
+      for (let i = 0; i < 100; i++) {
+        world.gameTime = 50 + i * 0.5;
+        if (world.gameTime >= 90) break; // Stop before threshold
+        spawnSystem.update(gameState, deltaTime);
+      }
+
+      // No shapeshifters should have spawned
+      const shapeshifters = gameState._addedEnemies.filter((e: any) => e.type === 'shapeshifter');
+      expect(shapeshifters.length).toBe(0);
+    });
+
+    it('should respect max active shapeshifters limit', () => {
+      // MAX_ACTIVE is 3
+      const world = createMockWorld({ gameTime: 100, playerCount: 1 });
+      const player = createMockPlayerWithWeapons(['knife', 'wand']);
+      // Already have 3 shapeshifters
+      const gameState = createMockGameStateForShapeshifter(world, [player], 3);
+
+      // Run updates - shapeshifter spawn chance should fail due to limit
+      for (let i = 0; i < 100; i++) {
+        world.gameTime += 0.5;
+        spawnSystem.update(gameState, deltaTime);
+      }
+
+      // No new shapeshifters should have spawned (existing 3 don't count in _addedEnemies)
+      const newShapeshifters = gameState._addedEnemies.filter((e: any) => e.type === 'shapeshifter');
+      expect(newShapeshifters.length).toBe(0);
+    });
+
+    it('should not spawn shapeshifter when no players have weapons', () => {
+      const world = createMockWorld({ gameTime: 100, playerCount: 1 });
+      // Player with no weapons
+      const player = createMockPlayerWithWeapons([]);
+      const gameState = createMockGameStateForShapeshifter(world, [player]);
+
+      // Force Math.random to always trigger shapeshifter spawn
+      const originalRandom = Math.random;
+      Math.random = vi.fn().mockReturnValue(0.01); // Below 3% threshold
+
+      for (let i = 0; i < 10; i++) {
+        world.gameTime += 0.5;
+        spawnSystem.update(gameState, deltaTime);
+      }
+
+      Math.random = originalRandom;
+
+      // No shapeshifters should have spawned (no weapons to copy)
+      const shapeshifters = gameState._addedEnemies.filter((e: any) => e.type === 'shapeshifter');
+      expect(shapeshifters.length).toBe(0);
+    });
+
+    it('should track shapeshiftersSpawned metric', () => {
+      // Reset metrics
+      spawnSystem.reset();
+
+      const metrics = spawnSystem.getSpawnMetrics();
+      expect(metrics.shapeshiftersSpawned).toBe(0);
+    });
+
+    it('should reset shapeshifter metric on reset()', () => {
+      spawnSystem.reset();
+
+      const metrics = spawnSystem.getSpawnMetrics();
+      expect(metrics.shapeshiftersSpawned).toBe(0);
+    });
+  });
 });

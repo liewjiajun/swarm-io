@@ -125,7 +125,8 @@ export type EnemyType =
   | 'boss_slime'    // Boss variant
   | 'boss_skeleton' // Boss variant
   | 'boss_demon'    // Boss variant
-  | 'secret_boss';  // P5.3: Secret boss - spawns when all players reach level 15+
+  | 'secret_boss'   // P5.3: Secret boss - spawns when all players reach level 15+
+  | 'shapeshifter'; // P5.6: Shape-Shifting Enemy - copies random player's weapons
 
 export interface EnemyConfig {
   type: EnemyType;
@@ -145,6 +146,9 @@ export interface EnemyState extends Entity {
   targetPlayerId: string; // Empty string when no target
   velocityX: number;
   velocityY: number;
+  // P5.6: Shapeshifter fields - copied player appearance and weapons
+  copiedPlayerId: string; // ID of the player this shapeshifter is mimicking (empty if not shapeshifter)
+  copiedWeapons: string;  // JSON-encoded array of copied weapon types (e.g., '["knife","wand"]')
 }
 
 // =============================================================================

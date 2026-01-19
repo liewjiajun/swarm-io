@@ -1,5 +1,5 @@
 import { GameState } from '../state/GameState.js';
-import { GAME_CONSTANTS, WAVE_SCHEDULE, ENEMY_CONFIGS, SECRET_BOSS_CONFIG } from '@swarm-io/shared';
+import { GAME_CONSTANTS, WAVE_SCHEDULE, ENEMY_CONFIGS, SECRET_BOSS_CONFIG, SHAPESHIFTER_CONFIG } from '@swarm-io/shared';
 import { randomPointOnCircle } from '@swarm-io/shared';
 import { spawnSystemLogger } from '../utils/logger.js';
 
@@ -11,6 +11,7 @@ interface SpawnMetrics {
   validationErrors: number;
   lastSpawnTime: number;
   secretBossSpawned: boolean; // P5.3: Track if secret boss has been spawned
+  shapeshiftersSpawned: number; // P5.6: Track total shapeshifters spawned
 }
 
 export class SpawnSystem {
@@ -25,7 +26,8 @@ export class SpawnSystem {
     spawnAttempts: 0,
     validationErrors: 0,
     lastSpawnTime: 0,
-    secretBossSpawned: false // P5.3
+    secretBossSpawned: false, // P5.3
+    shapeshiftersSpawned: 0 // P5.6
   };
 
   // P5.3: Callback for secret boss announcements
@@ -272,6 +274,19 @@ export class SpawnSystem {
         continue;
       }
 
+      // P5.6: Chance to spawn shapeshifter instead of regular enemy
+      const shouldSpawnShapeshifter = this.shouldSpawnShapeshifter(gameState, currentTime);
+
+      if (shouldSpawnShapeshifter) {
+        const shapeshifter = this.spawnShapeshifter(gameState, spawnPos);
+        if (shapeshifter) {
+          this.spawnMetrics.enemiesSpawned++;
+          this.spawnMetrics.totalSpawned++;
+          this.spawnMetrics.shapeshiftersSpawned++;
+          continue; // Skip regular enemy spawn
+        }
+      }
+
       // Create enemy and initialize with difficulty scaling
       const enemy = gameState.addEnemy(enemyType, spawnPos.x, spawnPos.y);
       enemy.initialize(enemyType, gameState.world.difficulty);
@@ -280,6 +295,77 @@ export class SpawnSystem {
     }
 
     this.lastSpawnTime = currentTime;
+  }
+
+  /**
+   * P5.6: Check if a shapeshifter should spawn
+   */
+  private shouldSpawnShapeshifter(gameState: GameState, currentTime: number): boolean {
+    // Check minimum game time (after wave 5, ~90s)
+    if (currentTime < SHAPESHIFTER_CONFIG.MIN_GAME_TIME) {
+      return false;
+    }
+
+    // Count active shapeshifters
+    let activeShapeshifters = 0;
+    gameState.enemies.forEach(enemy => {
+      if (enemy.type === 'shapeshifter') {
+        activeShapeshifters++;
+      }
+    });
+
+    // Check max active limit
+    if (activeShapeshifters >= SHAPESHIFTER_CONFIG.MAX_ACTIVE) {
+      return false;
+    }
+
+    // Check spawn chance (3%)
+    return Math.random() < SHAPESHIFTER_CONFIG.SPAWN_CHANCE;
+  }
+
+  /**
+   * P5.6: Spawn a shapeshifter enemy that copies a random player's weapons
+   */
+  private spawnShapeshifter(
+    gameState: GameState,
+    spawnPos: { x: number; y: number }
+  ): ReturnType<typeof gameState.addEnemy> | null {
+    // Get all living players with weapons
+    const livingPlayers = Array.from(gameState.players.values()).filter(
+      p => !p.dead && p.weapons && p.weapons.length > 0
+    );
+
+    if (livingPlayers.length === 0) {
+      return null; // No players to copy
+    }
+
+    // Select random player to copy
+    const targetPlayer = livingPlayers[Math.floor(Math.random() * livingPlayers.length)];
+
+    // Create shapeshifter enemy
+    const shapeshifter = gameState.addEnemy('shapeshifter', spawnPos.x, spawnPos.y);
+    shapeshifter.initialize('shapeshifter', gameState.world.difficulty);
+
+    // Copy player's weapons (extract weapon types)
+    const copiedWeaponTypes = targetPlayer.weapons.map(w => w.type);
+    shapeshifter.copiedPlayerId = targetPlayer.id;
+    shapeshifter.copiedWeapons = JSON.stringify(copiedWeaponTypes);
+    shapeshifter.shapeshifterLastCopyTime = gameState.world.gameTime;
+
+    // Initialize weapon cooldowns
+    copiedWeaponTypes.forEach(weaponType => {
+      shapeshifter.shapeshifterWeaponCooldowns.set(weaponType, 0);
+    });
+
+    spawnSystemLogger.info({
+      shapeshifterId: shapeshifter.id,
+      copiedPlayerId: targetPlayer.id,
+      copiedWeapons: copiedWeaponTypes,
+      x: spawnPos.x,
+      y: spawnPos.y
+    }, 'P5.6: Shapeshifter spawned');
+
+    return shapeshifter;
   }
 
   private selectEnemyType(enemies: { [type: string]: number }): string | null {
@@ -375,7 +461,8 @@ export class SpawnSystem {
       spawnAttempts: 0,
       validationErrors: 0,
       lastSpawnTime: 0,
-      secretBossSpawned: false // P5.3
+      secretBossSpawned: false, // P5.3
+      shapeshiftersSpawned: 0 // P5.6
     };
     spawnSystemLogger.info('Reset for new game');
   }

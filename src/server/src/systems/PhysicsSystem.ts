@@ -3,7 +3,7 @@ import type { EnemySchema } from '../state/EnemySchema';
 import type { PlayerSchema } from '../state/PlayerSchema';
 import type { XPOrbSchema } from '../state/XPOrbSchema';
 import type { SpatialHash } from './SpatialHash';
-import { GAME_CONSTANTS, ENEMY_ATTACK_CONFIGS, BOSS_ABILITY_CONFIGS, ENEMY_CONFIGS, JACKPOT_ORB_CONFIG } from '@swarm-io/shared';
+import { GAME_CONSTANTS, ENEMY_ATTACK_CONFIGS, BOSS_ABILITY_CONFIGS, ENEMY_CONFIGS, JACKPOT_ORB_CONFIG, SHAPESHIFTER_CONFIG, WEAPON_CONFIGS } from '@swarm-io/shared';
 import { direction, distance } from '@swarm-io/shared';
 import { physicsSystemLogger } from '../utils/logger.js';
 
@@ -163,6 +163,12 @@ export class PhysicsSystem {
     // Check if this is a boss enemy
     const enemyConfig = ENEMY_CONFIGS[enemy.type];
     const isBoss = enemyConfig?.isBoss ?? false;
+
+    // P5.6: Handle shapeshifter special behavior
+    if (enemy.type === 'shapeshifter') {
+      this.updateShapeshifterAI(state, enemy, dt);
+      return; // Shapeshifters have their own AI loop
+    }
 
     // P5.5: Check if a jackpot orb is nearby and should attract this enemy
     // Non-boss enemies within aggro radius will be attracted to jackpot orbs
@@ -538,5 +544,282 @@ export class PhysicsSystem {
     });
 
     return nearestOrb;
+  }
+
+  /**
+   * P5.6: Update shapeshifter AI
+   * Shapeshifters copy random player's weapons and fire them at targets
+   */
+  private updateShapeshifterAI(state: GameState, enemy: EnemySchema, dt: number): void {
+    const currentTime = state.world.gameTime;
+
+    // Check if we should copy a new player's weapons
+    const timeSinceLastCopy = currentTime - enemy.shapeshifterLastCopyTime;
+    if (timeSinceLastCopy >= SHAPESHIFTER_CONFIG.COPY_REFRESH_INTERVAL || enemy.copiedWeapons === '[]') {
+      this.shapeshifterCopyPlayer(state, enemy);
+    }
+
+    // Find nearest player to attack
+    const targetPlayer = this.spatialHash.queryNearestOfType(
+      enemy.x, enemy.y, 'player', GAME_CONSTANTS.ENEMY_DETECTION_RANGE
+    );
+
+    if (targetPlayer) {
+      enemy.targetPlayerId = targetPlayer.id;
+
+      // Calculate direction to target
+      const dir = direction(
+        { x: enemy.x, y: enemy.y },
+        { x: targetPlayer.x, y: targetPlayer.y }
+      );
+
+      // Move toward target (shapeshifters are aggressive)
+      enemy.velocityX = dir.x * enemy.speed;
+      enemy.velocityY = dir.y * enemy.speed;
+
+      // Fire copied weapons at target
+      this.shapeshifterFireWeapons(state, enemy, targetPlayer, dt);
+    } else {
+      // Wander toward center when no target
+      const dir = direction({ x: enemy.x, y: enemy.y }, { x: 0, y: 0 });
+      enemy.velocityX = dir.x * enemy.speed * GAME_CONSTANTS.ENEMY_SLOW_SPEED_RATIO;
+      enemy.velocityY = dir.y * enemy.speed * GAME_CONSTANTS.ENEMY_SLOW_SPEED_RATIO;
+    }
+
+    // Apply movement
+    enemy.x += enemy.velocityX * dt;
+    enemy.y += enemy.velocityY * dt;
+  }
+
+  /**
+   * P5.6: Copy a random player's weapons
+   */
+  private shapeshifterCopyPlayer(state: GameState, enemy: EnemySchema): void {
+    // Get all living players with weapons
+    const livingPlayers = Array.from(state.players.values()).filter(
+      p => !p.dead && p.weapons && p.weapons.length > 0
+    );
+
+    if (livingPlayers.length === 0) {
+      return; // No players to copy
+    }
+
+    // Select random player to copy
+    const targetPlayer = livingPlayers[Math.floor(Math.random() * livingPlayers.length)];
+
+    // Copy player's weapons
+    const copiedWeaponTypes = targetPlayer.weapons.map(w => w.type);
+    enemy.copiedPlayerId = targetPlayer.id;
+    enemy.copiedWeapons = JSON.stringify(copiedWeaponTypes);
+    enemy.shapeshifterLastCopyTime = state.world.gameTime;
+
+    // Reset weapon cooldowns
+    enemy.shapeshifterWeaponCooldowns.clear();
+    copiedWeaponTypes.forEach(weaponType => {
+      enemy.shapeshifterWeaponCooldowns.set(weaponType, 0);
+    });
+
+    physicsSystemLogger.debug({
+      shapeshifterId: enemy.id,
+      copiedPlayerId: targetPlayer.id,
+      copiedWeapons: copiedWeaponTypes
+    }, 'P5.6: Shapeshifter copied player weapons');
+  }
+
+  /**
+   * P5.6: Fire copied weapons at target
+   */
+  private shapeshifterFireWeapons(
+    state: GameState,
+    enemy: EnemySchema,
+    target: { x: number; y: number; id: string },
+    dt: number
+  ): void {
+    // Parse copied weapons
+    let copiedWeapons: string[];
+    try {
+      copiedWeapons = JSON.parse(enemy.copiedWeapons);
+    } catch {
+      return; // Invalid weapon data
+    }
+
+    if (!Array.isArray(copiedWeapons) || copiedWeapons.length === 0) {
+      return;
+    }
+
+    // Update cooldowns and fire weapons
+    copiedWeapons.forEach(weaponType => {
+      let cooldown = enemy.shapeshifterWeaponCooldowns.get(weaponType) || 0;
+      cooldown -= dt;
+
+      if (cooldown <= 0) {
+        // Fire this weapon
+        this.shapeshifterFireSingleWeapon(state, enemy, target, weaponType);
+
+        // Reset cooldown (slower than players)
+        const weaponConfig = WEAPON_CONFIGS[weaponType];
+        const baseCooldown = weaponConfig?.cooldown || SHAPESHIFTER_CONFIG.WEAPON_FIRE_COOLDOWN;
+        cooldown = Math.max(baseCooldown * 1.5, SHAPESHIFTER_CONFIG.WEAPON_FIRE_COOLDOWN);
+      }
+
+      enemy.shapeshifterWeaponCooldowns.set(weaponType, cooldown);
+    });
+  }
+
+  /**
+   * P5.6: Fire a single weapon type at target
+   * Simplified weapon firing for shapeshifters (single projectile per weapon)
+   */
+  private shapeshifterFireSingleWeapon(
+    state: GameState,
+    enemy: EnemySchema,
+    target: { x: number; y: number; id: string },
+    weaponType: string
+  ): void {
+    const weaponConfig = WEAPON_CONFIGS[weaponType];
+    if (!weaponConfig) return;
+
+    // Calculate direction to target
+    const dx = target.x - enemy.x;
+    const dy = target.y - enemy.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist === 0) return;
+
+    const dirX = dx / dist;
+    const dirY = dy / dist;
+
+    // Base damage reduced for shapeshifters
+    const damage = Math.floor(weaponConfig.baseDamage * SHAPESHIFTER_CONFIG.DAMAGE_MULTIPLIER);
+
+    // Create projectile based on weapon type
+    switch (weaponType) {
+      case 'knife':
+      case 'whip':
+        // Melee/slash projectiles
+        state.addProjectile(
+          'slash',
+          enemy.id,
+          enemy.x + dirX * 1.5,
+          enemy.y + dirY * 1.5,
+          dirX * 8,
+          dirY * 8,
+          damage,
+          0.3,  // Short lifetime
+          1.5,  // Radius
+          3     // Limited piercing
+        );
+        break;
+
+      case 'wand':
+        // Magic bullet
+        state.addProjectile(
+          'bullet',
+          enemy.id,
+          enemy.x,
+          enemy.y,
+          dirX * 10,
+          dirY * 10,
+          damage,
+          2.0,  // Lifetime
+          0.5,  // Radius
+          1     // Single target
+        );
+        break;
+
+      case 'fireball':
+        // Fireball (no explosion for shapeshifter)
+        state.addProjectile(
+          'fireball',
+          enemy.id,
+          enemy.x,
+          enemy.y,
+          dirX * 8,
+          dirY * 8,
+          damage,
+          2.0,  // Lifetime
+          0.8,  // Radius
+          1     // Single target
+        );
+        break;
+
+      case 'axe':
+        // Thrown axe
+        state.addProjectile(
+          'axe_spin',
+          enemy.id,
+          enemy.x,
+          enemy.y,
+          dirX * 10,
+          dirY * 10,
+          damage,
+          2.0,  // Lifetime
+          0.6,  // Radius
+          5     // Good piercing
+        );
+        break;
+
+      case 'lightning':
+        // Lightning strike at target position
+        state.addProjectile(
+          'lightning_bolt',
+          enemy.id,
+          target.x + (Math.random() - 0.5) * 2, // Slight randomness
+          target.y + (Math.random() - 0.5) * 2,
+          0,
+          0,
+          damage,
+          0.2,  // Short lifetime
+          1.0,  // Radius
+          1     // Single target
+        );
+        break;
+
+      case 'garlic':
+        // AOE damage around shapeshifter
+        state.addProjectile(
+          'garlic_aura',
+          enemy.id,
+          enemy.x,
+          enemy.y,
+          0,
+          0,
+          Math.floor(damage * 0.5), // Reduced AOE damage
+          0.1,  // Very short lifetime
+          2.5,  // Radius
+          999   // Hit many targets
+        );
+        break;
+
+      case 'bible':
+        // For bible, just do a short-range damage pulse (no orbit for shapeshifter)
+        state.addProjectile(
+          'orb',
+          enemy.id,
+          enemy.x + dirX * 2,
+          enemy.y + dirY * 2,
+          0,
+          0,
+          damage,
+          0.5,  // Short lifetime
+          1.0,  // Radius
+          3     // Limited piercing
+        );
+        break;
+
+      default:
+        // Generic projectile fallback
+        state.addProjectile(
+          'bullet',
+          enemy.id,
+          enemy.x,
+          enemy.y,
+          dirX * 8,
+          dirY * 8,
+          damage,
+          2.0,
+          0.5,
+          1
+        );
+    }
   }
 }

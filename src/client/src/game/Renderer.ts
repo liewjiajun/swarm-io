@@ -724,6 +724,10 @@ export class Renderer {
     this.createEnemyPool('boss_slime', 0x00ff00, 10);   // Bright green - giant slime
     this.createEnemyPool('boss_skeleton', 0xffd700, 10); // Gold - skeleton king
     this.createEnemyPool('boss_demon', 0x8b0000, 10);   // Dark red - demon lord
+    // P5.3: Secret boss - dark violet (mysterious/ancient)
+    this.createEnemyPool('secret_boss', 0x9400d3, 5);   // Dark violet - ancient one
+    // P5.6: Shapeshifter - magenta (shifting/unstable appearance)
+    this.createEnemyPool('shapeshifter', 0xff00ff, 20); // Magenta - copies player weapons
 
     // Projectile pool - High detail (8x8 segments = 128 triangles per sphere)
     // Uses per-instance colors for weapon-specific projectile colors
@@ -808,6 +812,12 @@ export class Renderer {
       case 'demon':
         // Inverted cone - menacing horned appearance
         return new THREE.ConeGeometry(1.0, 1.8, 6);
+      case 'secret_boss':
+        // P5.3: Large dodecahedron - ancient mysterious form
+        return new THREE.DodecahedronGeometry(1.5, 0);
+      case 'shapeshifter':
+        // P5.6: Torus knot - unstable shifting appearance
+        return new THREE.TorusKnotGeometry(0.6, 0.2, 32, 8);
       default:
         // Fallback to basic cube
         return new THREE.BoxGeometry(1.5, 1.5, 1.5);

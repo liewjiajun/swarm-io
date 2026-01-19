@@ -35,6 +35,7 @@ export const COLOR_PALETTE = {
   BOSS_SKELETON: 0xffd700,   // Boss Skeleton - gold
   BOSS_DEMON: 0x8b0000,      // Boss Demon - dark red
   SECRET_BOSS: 0x9400d3,     // P5.3: Secret Boss - dark violet (mysterious/ancient)
+  SHAPESHIFTER: 0xff00ff,    // P5.6: Shapeshifter - magenta (shifting/unstable)
 
   // Projectile colors (8)
   PROJ_KNIFE: 0xc0c0c0,      // Knife slash - silver
@@ -74,6 +75,7 @@ export const DEATH_PARTICLE_COLORS: Record<string, number> = {
   boss_skeleton: 0xffffff,
   boss_demon: 0xff0000,
   secret_boss: 0x9400d3, // P5.3: Secret Boss - dark violet
+  shapeshifter: 0xff00ff, // P5.6: Shapeshifter - magenta
 };
 
 // =============================================================================
@@ -617,6 +619,17 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
     size: 4,           // Large collision radius
     isBoss: true,
   },
+  // P5.6: SHAPESHIFTER - Copies random player's weapons and appearance
+  shapeshifter: {
+    type: 'shapeshifter',
+    name: 'Shapeshifter',
+    health: 150,       // Moderate health - dangerous but killable
+    speed: 7,          // Fast - slightly faster than player base speed
+    damage: 15,        // Base contact damage (weapons deal additional damage)
+    xpValue: 50,       // Good XP reward for killing
+    size: 0.5,         // Same size as player
+    isBoss: false,
+  },
 };
 
 // =============================================================================
@@ -627,6 +640,20 @@ export const SECRET_BOSS_CONFIG = {
   MIN_PLAYER_LEVEL: 15,   // All alive players must be at least this level
   SPAWN_DELAY: 3,         // Seconds delay before spawning after trigger
   ANNOUNCEMENT_DURATION: 5, // Seconds to show announcement
+} as const;
+
+// =============================================================================
+// P5.6: SHAPESHIFTER ENEMY CONFIGURATION
+// =============================================================================
+// Shape-Shifting Enemy: Copies random player's weapons and appearance
+// Spawns rarely after wave 5 (90s game time)
+export const SHAPESHIFTER_CONFIG = {
+  MIN_GAME_TIME: 90,       // Minimum game time before shapeshifters can spawn (after wave 5)
+  SPAWN_CHANCE: 0.03,      // 3% chance to replace a regular enemy spawn with shapeshifter
+  MAX_ACTIVE: 3,           // Maximum shapeshifters active at once
+  WEAPON_FIRE_COOLDOWN: 1.5, // Cooldown between weapon attacks (slower than players)
+  DAMAGE_MULTIPLIER: 0.6,  // Damage multiplier for copied weapons (60% of player damage)
+  COPY_REFRESH_INTERVAL: 15, // Seconds before copying a new player's weapons
 } as const;
 
 // =============================================================================
