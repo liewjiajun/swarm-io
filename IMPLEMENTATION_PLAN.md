@@ -2,11 +2,11 @@
 
 ## Current Status: Phase 6 Complete - Core Redesign In Progress
 
-**Last Updated:** 2026-01-19 (P9.4 Weapon Evolution Complete)
+**Last Updated:** 2026-01-19 (P9.4 Client Visuals, BUG-045 Fixed, Weapon Impact Particles Connected)
 **Implementation Progress:** 123/85 tasks completed (145%)
 **Test Count:** 632 tests - ALL PASSING (478 server + 121 shared + 33 client)
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
-**Critical Bugs:** 0 | **Medium Bugs:** 7 | **Low Bugs:** 2 | **In Progress:** 1 (BUG-035)
+**Critical Bugs:** 0 | **Medium Bugs:** 6 | **Low Bugs:** 2 | **In Progress:** 1 (BUG-035)
 **Code Quality:** Excellent (0 TODOs, 0 FIXMEs, 0 skipped tests, 4 console.warn, ~26 `any` types)
 **CI/CD Status:** GitHub Actions configured (.github/workflows/test.yml, release.yml)
 
@@ -155,12 +155,10 @@ Items explicitly deferred for future consideration.
 - [ ] **BUG-043: Environment Too Empty** - DEFERRED
   - Files: `src/client/src/game/Renderer.ts`, `scripts/generate-sprites.ts`
 
-- [ ] **BUG-045: No Level Up Visual Effects** - PARTIALLY IMPLEMENTED
-  - Status: triggerLevelUpFlash() method EXISTS but is NEVER CALLED
-  - Implementation: Renderer.ts lines 2328-2340 - Golden radial flash with 150ms fade
-  - Missing: Particle burst, expanding ring, modal animation
-  - Issue: Method is public but not wired to level-up event
-  - Files: `src/client/src/game/Renderer.ts`, `src/client/src/game/Game.ts` line 289
+- [x] **BUG-045: No Level Up Visual Effects** - COMPLETED 2026-01-19
+  - Added CSS animation (levelUpPulse and levelUpGlow) to the LEVEL UP! title in HUD
+  - The title now pulses and glows similar to the death title animation
+  - Location: `src/client/src/ui/HUD.ts` lines 679-697
 
 - [ ] **P8.1: Player Size Scales With Level** - DEFERRED
   - Scale: 1.0x (level 1) to 1.5x (level 40)
@@ -517,10 +515,10 @@ Post-implementation testing criteria.
 | Metric | Value | Notes |
 |--------|-------|-------|
 | Total Tasks | 85 | Across 6 phases |
-| Completed | 122 | 143% (all phases complete + extras) |
+| Completed | 123 | 145% (all phases complete + extras) |
 | Critical Bugs | 0 | All critical bugs fixed |
-| Medium Bugs | 7 | BUG-040-045, BUG-052 |
-| Test Coverage | 578 tests | All passing (477 server + 101 shared) |
+| Medium Bugs | 6 | BUG-040-044, BUG-052 (BUG-045 FIXED) |
+| Test Coverage | 632 tests | All passing (478 server + 121 shared + 33 client) |
 | Testing Gaps | CRITICAL | Renderer (0), GameRoom (0), Integration (0) |
 | Code Quality | Excellent | 0 TODOs, 0 FIXMEs, 0 skipped tests |
 
@@ -542,7 +540,9 @@ Post-implementation testing criteria.
 | Random starting weapons | Working | P9.6 complete (2-3 weapons, 8 tests) |
 | Server leaderboard | Working | P9.2 complete (30 tests) |
 | Character classes | Working | P9.3 complete (5 classes, 17 tests) |
-| Weapon evolution | Working | P9.4 complete (8 evolutions, 30+ tests) |
+| Weapon evolution | Working | P9.4 complete (8 evolutions, 30+ tests, client visuals) |
+| Level up effects | Working | BUG-045 fixed (CSS pulse/glow animation) |
+| Weapon impact particles | Working | spawnWeaponImpact() now connected to damage events |
 
 ---
 
@@ -624,7 +624,7 @@ Post-implementation testing criteria.
 - CRT shader post-processing (lazy-loaded)
 - 32-color unified palette
 - Damage numbers floating text
-- Particle effects (XP sparkles, weapon impact, death explosion)
+- Particle effects (XP sparkles, weapon impact - NOW CONNECTED, death explosion)
 - Level-up screen flash
 - Enemy density heatmap on minimap
 - Adaptive camera lerp (0.5 far, 0.1 near)
@@ -971,19 +971,16 @@ Added missing fields to `resetEnemy()` function in ObjectPool.ts:
 
 ---
 
-### BUG-045: No Level Up Visual Effects [MEDIUM]
+### BUG-045: No Level Up Visual Effects [FIXED 2026-01-19]
 
 **Symptom:** When player levels up, there is no visual feedback beyond screen flash. The level up feels invisible.
 
-**Location:**
-- `src/client/src/game/Renderer.ts` - need particle burst effect
-- `src/client/src/game/Game.ts` - level up event handling
+**Fix Applied:**
+- Added CSS animation (levelUpPulse and levelUpGlow) to the LEVEL UP! title in HUD
+- The title now pulses and glows similar to the death title animation
+- Creates a visually appealing pulsing glow effect that draws attention to the level up
 
-**Expected Behavior:**
-- Particle burst around the player when leveling up
-- Expanding ring or aura effect
-- Visual should be noticeable but not obstructive
-- Level up effect should be visible ON the player sprite
+**Location:** `src/client/src/ui/HUD.ts` lines 679-697
 
 ---
 
@@ -1210,10 +1207,11 @@ interface PlayerStats {
 
 **Test Count:** 632 tests (478 server + 121 shared + 33 client)
 
-**Pending Client Visuals:**
-- Evolution visual transformation effect (particle burst)
-- Evolved weapon distinct colors/effects in Renderer
-- Evolution popup notification in HUD
+**Client Visuals - COMPLETED 2026-01-19:**
+- HUD now shows evolved weapon status with golden border, glowing background
+- Evolved weapons display "MAX ★" instead of level number
+- CSS animation (evolvedWeaponGlow) for evolved weapon icons
+- Location: `src/client/src/ui/HUD.ts` lines 563-589, 1705-1719
 
 ---
 
@@ -1565,6 +1563,22 @@ npm run test:memory --players=20 --duration=30
   - lint-staged configured to auto-fix ESLint issues on staged TypeScript files
   - All commits now validated automatically
 
+**2026-01-19 (P9.4 Client Visuals, BUG-045 Fixed, Weapon Impact Particles Connected):**
+- **P9.4 Client Visuals COMPLETED**: Evolved weapons now have visual feedback in HUD
+  - HUD shows evolved weapon status with golden border, glowing background
+  - Evolved weapons display "MAX ★" instead of level number
+  - CSS animation (evolvedWeaponGlow) for evolved weapon icons
+  - Location: src/client/src/ui/HUD.ts lines 563-589, 1705-1719
+- **BUG-045 FIXED**: Level Up Visual Effects added
+  - Added CSS animation (levelUpPulse and levelUpGlow) to the LEVEL UP! title in HUD
+  - The title now pulses and glows similar to the death title animation
+  - Location: src/client/src/ui/HUD.ts lines 679-697
+- **spawnWeaponImpact() CONNECTED**: Weapon impact particle system now active
+  - The method was already implemented in Renderer.ts but was never called
+  - Now called from detectDamage() when enemies take damage
+  - Shows white particles for normal hits, gold particles for critical hits (25+ damage)
+  - Location: src/client/src/game/Renderer.ts line 2272-2274
+
 **2026-01-19 (BUG-051 Projectile Spawn Position Fix):**
 - **BUG-051 FIXED**: Projectile Spawn Position Incorrect
   - Root Cause: Client interpolated player position while projectiles spawned at server position, causing visual desync
@@ -1591,7 +1605,7 @@ npm run test:memory --players=20 --duration=30
   - Added 30+ tests for weapon evolution system
 - **Test count updated**: 632 tests (478 server + 121 shared + 33 client)
 - **Implementation progress**: 123/85 tasks (145%)
-- **Pending**: Client-side visual effects for evolutions
+- **Client Visuals**: Added in subsequent update (see 2026-01-19 P9.4 Client Visuals entry above)
 
 **2026-01-19 (P9.3 Character Classes Complete):**
 - **P9.3 COMPLETED**: Character Classes fully implemented

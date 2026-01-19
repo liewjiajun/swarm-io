@@ -2269,6 +2269,9 @@ export class Renderer {
         const offsetY = (Math.random() - 0.5) * 0.5;
         const isCritical = damage >= 25; // Consider high damage as critical
         this.spawnDamageNumber(damage, enemy.x + offsetX, enemy.y + offsetY, isCritical);
+        // Spawn weapon impact particles at hit location
+        const impactColor = isCritical ? 0xffd700 : 0xffffff; // Gold for critical, white for normal
+        this.spawnWeaponImpact(enemy.x, enemy.y, impactColor);
       }
 
       this.lastEnemyHealth.set(id, enemy.health);

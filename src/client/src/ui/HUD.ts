@@ -560,6 +560,19 @@ export class HUD {
         justify-content: center;
       }
 
+      /* P9.4: Evolved weapon styling */
+      .weapon-icon.evolved {
+        border-color: #ffd700;
+        background: linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(255, 140, 0, 0.2));
+        box-shadow: 0 0 8px rgba(255, 215, 0, 0.5), inset 0 0 4px rgba(255, 215, 0, 0.3);
+        animation: evolvedWeaponGlow 2s ease-in-out infinite;
+      }
+
+      @keyframes evolvedWeaponGlow {
+        0%, 100% { box-shadow: 0 0 8px rgba(255, 215, 0, 0.5), inset 0 0 4px rgba(255, 215, 0, 0.3); }
+        50% { box-shadow: 0 0 12px rgba(255, 215, 0, 0.8), inset 0 0 6px rgba(255, 215, 0, 0.5); }
+      }
+
       .weapon-emoji {
         font-size: 20px;
       }
@@ -567,6 +580,12 @@ export class HUD {
       .weapon-level {
         font-size: 8px;
         margin-top: 2px;
+      }
+
+      /* P9.4: Evolved weapon level shows MAX + star */
+      .weapon-icon.evolved .weapon-level {
+        color: #ffd700;
+        text-shadow: 0 0 4px #ffd700;
       }
 
       /* Bottom Right - Game Info */
@@ -677,11 +696,23 @@ export class HUD {
       }
 
       /* BUG-046 FIX: Smaller title for compact corner display */
+      /* BUG-045 FIX: Add animation to LEVEL UP! title */
       .upgrade-title {
         font-size: 16px;
         color: #ffd700;
         margin-bottom: 15px;
-        text-shadow: 2px 2px 0 #000;
+        text-shadow: 2px 2px 0 #000, 0 0 10px #ffd700;
+        animation: levelUpPulse 0.6s ease-in-out infinite, levelUpGlow 1s ease-in-out infinite;
+      }
+
+      @keyframes levelUpPulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+      }
+
+      @keyframes levelUpGlow {
+        0%, 100% { text-shadow: 2px 2px 0 #000, 0 0 10px #ffd700; }
+        50% { text-shadow: 2px 2px 0 #000, 0 0 20px #ffd700, 0 0 30px #ffa500; }
       }
 
       /* BUG-046 FIX: Display choices in a 2x2 grid for compact corner display */
@@ -1669,15 +1700,18 @@ export class HUD {
 
   /**
    * Updates weapon display icons
+   * P9.4: Shows evolved weapon status with special styling
    */
-  private updateWeapons(weapons: { type: string; level: number }[]): void {
+  private updateWeapons(weapons: { type: string; level: number; evolved?: boolean }[]): void {
     this.elements.weaponsContainer.innerHTML = weapons
       .map(weapon => {
         const icon = WEAPON_ICONS[weapon.type] || '❓';
+        const evolvedClass = weapon.evolved ? ' evolved' : '';
+        const levelText = weapon.evolved ? 'MAX ★' : `Lv.${weapon.level}`;
         return `
-          <div class="weapon-icon">
+          <div class="weapon-icon${evolvedClass}">
             <span class="weapon-emoji">${icon}</span>
-            <span class="weapon-level">Lv.${weapon.level}</span>
+            <span class="weapon-level">${levelText}</span>
           </div>
         `;
       })
