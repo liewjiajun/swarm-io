@@ -2,9 +2,9 @@
 
 ## Current Status: Phase 6 Complete - All Critical Bugs Fixed
 
-**Last Updated:** 2026-01-19 (HUD.test.ts Completed)
-**Implementation Progress:** 127/85 tasks completed (149%)
-**Test Count:** 946 tests - ALL PASSING (555 server + 121 shared + 270 client)
+**Last Updated:** 2026-01-19 (NetworkClient.test.ts Expanded)
+**Implementation Progress:** 128/85 tasks completed (151%)
+**Test Count:** 1003 tests - ALL PASSING (555 server + 121 shared + 327 client)
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
 **Critical Bugs:** 0 | **Medium Bugs:** 6 | **Low Bugs:** 2
 **Code Quality:** Excellent (0 TODOs, 0 FIXMEs, 0 skipped tests, 4 console.warn, ~54 production `any` types)
@@ -70,7 +70,14 @@ Significantly impacts gameplay experience. Should be addressed soon.
   - Nickname modal (P3.1), class selection modal (P9.3)
   - UI sound callbacks, utility methods
   - **XSS Fix:** Added HTML escaping to leaderboard nickname display
-- [ ] **P7.3** Expand NetworkClient tests
+- [x] **P7.3** Expand NetworkClient tests - COMPLETED 2026-01-19 (57 new tests, 67 total)
+  - Comprehensive coverage: constructor, connection/reconnection, rate limiting (P3.4)
+  - URL validation (P3.3), session storage management
+  - State serialization from Colyseus MapSchema
+  - Callback registration and invocation (stateChange, playerDied, levelUp, leaderboardUpdate)
+  - Message handlers: player_died, level_up, leaderboard_update, kicked, banned
+  - Disconnect handling with proper cleanup
+  - State polling fallback testing
 - [ ] **P7.4** Add integration tests with mock Colyseus server
 - [x] **P7.8** Add `expanding_orb` test coverage to PhysicsSystem.test.ts - COMPLETED 2026-01-19 (7 tests)
 
@@ -182,6 +189,7 @@ All 9 specification documents verified complete and implemented:
 | Renderer.ts | ~2,387 | Tested | COMPLETED (94 tests) |
 | InputManager.ts | ~400 | 100% | COMPLETED (42 tests) |
 | HUD.ts | ~2,740 | Tested | COMPLETED (108 tests) |
+| NetworkClient.ts | ~685 | Tested | COMPLETED (67 tests) |
 
 ---
 
@@ -365,6 +373,22 @@ All 9 specification documents verified complete and implemented:
 ---
 
 ## CHANGELOG (Recent)
+
+**2026-01-19 (NetworkClient.test.ts Expanded):**
+- P7.3 COMPLETED: NetworkClient.test.ts expanded from 10 to 67 comprehensive tests
+  - Constructor and initialization testing
+  - Connection and reconnection logic with exponential backoff
+  - Rate limiting (P3.4) - 30 inputs/second with window expiration
+  - URL validation (P3.3) for WebSocket security
+  - Session storage management (localStorage)
+  - State serialization from Colyseus MapSchema (players, enemies, projectiles, XP orbs, powerUps, worldEvents)
+  - Callback registration and invocation (stateChange, playerDied, levelUp, leaderboardUpdate)
+  - Message handlers: player_died, level_up, leaderboard_update, kicked, banned
+  - Disconnect handling with proper cleanup
+  - State polling fallback for Colyseus timing edge cases
+  - Edge cases: empty/negative/decimal inputs, undefined room handling
+- Test count increased: 946 → 1003 tests (all passing)
+- Client tests: 270 → 327 (added 57 tests)
 
 **2026-01-19 (HUD.test.ts Completed):**
 - P7.1d COMPLETED: HUD.test.ts implemented with 108 comprehensive tests
