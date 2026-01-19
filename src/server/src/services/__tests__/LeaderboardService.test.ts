@@ -16,8 +16,6 @@ import {
   LeaderboardService,
   getLeaderboardService,
   resetLeaderboardService,
-  type LeaderboardEntry,
-  type ScoreSubmissionResult
 } from '../LeaderboardService';
 
 describe('LeaderboardService', () => {
@@ -426,7 +424,7 @@ describe('LeaderboardService Singleton', () => {
   });
 
   it('should create new instance after reset', () => {
-    const instance1 = getLeaderboardService();
+    const _instance1 = getLeaderboardService();
     resetLeaderboardService();
     const instance2 = getLeaderboardService();
 

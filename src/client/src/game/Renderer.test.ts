@@ -98,7 +98,7 @@ vi.mock('three', () => {
   }
 
   class MockTextureLoader {
-    load = vi.fn((url: string, onLoad?: Function, _onProgress?: Function, onError?: Function) => {
+    load = vi.fn((url: string, onLoad?: Function, _onProgress?: Function, _onError?: Function) => {
       setTimeout(() => {
         if (onLoad) {
           const tex = new MockTexture();

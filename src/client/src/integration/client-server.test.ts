@@ -20,7 +20,6 @@ import {
   MockColyseusServer,
   createMockColyseusModule,
 } from './MockColyseusServer';
-import type { MockColyseusRoom } from './MockColyseusServer';
 
 describe('Client-Server Integration (P7.4)', () => {
   let server: MockColyseusServer;

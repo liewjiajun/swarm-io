@@ -119,8 +119,8 @@ export class PowerUpSystem {
     const x = Math.cos(angle) * distance;
     const y = Math.sin(angle) * distance;
 
-    // Create the power-up
-    const powerUp = gameState.addPowerUp(powerUpType, x, y, GAME_CONSTANTS.POWERUP_LIFETIME);
+    // Create the power-up (return value not used, tracked in gameState)
+    gameState.addPowerUp(powerUpType, x, y, GAME_CONSTANTS.POWERUP_LIFETIME);
 
     this.metrics.totalSpawned++;
     this.lastSpawnTime = gameState.world.gameTime;
@@ -158,7 +158,7 @@ export class PowerUpSystem {
   /**
    * Process power-up collection by players
    */
-  private processCollection(gameState: GameState, spatialHash: SpatialHash): void {
+  private processCollection(gameState: GameState, _spatialHash: SpatialHash): void {
     const collectionRadius = GAME_CONSTANTS.POWERUP_COLLECTION_RADIUS;
     const powerUpsToRemove: string[] = [];
 

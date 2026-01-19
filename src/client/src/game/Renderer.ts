@@ -2001,14 +2001,6 @@ export class Renderer {
       if (!sprite) {
         // Create new sprite with power-up-specific color
         const color = this.getPowerUpColor(powerUp.type);
-        const geometry = new THREE.PlaneGeometry(1.5, 1.5);
-        const material = new THREE.MeshBasicMaterial({
-          color,
-          transparent: true,
-          opacity: 0.9,
-          side: THREE.DoubleSide
-        });
-        const mesh = new THREE.Mesh(geometry, material);
         sprite = new THREE.Sprite(new THREE.SpriteMaterial({ color, transparent: true, opacity: 0.9 }));
         sprite.scale.set(1.5, 1.5, 1);
         this.powerUpSprites.set(id, sprite);

@@ -15,7 +15,7 @@
  */
 
 import { updateStatsAfterGame, getBestStats } from '../storage/PlayerStats';
-import { fetchLeaderboard, fetchPlayerRank, type LeaderboardEntry } from '../api/LeaderboardAPI';
+import { fetchLeaderboard, fetchPlayerRank, type LeaderboardEntry as _LeaderboardEntry } from '../api/LeaderboardAPI';
 
 interface HUDElements {
   healthBar: HTMLElement;

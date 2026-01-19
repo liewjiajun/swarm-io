@@ -75,7 +75,7 @@ describe('PowerUpSystem', () => {
       gameState.world.gameTime = GAME_CONSTANTS.POWERUP_MAX_SPAWN_INTERVAL + 10;
 
       // Try to spawn more
-      const initialCount = gameState.powerUps.size;
+      const _initialCount = gameState.powerUps.size;
       powerUpSystem.update(gameState, spatialHash, 0.016);
 
       // Should not exceed max
@@ -132,7 +132,7 @@ describe('PowerUpSystem', () => {
     });
 
     it('should not collect power-up when player is out of range', () => {
-      const player = gameState.addPlayer('player1', 0, 0);
+      const _player = gameState.addPlayer('player1', 0, 0);
       const powerUp = gameState.addPowerUp('health_restore', 100, 100, 60);
 
       spatialHash.insert({

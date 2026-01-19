@@ -149,7 +149,7 @@ export class Game {
     // P3.1 + P9.3: Show nickname modal first, then class selection, then tutorial
     // Load stored nickname if available for returning players
     const storedNickname = this.hud.getStoredNickname();
-    const storedClass = this.hud.getStoredPlayerClass();
+    const _storedClass = this.hud.getStoredPlayerClass();
 
     if (storedNickname) {
       // Returning player - use stored nickname

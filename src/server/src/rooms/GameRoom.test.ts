@@ -4,7 +4,7 @@ import * as fs from 'fs';
 
 // Mock Colyseus Room BEFORE importing GameRoom
 const mockClock = {
-  setInterval: vi.fn((callback: () => void, ms: number) => {
+  setInterval: vi.fn((_callback: () => void, _ms: number) => {
     return { clear: vi.fn() };
   }),
 };
@@ -695,7 +695,7 @@ describe('GameRoom', () => {
         const client = createMockClient();
         room.onJoin(client, {});
         const player = room.state.players.get(client.sessionId);
-        const initialX = player!.x;
+        const _initialX = player!.x;
 
         // Add multiple inputs
         const clientData = room.getClientData().get(client.sessionId);
@@ -936,7 +936,7 @@ describe('GameRoom', () => {
       const client = createMockClient();
       room.onJoin(client, {});
 
-      const initialRadius = room.state.world.worldRadius;
+      const _initialRadius = room.state.world.worldRadius;
       room.testRecalculateWorldSize();
 
       // World radius should be recalculated based on player count

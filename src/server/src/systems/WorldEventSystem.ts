@@ -1,5 +1,5 @@
 import { GameState, WorldEventSchema } from '../state/index.js';
-import { GAME_CONSTANTS, ENEMY_CONFIGS, generateId } from '@swarm-io/shared';
+import { GAME_CONSTANTS, ENEMY_CONFIGS } from '@swarm-io/shared';
 import type { WorldEventType } from '@swarm-io/shared';
 
 /**
@@ -176,7 +176,7 @@ export class WorldEventSystem {
   /**
    * Update meteor shower - spawn meteors that deal damage
    */
-  private updateMeteorShower(gameState: GameState, event: WorldEventSchema, deltaTime: number): void {
+  private updateMeteorShower(gameState: GameState, event: WorldEventSchema, _deltaTime: number): void {
     // Spawn meteors at regular intervals
     // Use server-side tracking since events don't need per-meteor syncing
     const meteorInterval = GAME_CONSTANTS.METEOR_SHOWER_INTERVAL;
@@ -206,9 +206,8 @@ export class WorldEventSystem {
     const x = event.x + Math.cos(angle) * distance;
     const y = event.y + Math.sin(angle) * distance;
 
-    // Create a meteor projectile (using 'explosion' type for visual)
-    // The projectile will damage players/enemies in its radius
-    const meteor = gameState.addProjectile(
+    // Create a meteor projectile (return value tracked in gameState)
+    gameState.addProjectile(
       'meteor', // New projectile type
       'world_event', // System-owned
       x,
@@ -250,7 +249,7 @@ export class WorldEventSystem {
   /**
    * Update invasion wave - spawn extra enemies
    */
-  private updateInvasionWave(gameState: GameState, event: WorldEventSchema, deltaTime: number): void {
+  private updateInvasionWave(gameState: GameState, event: WorldEventSchema, _deltaTime: number): void {
     const totalToSpawn = GAME_CONSTANTS.INVASION_WAVE_ENEMY_COUNT;
     const duration = GAME_CONSTANTS.INVASION_WAVE_DURATION;
     const spawnRate = totalToSpawn / duration;
