@@ -1,0 +1,48 @@
+# Release Workflow for Swarm.io
+# Triggered when a new tag is pushed (e.g., v0.5.0)
+# Creates a GitHub release with build artifacts
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+      - '[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+  release:
+    name: Build & Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript type checking
+        run: npm run typecheck
+
+      - name: Run tests
+        run: npm run test
+
+      - name: Build project
+        run: npm run build
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          generate_release_notes: true
+          files: |
+            src/client/dist/**
+            src/server/dist/**
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

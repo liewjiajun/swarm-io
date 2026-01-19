@@ -8,7 +8,7 @@
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
 **Critical Bugs:** 0 | **Medium Bugs:** 8 | **Low Bugs:** 2 | **In Progress:** 1 (BUG-035)
 **Code Quality:** Excellent (0 TODOs, 0 FIXMEs, 0 skipped tests, 4 console.warn, ~26 `any` types)
-**CI/CD Status:** NO GitHub workflows configured, NO pre-commit hooks
+**CI/CD Status:** GitHub Actions configured (.github/workflows/test.yml, release.yml)
 
 ---
 
@@ -259,10 +259,12 @@ Blocking production deployment. Should be addressed in parallel with feature wor
 - [ ] **P7.4** Add integration tests with mock Colyseus server
   - Files: `src/__tests__/integration/` (new directory)
 
-- [ ] **P7.5** Create `.github/workflows/test.yml` for PR testing
-  - Status: NO GitHub workflows exist; NO .github/ directory
-  - Files: `.github/workflows/test.yml` (new)
-  - Should run: npm test, npm run typecheck, npm run lint
+- [x] **P7.5** Create `.github/workflows/test.yml` for PR testing - COMPLETED 2026-01-19
+  - Status: GitHub Actions CI/CD workflows created
+  - Files: `.github/workflows/test.yml`, `.github/workflows/release.yml`
+  - test.yml: Runs tests, typecheck, lint, build on Node 20.x and 22.x
+  - release.yml: Builds and creates GitHub releases on version tags
+  - Triggers: Push to main/develop, PRs
 
 - [ ] **P7.6** Add code coverage reporting (target 80%+)
   - Status: No coverage configuration in any vitest.config.ts
@@ -1481,6 +1483,12 @@ npm run test:memory --players=20 --duration=30
 ---
 
 ## CHANGELOG SUMMARY
+
+**2026-01-19 (P7.5 GitHub Workflows Complete):**
+- **P7.5 COMPLETED**: Created GitHub Actions CI/CD workflows
+  - Created `.github/workflows/test.yml` - runs tests, typecheck, lint, build on Node 20.x and 22.x
+  - Created `.github/workflows/release.yml` - builds and creates GitHub releases on version tags
+  - Both push to main/develop and PRs will trigger CI pipeline
 
 **2026-01-19 (P9.4 Weapon Evolution Complete):**
 - **P9.4 COMPLETED**: Weapon Evolution System fully implemented
