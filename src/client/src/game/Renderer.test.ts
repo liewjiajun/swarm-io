@@ -453,6 +453,7 @@ function createMockWorldEvent(overrides: Partial<WorldEventState> = {}): WorldEv
 }
 
 function createMockGameState(overrides: any = {}): any {
+  const { worldRadius = 500, ...rest } = overrides;
   return {
     players: new Map([['player-1', createMockPlayer()]]),
     enemies: new Map(),
@@ -460,8 +461,14 @@ function createMockGameState(overrides: any = {}): any {
     xpOrbs: new Map(),
     powerUps: new Map(),
     worldEvents: new Map(),
-    worldRadius: 500,
-    ...overrides,
+    world: {
+      worldRadius,
+      playerCount: 1,
+      gameTime: 0,
+      currentWave: 1,
+      difficulty: 1,
+    },
+    ...rest,
   };
 }
 
@@ -756,7 +763,13 @@ describe('Renderer', () => {
         enemies: new Map(),
         projectiles: new Map(),
         xpOrbs: new Map(),
-        worldRadius: 500,
+        world: {
+          worldRadius: 500,
+          playerCount: 0,
+          gameTime: 0,
+          currentWave: 1,
+          difficulty: 1,
+        },
       };
 
       expect(() => renderer.render(state, 'player-1')).not.toThrow();

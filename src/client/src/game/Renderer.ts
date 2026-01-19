@@ -7,6 +7,7 @@ import { SpriteLoader } from './SpriteLoader';
 import { AnimationController, createSimpleAnimation, createWalkAnimations } from './AnimationController';
 import type { AnimationState } from './AnimationController';
 import { rendererLogger } from '../utils/logger';
+import type { ExtendedGameState } from './Interpolator';
 
 // =============================================================================
 // CRT SHADER - P1.10: OPTIONAL RETRO CRT/SCANLINE EFFECT
@@ -861,7 +862,7 @@ export class Renderer {
     return distSq > this.lodDistanceThreshold * this.lodDistanceThreshold;
   }
 
-  render(state: any, localPlayerId: string) {
+  render(state: ExtendedGameState, localPlayerId: string) {
     // Calculate delta time for physics
     const now = performance.now();
     const dt = this.lastRenderTime > 0 ? Math.min((now - this.lastRenderTime) / 1000, 0.1) : 0.016;
@@ -932,7 +933,7 @@ export class Renderer {
 
     // Update boundary ring animation (P1.7)
     const gameTime = performance.now() / 1000;
-    const worldRadius = state.worldRadius || 500;
+    const worldRadius = state.world?.worldRadius || 500;
     this.updateBoundaryRing(gameTime, worldRadius);
 
     // Update CRT time uniform for animation effects
