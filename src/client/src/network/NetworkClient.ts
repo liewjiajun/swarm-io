@@ -22,6 +22,17 @@ interface LevelUpCallback {
   (data: { newLevel: number; choices: UpgradeChoice[] }): void;
 }
 
+// P9.2: Leaderboard update callback
+interface LeaderboardUpdateCallback {
+  (data: {
+    accepted: boolean;
+    rank: number | null;
+    message: string;
+    replacedPrevious: boolean;
+    previousScore?: number;
+  }): void;
+}
+
 interface UpgradeChoice {
   id: string;
   type: 'weapon' | 'stat';
@@ -129,6 +140,7 @@ export class NetworkClient {
   private stateChangeCallbacks: StateChangeCallback[] = [];
   private playerDiedCallbacks: PlayerDiedCallback[] = [];
   private levelUpCallbacks: LevelUpCallback[] = [];
+  private leaderboardUpdateCallbacks: LeaderboardUpdateCallback[] = []; // P9.2
 
   // Reconnection logic
   private reconnectAttempts = 0;
@@ -397,6 +409,12 @@ export class NetworkClient {
       logger.info({ data }, 'Respawn complete');
     });
 
+    // P9.2: Handle leaderboard update from server
+    this.room.onMessage('leaderboard_update', (data) => {
+      logger.info({ accepted: data.accepted, rank: data.rank, message: data.message }, 'Leaderboard update');
+      this.leaderboardUpdateCallbacks.forEach(cb => cb(data));
+    });
+
     // P3.2: Handle kick/ban notifications from server
     this.room.onMessage('kicked', (data) => {
       logger.error({ reason: data.reason }, 'Kicked from server');
@@ -624,6 +642,11 @@ export class NetworkClient {
 
   onLevelUp(callback: LevelUpCallback) {
     this.levelUpCallbacks.push(callback);
+  }
+
+  // P9.2: Register leaderboard update callback
+  onLeaderboardUpdate(callback: LeaderboardUpdateCallback) {
+    this.leaderboardUpdateCallbacks.push(callback);
   }
 
   get sessionId(): string {

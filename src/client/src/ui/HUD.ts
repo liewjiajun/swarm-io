@@ -15,6 +15,7 @@
  */
 
 import { updateStatsAfterGame, getBestStats } from '../storage/PlayerStats';
+import { fetchLeaderboard, fetchPlayerRank, type LeaderboardEntry } from '../api/LeaderboardAPI';
 
 interface HUDElements {
   healthBar: HTMLElement;
@@ -36,6 +37,9 @@ interface HUDElements {
   deathPersonalBest: HTMLElement; // P9.1: Personal best display
   deathNewRecord: HTMLElement; // P9.1: NEW RECORD banner
   deathLeaderboard: HTMLElement; // P3.2d: End-of-game leaderboard container
+  alltimeLeaderboard: HTMLElement; // P9.2: All-time leaderboard container
+  alltimeRankInfo: HTMLElement; // P9.2: All-time rank info
+  alltimeLeaderboardEntries: HTMLElement; // P9.2: All-time leaderboard entries
   respawnBtn: HTMLElement;
   settingsBtn: HTMLElement;
   settingsModal: HTMLElement;
@@ -263,6 +267,11 @@ export class HUD {
           <div class="death-leaderboard">
             <div class="death-leaderboard-title">TOP SURVIVORS</div>
             <div class="death-leaderboard-entries"></div>
+          </div>
+          <div class="alltime-leaderboard">
+            <div class="alltime-leaderboard-title">ALL-TIME TOP 10</div>
+            <div class="alltime-rank-info"></div>
+            <div class="alltime-leaderboard-entries"></div>
           </div>
           <button class="respawn-btn">RESPAWN</button>
         </div>
@@ -899,6 +908,86 @@ export class HUD {
         min-width: 50px;
       }
 
+      /* P9.2: All-time leaderboard in death screen */
+      .alltime-leaderboard {
+        background: rgba(0, 0, 0, 0.5);
+        border: 2px solid #9b59b6;
+        padding: 15px;
+        margin-bottom: 25px;
+        min-width: 280px;
+      }
+
+      .alltime-leaderboard-title {
+        font-size: 10px;
+        color: #9b59b6;
+        text-align: center;
+        margin-bottom: 8px;
+        text-shadow: 1px 1px 0 #000;
+      }
+
+      .alltime-rank-info {
+        font-size: 9px;
+        color: #888;
+        text-align: center;
+        margin-bottom: 10px;
+      }
+
+      .alltime-rank-info.on-leaderboard {
+        color: #9b59b6;
+      }
+
+      .alltime-leaderboard-entries {
+        font-size: 9px;
+        max-height: 150px;
+        overflow-y: auto;
+      }
+
+      .alltime-leaderboard-entry {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: 4px 0;
+        padding: 3px 6px;
+        background: rgba(255, 255, 255, 0.05);
+        gap: 8px;
+      }
+
+      .alltime-leaderboard-entry.you {
+        background: rgba(155, 89, 182, 0.2);
+        border: 1px solid #9b59b6;
+        color: #9b59b6;
+      }
+
+      .alltime-leaderboard-entry .alltime-rank {
+        min-width: 30px;
+        color: #888;
+      }
+
+      .alltime-leaderboard-entry .alltime-name {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 100px;
+      }
+
+      .alltime-leaderboard-entry .alltime-score {
+        color: #9b59b6;
+        min-width: 50px;
+        text-align: right;
+      }
+
+      .alltime-leaderboard-entry .alltime-kills {
+        color: #ff6b6b;
+        font-size: 8px;
+      }
+
+      .alltime-leaderboard-entry .alltime-time {
+        color: #888;
+        font-size: 8px;
+        min-width: 40px;
+      }
+
       .respawn-btn {
         font-family: 'Press Start 2P', monospace;
         font-size: 16px;
@@ -1394,6 +1483,9 @@ export class HUD {
       deathPersonalBest: this.container.querySelector('.death-personal-best') as HTMLElement, // P9.1
       deathNewRecord: this.container.querySelector('.death-new-record') as HTMLElement, // P9.1
       deathLeaderboard: this.container.querySelector('.death-leaderboard-entries') as HTMLElement, // P3.2d
+      alltimeLeaderboard: this.container.querySelector('.alltime-leaderboard') as HTMLElement, // P9.2
+      alltimeRankInfo: this.container.querySelector('.alltime-rank-info') as HTMLElement, // P9.2
+      alltimeLeaderboardEntries: this.container.querySelector('.alltime-leaderboard-entries') as HTMLElement, // P9.2
       respawnBtn: this.container.querySelector('.respawn-btn') as HTMLElement,
       settingsBtn: this.container.querySelector('.settings-btn') as HTMLElement,
       settingsModal: this.container.querySelector('.settings-modal') as HTMLElement,
@@ -1935,6 +2027,9 @@ export class HUD {
       })
       .join('');
 
+    // P9.2: Fetch and display all-time leaderboard
+    this.loadAllTimeLeaderboard();
+
     // Remove previous listener and add new one
     const newBtn = this.elements.respawnBtn.cloneNode(true) as HTMLElement;
     this.elements.respawnBtn.parentNode?.replaceChild(newBtn, this.elements.respawnBtn);
@@ -1958,6 +2053,81 @@ export class HUD {
     const s = ['th', 'st', 'nd', 'rd'];
     const v = n % 100;
     return s[(v - 20) % 10] || s[v] || s[0];
+  }
+
+  /**
+   * P9.2: Load and display the all-time leaderboard in death screen
+   */
+  private async loadAllTimeLeaderboard(): Promise<void> {
+    const nickname = this.getStoredNickname();
+
+    // Show loading state
+    this.elements.alltimeRankInfo.textContent = 'Loading...';
+    this.elements.alltimeLeaderboardEntries.innerHTML = '';
+
+    try {
+      // Fetch top 10 entries and player's rank in parallel
+      const [leaderboardData, playerRankData] = await Promise.all([
+        fetchLeaderboard(10),
+        nickname ? fetchPlayerRank(nickname) : Promise.resolve(null)
+      ]);
+
+      // Display player's rank info
+      if (playerRankData?.rank) {
+        this.elements.alltimeRankInfo.innerHTML = `Your all-time rank: <strong>#${playerRankData.rank}</strong>`;
+        this.elements.alltimeRankInfo.classList.add('on-leaderboard');
+      } else if (nickname) {
+        this.elements.alltimeRankInfo.innerHTML = `Not on the top 100 leaderboard yet`;
+        this.elements.alltimeRankInfo.classList.remove('on-leaderboard');
+      } else {
+        this.elements.alltimeRankInfo.innerHTML = `Enter a nickname to join the leaderboard`;
+        this.elements.alltimeRankInfo.classList.remove('on-leaderboard');
+      }
+
+      // Display top 10 entries
+      if (leaderboardData.entries.length === 0) {
+        this.elements.alltimeLeaderboardEntries.innerHTML = `
+          <div class="alltime-leaderboard-entry" style="justify-content: center; color: #888;">
+            No scores yet. Be the first!
+          </div>
+        `;
+      } else {
+        this.elements.alltimeLeaderboardEntries.innerHTML = leaderboardData.entries
+          .map((entry, index) => {
+            const isLocal = nickname && entry.nickname.toLowerCase() === nickname.toLowerCase();
+            const minutes = Math.floor(entry.survivalTime / 60);
+            const seconds = Math.floor(entry.survivalTime % 60);
+            const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            return `
+              <div class="alltime-leaderboard-entry ${isLocal ? 'you' : ''}">
+                <span class="alltime-rank">#${index + 1}</span>
+                <span class="alltime-name">${this.escapeHtml(entry.nickname)}</span>
+                <span class="alltime-score">${entry.score.toLocaleString()}</span>
+                <span class="alltime-kills">💀${entry.kills}</span>
+                <span class="alltime-time">${timeStr}</span>
+              </div>
+            `;
+          })
+          .join('');
+      }
+    } catch (error) {
+      console.error('[HUD] Failed to load all-time leaderboard:', error);
+      this.elements.alltimeRankInfo.textContent = 'Failed to load';
+      this.elements.alltimeLeaderboardEntries.innerHTML = `
+        <div class="alltime-leaderboard-entry" style="justify-content: center; color: #888;">
+          Could not connect to server
+        </div>
+      `;
+    }
+  }
+
+  /**
+   * Escape HTML to prevent XSS
+   */
+  private escapeHtml(str: string): string {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
   }
 
   /**

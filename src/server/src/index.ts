@@ -11,6 +11,7 @@ import { readFileSync } from 'fs';
 import { GameRoom } from './rooms/GameRoom.js';
 import { logger } from './utils/logger.js';
 import { getTelemetryService } from './services/TelemetryService.js';
+import { getLeaderboardService } from './services/LeaderboardService.js';
 
 // Create Express app
 const app = express();
@@ -172,6 +173,82 @@ app.get('/api/telemetry/upgrades', (req, res) => {
   });
 });
 
+// P9.2: API endpoint to get all-time leaderboard
+app.get('/api/leaderboard', (req, res) => {
+  const leaderboard = getLeaderboardService();
+  const parsedLimit = parseInt(req.query.limit as string, 10);
+  const parsedOffset = parseInt(req.query.offset as string, 10);
+  const limit = Math.min(isNaN(parsedLimit) ? 100 : parsedLimit, 100);
+  const offset = isNaN(parsedOffset) ? 0 : Math.max(0, parsedOffset);
+
+  const result = leaderboard.getLeaderboard(limit, offset);
+  res.json({
+    entries: result.entries,
+    totalEntries: result.totalEntries,
+    minimumScore: leaderboard.getMinimumScore(),
+    timestamp: new Date().toISOString()
+  });
+});
+
+// P9.2: API endpoint to submit a score to the leaderboard
+app.post('/api/leaderboard', (req, res) => {
+  const leaderboard = getLeaderboardService();
+  const { nickname, score, kills, survivalTime, level, wave } = req.body;
+
+  // Validate required fields
+  if (!nickname || typeof score !== 'number' || typeof kills !== 'number' ||
+      typeof survivalTime !== 'number' || typeof level !== 'number') {
+    res.status(400).json({
+      error: 'Missing required fields: nickname, score, kills, survivalTime, level',
+      timestamp: new Date().toISOString()
+    });
+    return;
+  }
+
+  const result = leaderboard.submitScore(
+    nickname,
+    score,
+    kills,
+    survivalTime,
+    level,
+    wave || 1
+  );
+
+  res.json({
+    ...result,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// P9.2: API endpoint to get a player's rank
+app.get('/api/leaderboard/player/:nickname', (req, res) => {
+  const leaderboard = getLeaderboardService();
+  const { nickname } = req.params;
+
+  if (!nickname) {
+    res.status(400).json({
+      error: 'Nickname is required',
+      timestamp: new Date().toISOString()
+    });
+    return;
+  }
+
+  const result = leaderboard.getPlayerRank(nickname);
+  res.json({
+    ...result,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// P9.2: API endpoint to get leaderboard statistics
+app.get('/api/leaderboard/stats', (req, res) => {
+  const leaderboard = getLeaderboardService();
+  res.json({
+    stats: leaderboard.getStats(),
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Error handling middleware
 app.use((error: Error, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   logger.error({ err: error, path: req.path }, 'Server error');
@@ -210,6 +287,7 @@ gameServer.listen(PORT).then(() => {
 ║ Health: ${httpProtocol}://localhost:${PORT}/health               ║
 ║ Stats: ${httpProtocol}://localhost:${PORT}/api/stats             ║
 ║ Telemetry: ${httpProtocol}://localhost:${PORT}/api/telemetry     ║
+║ Leaderboard: ${httpProtocol}://localhost:${PORT}/api/leaderboard ║
 ╚═══════════════════════════════════════════════════╝
   `);
 

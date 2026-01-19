@@ -17,6 +17,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { gameRoomLogger, securityLogger } from '../utils/logger.js';
 import { getTelemetryService } from '../services/TelemetryService.js';
+import { getLeaderboardService } from '../services/LeaderboardService.js';
 
 interface PlayerInput {
   dx: number;
@@ -745,6 +746,29 @@ export class GameRoom extends Room<GameState> {
               waveReached: this.state.world.currentWave,
               weaponsUsed
             });
+
+            // P9.2: Submit score to all-time leaderboard (server-side validated)
+            if (player.nickname && player.nickname.trim().length > 0) {
+              const leaderboard = getLeaderboardService();
+              const score = (player.kills * 100) + Math.floor(player.timeAlive * 10) + (player.level * 50);
+              const result = leaderboard.submitScore(
+                player.nickname,
+                score,
+                player.kills,
+                player.timeAlive,
+                player.level,
+                this.state.world.currentWave
+              );
+
+              // Send leaderboard result to client
+              client.send('leaderboard_update', {
+                accepted: result.accepted,
+                rank: result.rank,
+                message: result.message,
+                replacedPrevious: result.replacedPrevious,
+                previousScore: result.previousScore
+              });
+            }
 
             // BUG-020 FIX: Clear deathTime after sending notification to prevent duplicates
             // Previously this could fire multiple times within the 100ms window
