@@ -15,6 +15,10 @@ import {
   getCharacterClass,
   getClassStartingWeapons,
   getCharacterClassIds,
+  WEAPON_EVOLUTIONS,
+  getWeaponEvolution,
+  canWeaponEvolve,
+  getEvolvedWeaponType,
 } from './constants';
 
 describe('GAME_CONSTANTS', () => {
@@ -596,5 +600,171 @@ describe('getCharacterClassIds', () => {
     expect(ids).toContain('warrior');
     expect(ids).toContain('speedster');
     expect(ids).toContain('tank');
+  });
+});
+
+// P9.4: Weapon Evolution System tests
+describe('WEAPON_EVOLUTIONS', () => {
+  it('should have evolutions for all 8 weapons', () => {
+    expect(Object.keys(WEAPON_EVOLUTIONS).length).toBe(8);
+  });
+
+  it('should have all required weapon evolutions', () => {
+    expect(WEAPON_EVOLUTIONS.knife).toBeDefined();
+    expect(WEAPON_EVOLUTIONS.wand).toBeDefined();
+    expect(WEAPON_EVOLUTIONS.fireball).toBeDefined();
+    expect(WEAPON_EVOLUTIONS.garlic).toBeDefined();
+    expect(WEAPON_EVOLUTIONS.whip).toBeDefined();
+    expect(WEAPON_EVOLUTIONS.axe).toBeDefined();
+    expect(WEAPON_EVOLUTIONS.bible).toBeDefined();
+    expect(WEAPON_EVOLUTIONS.lightning).toBeDefined();
+  });
+
+  it('should have valid configuration for each evolution', () => {
+    for (const [baseWeapon, config] of Object.entries(WEAPON_EVOLUTIONS)) {
+      expect(config.baseWeapon).toBe(baseWeapon);
+      expect(config.evolvedType).toBeTruthy();
+      expect(config.name).toBeTruthy();
+      expect(config.description).toBeTruthy();
+      expect(config.damageMultiplier).toBeGreaterThan(0);
+      expect(config.cooldownMultiplier).toBeGreaterThan(0);
+      expect(config.rangeMultiplier).toBeGreaterThan(0);
+      expect(config.projectileMultiplier).toBeGreaterThan(0);
+    }
+  });
+
+  it('knife -> Thousand Cuts should have 3x projectiles and 50% faster cooldown', () => {
+    const knife = WEAPON_EVOLUTIONS.knife;
+    expect(knife.evolvedType).toBe('thousand_cuts');
+    expect(knife.name).toBe('Thousand Cuts');
+    expect(knife.projectileMultiplier).toBe(3.0);
+    expect(knife.cooldownMultiplier).toBe(0.5);
+  });
+
+  it('wand -> Arcane Barrage should have homing and pierce all', () => {
+    const wand = WEAPON_EVOLUTIONS.wand;
+    expect(wand.evolvedType).toBe('arcane_barrage');
+    expect(wand.name).toBe('Arcane Barrage');
+    expect(wand.homing).toBe(true);
+    expect(wand.pierceAll).toBe(true);
+  });
+
+  it('fireball -> Inferno should leave trail', () => {
+    const fireball = WEAPON_EVOLUTIONS.fireball;
+    expect(fireball.evolvedType).toBe('inferno');
+    expect(fireball.name).toBe('Inferno');
+    expect(fireball.leaveTrail).toBe(true);
+  });
+
+  it('garlic -> Holy Aura should have 2x range and heal', () => {
+    const garlic = WEAPON_EVOLUTIONS.garlic;
+    expect(garlic.evolvedType).toBe('holy_aura');
+    expect(garlic.name).toBe('Holy Aura');
+    expect(garlic.rangeMultiplier).toBe(2.0);
+    expect(garlic.heals).toBe(true);
+  });
+
+  it('whip -> Chain Whip should bounce', () => {
+    const whip = WEAPON_EVOLUTIONS.whip;
+    expect(whip.evolvedType).toBe('chain_whip');
+    expect(whip.name).toBe('Chain Whip');
+    expect(whip.bounces).toBe(true);
+  });
+
+  it('axe -> Executioner should have execute damage threshold', () => {
+    const axe = WEAPON_EVOLUTIONS.axe;
+    expect(axe.evolvedType).toBe('executioner');
+    expect(axe.name).toBe('Executioner');
+    expect(axe.executeDamage).toBe(0.2); // 20% HP threshold
+    expect(axe.pierceAll).toBe(true);
+  });
+
+  it('bible -> Crusade should expand outward', () => {
+    const bible = WEAPON_EVOLUTIONS.bible;
+    expect(bible.evolvedType).toBe('crusade');
+    expect(bible.name).toBe('Crusade');
+    expect(bible.expandsOutward).toBe(true);
+  });
+
+  it('lightning -> Divine Storm should have chain lightning (bounces)', () => {
+    const lightning = WEAPON_EVOLUTIONS.lightning;
+    expect(lightning.evolvedType).toBe('divine_storm');
+    expect(lightning.name).toBe('Divine Storm');
+    expect(lightning.bounces).toBe(true);
+    expect(lightning.projectileMultiplier).toBe(2.0);
+  });
+
+  it('all evolutions should have positive stat multipliers', () => {
+    for (const config of Object.values(WEAPON_EVOLUTIONS)) {
+      expect(config.damageMultiplier).toBeGreaterThanOrEqual(1.0);
+      expect(config.cooldownMultiplier).toBeLessThanOrEqual(1.0); // Lower is faster
+      expect(config.cooldownMultiplier).toBeGreaterThan(0);
+      expect(config.rangeMultiplier).toBeGreaterThanOrEqual(1.0);
+    }
+  });
+});
+
+describe('getWeaponEvolution', () => {
+  it('should return evolution config for valid weapons', () => {
+    expect(getWeaponEvolution('knife')?.evolvedType).toBe('thousand_cuts');
+    expect(getWeaponEvolution('wand')?.evolvedType).toBe('arcane_barrage');
+    expect(getWeaponEvolution('fireball')?.evolvedType).toBe('inferno');
+    expect(getWeaponEvolution('garlic')?.evolvedType).toBe('holy_aura');
+    expect(getWeaponEvolution('whip')?.evolvedType).toBe('chain_whip');
+    expect(getWeaponEvolution('axe')?.evolvedType).toBe('executioner');
+    expect(getWeaponEvolution('bible')?.evolvedType).toBe('crusade');
+    expect(getWeaponEvolution('lightning')?.evolvedType).toBe('divine_storm');
+  });
+
+  it('should return null for invalid weapon types', () => {
+    expect(getWeaponEvolution('invalid')).toBeNull();
+    expect(getWeaponEvolution('')).toBeNull();
+  });
+});
+
+describe('canWeaponEvolve', () => {
+  it('should return false for weapons below max level', () => {
+    expect(canWeaponEvolve('knife', 1)).toBe(false);
+    expect(canWeaponEvolve('knife', 7)).toBe(false);
+    expect(canWeaponEvolve('wand', 5)).toBe(false);
+  });
+
+  it('should return true for weapons at max level', () => {
+    expect(canWeaponEvolve('knife', 8)).toBe(true);
+    expect(canWeaponEvolve('wand', 8)).toBe(true);
+    expect(canWeaponEvolve('fireball', 8)).toBe(true);
+    expect(canWeaponEvolve('garlic', 8)).toBe(true);
+    expect(canWeaponEvolve('whip', 8)).toBe(true);
+    expect(canWeaponEvolve('axe', 8)).toBe(true);
+    expect(canWeaponEvolve('bible', 8)).toBe(true);
+    expect(canWeaponEvolve('lightning', 8)).toBe(true);
+  });
+
+  it('should return true for weapons above max level', () => {
+    expect(canWeaponEvolve('knife', 9)).toBe(true);
+    expect(canWeaponEvolve('knife', 10)).toBe(true);
+  });
+
+  it('should return false for invalid weapon types', () => {
+    expect(canWeaponEvolve('invalid', 8)).toBe(false);
+    expect(canWeaponEvolve('', 8)).toBe(false);
+  });
+});
+
+describe('getEvolvedWeaponType', () => {
+  it('should return evolved type for valid weapons', () => {
+    expect(getEvolvedWeaponType('knife')).toBe('thousand_cuts');
+    expect(getEvolvedWeaponType('wand')).toBe('arcane_barrage');
+    expect(getEvolvedWeaponType('fireball')).toBe('inferno');
+    expect(getEvolvedWeaponType('garlic')).toBe('holy_aura');
+    expect(getEvolvedWeaponType('whip')).toBe('chain_whip');
+    expect(getEvolvedWeaponType('axe')).toBe('executioner');
+    expect(getEvolvedWeaponType('bible')).toBe('crusade');
+    expect(getEvolvedWeaponType('lightning')).toBe('divine_storm');
+  });
+
+  it('should return null for invalid weapon types', () => {
+    expect(getEvolvedWeaponType('invalid')).toBeNull();
+    expect(getEvolvedWeaponType('')).toBeNull();
   });
 });

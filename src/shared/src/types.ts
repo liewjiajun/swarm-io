@@ -79,6 +79,9 @@ export interface WeaponState {
   type: string; // WeaponType at runtime, but Colyseus sends as string
   level: number;
   cooldownRemaining: number;
+  // P9.4: Weapon Evolution System
+  evolved: boolean;     // Whether weapon has evolved
+  evolvedType: string;  // The evolved weapon type (e.g., 'thousand_cuts')
 }
 
 // =============================================================================

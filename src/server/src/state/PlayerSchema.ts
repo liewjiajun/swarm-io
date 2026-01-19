@@ -126,6 +126,14 @@ export class PlayerSchema extends Schema {
   }
 
   /**
+   * P9.4: Get a weapon by type
+   * Returns the WeaponSchema or undefined if not found
+   */
+  getWeapon(type: string): WeaponSchema | undefined {
+    return this.weapons.find(w => w.type === type);
+  }
+
+  /**
    * P4.6: Remove a weapon from the player's inventory
    * Returns the level of the removed weapon, or 0 if weapon wasn't found
    */

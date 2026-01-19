@@ -1,7 +1,7 @@
 import { GameState, PlayerSchema, XPOrbSchema } from '../state/GameState.js';
 import { SpatialHash } from './SpatialHash.js';
 import type { WorldEventSystem } from './WorldEventSystem.js';
-import { GAME_CONSTANTS, UPGRADE_POOL, getXPForLevel, WEAPON_CONFIGS, getCharacterClass } from '@swarm-io/shared';
+import { GAME_CONSTANTS, UPGRADE_POOL, getXPForLevel, WEAPON_CONFIGS, getCharacterClass, canWeaponEvolve, getWeaponEvolution } from '@swarm-io/shared';
 import { xpSystemLogger } from '../utils/logger.js';
 
 interface XPMetrics {
@@ -12,6 +12,7 @@ interface XPMetrics {
   magnetizationEvents: number;
   securityViolations: number;
   coopXPShared: number; // P4.1: Track cooperative XP sharing
+  weaponEvolutions: number; // P9.4: Track weapon evolutions
 }
 
 interface UpgradeChoice {
@@ -31,7 +32,8 @@ export class XPSystem {
     upgradesApplied: 0,
     magnetizationEvents: 0,
     securityViolations: 0,
-    coopXPShared: 0
+    coopXPShared: 0,
+    weaponEvolutions: 0
   };
 
   constructor() {
@@ -421,15 +423,53 @@ export class XPSystem {
     if (player.hasWeapon(weaponType)) {
       // Upgrade existing weapon
       const currentLevel = player.getWeaponLevel(weaponType);
-      if (currentLevel >= 10) {
-        this.logSecurityViolation('Weapon already at max level', {
+      const config = WEAPON_CONFIGS[weaponType];
+      const maxLevel = config.maxLevel || 8;
+
+      // Check if already at max level
+      if (currentLevel >= maxLevel) {
+        // P9.4: Check if weapon can evolve
+        const weapon = player.getWeapon(weaponType);
+        if (weapon && !weapon.evolved && canWeaponEvolve(weaponType, currentLevel)) {
+          const evolution = getWeaponEvolution(weaponType);
+          if (evolution) {
+            weapon.evolve(evolution.evolvedType);
+            this.xpMetrics.weaponEvolutions++;
+            xpSystemLogger.info({
+              playerId: player.id,
+              weaponType,
+              evolvedType: evolution.evolvedType,
+              evolutionName: evolution.name
+            }, 'Weapon evolved!');
+            return true;
+          }
+        }
+        this.logSecurityViolation('Weapon already at max level and evolved', {
           playerId: player.id,
           weaponType,
           level: currentLevel
         });
         return false;
       }
+
       player.upgradeWeapon(weaponType);
+
+      // P9.4: Check for evolution after upgrade
+      const newLevel = player.getWeaponLevel(weaponType);
+      if (canWeaponEvolve(weaponType, newLevel)) {
+        const weapon = player.getWeapon(weaponType);
+        const evolution = getWeaponEvolution(weaponType);
+        if (weapon && evolution && !weapon.evolved) {
+          weapon.evolve(evolution.evolvedType);
+          this.xpMetrics.weaponEvolutions++;
+          xpSystemLogger.info({
+            playerId: player.id,
+            weaponType,
+            evolvedType: evolution.evolvedType,
+            evolutionName: evolution.name
+          }, 'Weapon evolved!');
+        }
+      }
     } else {
       // Add new weapon
       player.addWeapon(weaponType);
@@ -503,7 +543,8 @@ export class XPSystem {
       upgradesApplied: 0,
       magnetizationEvents: 0,
       securityViolations: 0,
-      coopXPShared: 0
+      coopXPShared: 0,
+      weaponEvolutions: 0
     };
     xpSystemLogger.info('Reset for new game');
   }

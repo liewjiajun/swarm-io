@@ -458,7 +458,7 @@ export class Game {
           hostility: 0,
           facingX: 1,
           facingY: 0,
-          weapons: [{ type: 'knife', level: 1, cooldownRemaining: 0 }],
+          weapons: [{ type: 'knife', level: 1, cooldownRemaining: 0, evolved: false, evolvedType: '' }],
           kills: 0,
           dead: false,
           pendingUpgrade: false,

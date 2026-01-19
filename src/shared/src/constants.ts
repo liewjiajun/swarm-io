@@ -799,3 +799,217 @@ export function getClassStartingWeapons(classId: string): string[] {
 export function getCharacterClassIds(): string[] {
   return Object.keys(CHARACTER_CLASSES);
 }
+
+// =============================================================================
+// P9.4: WEAPON EVOLUTION SYSTEM
+// =============================================================================
+// When a weapon reaches max level (8), it evolves into a more powerful form
+// Each evolution has unique enhanced effects
+
+export interface WeaponEvolutionConfig {
+  baseWeapon: string;           // Original weapon type (e.g., 'knife')
+  evolvedType: string;          // Evolved weapon type (e.g., 'thousand_cuts')
+  name: string;                 // Display name
+  description: string;          // Description of enhanced effects
+  // Stat multipliers (applied on top of max level stats)
+  damageMultiplier: number;     // Damage boost (1.0 = no change)
+  cooldownMultiplier: number;   // Cooldown reduction (0.5 = 50% faster)
+  rangeMultiplier: number;      // Range increase
+  // Special effect flags
+  projectileMultiplier: number; // More projectiles (1.0 = no change, 3.0 = 3x)
+  pierceAll: boolean;           // Pierces all enemies
+  homing: boolean;              // Projectiles seek enemies
+  leaveTrail: boolean;          // Leaves damaging trail
+  bounces: boolean;             // Bounces to nearby enemies
+  executeDamage: number;        // Instant kill below this HP % (0 = disabled)
+  heals: boolean;               // Heals player on damage
+  expandsOutward: boolean;      // Orbitals expand radius over time
+  splitsOnReturn: boolean;      // Splits into multiple on return path
+}
+
+export const WEAPON_EVOLUTIONS: Record<string, WeaponEvolutionConfig> = {
+  // Knife -> Thousand Cuts: 3x projectiles, faster attack
+  knife: {
+    baseWeapon: 'knife',
+    evolvedType: 'thousand_cuts',
+    name: 'Thousand Cuts',
+    description: '3x projectiles, 50% faster',
+    damageMultiplier: 1.2,
+    cooldownMultiplier: 0.5,
+    rangeMultiplier: 1.2,
+    projectileMultiplier: 3.0,
+    pierceAll: false,
+    homing: false,
+    leaveTrail: false,
+    bounces: false,
+    executeDamage: 0,
+    heals: false,
+    expandsOutward: false,
+    splitsOnReturn: false,
+  },
+
+  // Wand -> Arcane Barrage: Homing projectiles that pierce all
+  wand: {
+    baseWeapon: 'wand',
+    evolvedType: 'arcane_barrage',
+    name: 'Arcane Barrage',
+    description: 'Homing, pierces all enemies',
+    damageMultiplier: 1.3,
+    cooldownMultiplier: 0.7,
+    rangeMultiplier: 1.5,
+    projectileMultiplier: 2.0,
+    pierceAll: true,
+    homing: true,
+    leaveTrail: false,
+    bounces: false,
+    executeDamage: 0,
+    heals: false,
+    expandsOutward: false,
+    splitsOnReturn: false,
+  },
+
+  // Fireball -> Inferno: Leaves fire trail
+  fireball: {
+    baseWeapon: 'fireball',
+    evolvedType: 'inferno',
+    name: 'Inferno',
+    description: 'Leaves damaging fire trail',
+    damageMultiplier: 1.5,
+    cooldownMultiplier: 0.8,
+    rangeMultiplier: 1.3,
+    projectileMultiplier: 1.0,
+    pierceAll: false,
+    homing: false,
+    leaveTrail: true,
+    bounces: false,
+    executeDamage: 0,
+    heals: false,
+    expandsOutward: false,
+    splitsOnReturn: false,
+  },
+
+  // Garlic -> Holy Aura: 2x radius, heals player
+  garlic: {
+    baseWeapon: 'garlic',
+    evolvedType: 'holy_aura',
+    name: 'Holy Aura',
+    description: '2x radius, heals on damage',
+    damageMultiplier: 1.4,
+    cooldownMultiplier: 0.8,
+    rangeMultiplier: 2.0,
+    projectileMultiplier: 1.0,
+    pierceAll: false,
+    homing: false,
+    leaveTrail: false,
+    bounces: false,
+    executeDamage: 0,
+    heals: true,
+    expandsOutward: false,
+    splitsOnReturn: false,
+  },
+
+  // Whip -> Chain Whip: Bounces to nearby enemies
+  whip: {
+    baseWeapon: 'whip',
+    evolvedType: 'chain_whip',
+    name: 'Chain Whip',
+    description: 'Bounces to nearby enemies',
+    damageMultiplier: 1.3,
+    cooldownMultiplier: 0.7,
+    rangeMultiplier: 1.5,
+    projectileMultiplier: 1.0,
+    pierceAll: false,
+    homing: false,
+    leaveTrail: false,
+    bounces: true,
+    executeDamage: 0,
+    heals: false,
+    expandsOutward: false,
+    splitsOnReturn: false,
+  },
+
+  // Axe -> Executioner: Instant kill enemies below 20% HP
+  axe: {
+    baseWeapon: 'axe',
+    evolvedType: 'executioner',
+    name: 'Executioner',
+    description: 'Instant kill below 20% HP',
+    damageMultiplier: 1.5,
+    cooldownMultiplier: 0.8,
+    rangeMultiplier: 1.3,
+    projectileMultiplier: 1.5,
+    pierceAll: true,
+    homing: false,
+    leaveTrail: false,
+    bounces: false,
+    executeDamage: 0.2, // 20% HP threshold
+    heals: false,
+    expandsOutward: false,
+    splitsOnReturn: false,
+  },
+
+  // Bible -> Crusade: Orbitals expand outward over time
+  bible: {
+    baseWeapon: 'bible',
+    evolvedType: 'crusade',
+    name: 'Crusade',
+    description: 'Orbitals expand outward',
+    damageMultiplier: 1.4,
+    cooldownMultiplier: 1.0, // Bible has no cooldown
+    rangeMultiplier: 1.5,
+    projectileMultiplier: 1.5,
+    pierceAll: false,
+    homing: false,
+    leaveTrail: false,
+    bounces: false,
+    executeDamage: 0,
+    heals: false,
+    expandsOutward: true,
+    splitsOnReturn: false,
+  },
+
+  // Lightning -> Divine Storm: Double strikes, chain lightning
+  lightning: {
+    baseWeapon: 'lightning',
+    evolvedType: 'divine_storm',
+    name: 'Divine Storm',
+    description: 'Double strikes, chains to nearby',
+    damageMultiplier: 1.5,
+    cooldownMultiplier: 0.6,
+    rangeMultiplier: 1.5,
+    projectileMultiplier: 2.0,
+    pierceAll: false,
+    homing: false,
+    leaveTrail: false,
+    bounces: true, // Chain lightning effect
+    executeDamage: 0,
+    heals: false,
+    expandsOutward: false,
+    splitsOnReturn: false,
+  },
+};
+
+/**
+ * Get evolution config for a weapon type
+ * @returns Evolution config or null if no evolution exists
+ */
+export function getWeaponEvolution(weaponType: string): WeaponEvolutionConfig | null {
+  return WEAPON_EVOLUTIONS[weaponType] || null;
+}
+
+/**
+ * Check if a weapon can evolve (at max level)
+ */
+export function canWeaponEvolve(weaponType: string, level: number): boolean {
+  const config = WEAPON_CONFIGS[weaponType];
+  if (!config) return false;
+  return level >= config.maxLevel && WEAPON_EVOLUTIONS[weaponType] !== undefined;
+}
+
+/**
+ * Get the evolved weapon type for a base weapon
+ */
+export function getEvolvedWeaponType(baseWeapon: string): string | null {
+  const evolution = WEAPON_EVOLUTIONS[baseWeapon];
+  return evolution ? evolution.evolvedType : null;
+}

@@ -53,6 +53,10 @@ function createMockPlayer(overrides: Partial<{
     upgradeWeapon: vi.fn().mockImplementation(function(this: any, type: string) {
       const weapon = this.weapons.find((w: any) => w.type === type);
       if (weapon) weapon.level++;
+    }),
+    // P9.4: Get weapon for evolution checks
+    getWeapon: vi.fn().mockImplementation(function(this: any, type: string) {
+      return this.weapons.find((w: any) => w.type === type);
     })
   } as any;
 }
@@ -493,14 +497,48 @@ describe('XPSystem', () => {
       expect(player.upgradeWeapon).toHaveBeenCalledWith('wand');
     });
 
-    it('should reject upgrade for max level weapon', () => {
+    it('should evolve weapon when upgraded to max level', () => {
+      // P9.4: Weapon Evolution - weapon evolves when it reaches max level
+      const mockWeapon = { type: 'wand', level: 7, evolved: false, evolvedType: '', evolve: vi.fn() };
       const player = createMockPlayer({
         id: 'player-1',
         pendingUpgrade: true,
-        weapons: [{ type: 'wand', level: 10 }]
+        weapons: [mockWeapon]
       });
       player.hasWeapon = vi.fn().mockReturnValue(true);
-      player.getWeaponLevel = vi.fn().mockReturnValue(10);
+      // After upgrade, level becomes 8 (max)
+      player.getWeaponLevel = vi.fn()
+        .mockReturnValueOnce(7)  // First call: check if at max
+        .mockReturnValueOnce(8); // Second call: after upgrade, check for evolution
+      player.getWeapon = vi.fn().mockReturnValue(mockWeapon);
+
+      const gameState = createMockGameState([player], []);
+
+      const upgradeChoice = {
+        id: 'test-upgrade',
+        type: 'weapon' as const,
+        weaponType: 'wand',
+        description: 'Test',
+        weight: 10
+      };
+
+      const result = xpSystem.applyUpgrade(gameState, player.id, upgradeChoice);
+
+      expect(result).toBe(true);
+      expect(player.upgradeWeapon).toHaveBeenCalledWith('wand');
+      // Weapon should evolve after reaching max level
+      expect(mockWeapon.evolve).toHaveBeenCalledWith('arcane_barrage');
+    });
+
+    it('should reject upgrade for max level evolved weapon', () => {
+      // P9.4: A weapon at max level that has already evolved cannot be upgraded further
+      const player = createMockPlayer({
+        id: 'player-1',
+        pendingUpgrade: true,
+        weapons: [{ type: 'wand', level: 8, evolved: true, evolvedType: 'arcane_barrage' }]
+      });
+      player.hasWeapon = vi.fn().mockReturnValue(true);
+      player.getWeaponLevel = vi.fn().mockReturnValue(8);
 
       const gameState = createMockGameState([player], []);
 
