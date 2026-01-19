@@ -503,7 +503,8 @@ export class GameRoom extends Room<GameState> {
   private processPlayerInputs(deltaTime: number) {
     this.clientData.forEach((clientData, playerId) => {
       const player = this.state.players.get(playerId);
-      if (!player || player.dead || player.pendingUpgrade) {
+      // BUG-050 FIX: Allow input processing during pendingUpgrade (game never pauses, per Game Design Principles)
+      if (!player || player.dead) {
         return;
       }
 

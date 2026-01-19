@@ -62,8 +62,9 @@ export class InputSystem {
   processInput(player: PlayerSchema, input: PlayerInput, dt: number): boolean {
     const playerId = player.id;
 
-    // Skip processing for dead or upgrading players
-    if (player.dead || player.pendingUpgrade) {
+    // Skip processing for dead players only
+    // BUG-050 FIX: Allow movement during pendingUpgrade (game never pauses, per Game Design Principles)
+    if (player.dead) {
       return false;
     }
 

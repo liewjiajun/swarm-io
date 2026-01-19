@@ -679,6 +679,157 @@ describe('PhysicsSystem', () => {
         expect(gameState.removeProjectile).toHaveBeenCalledWith(orbProjectile.id);
       });
     });
+
+    // P7.8: Test coverage for expanding_orb projectile type (BUG-053 fix)
+    describe('Evolved Bible expanding_orb orbital mechanics', () => {
+      it('should orbit around the owner like regular orbs', () => {
+        const player = createMockPlayer({ x: 0, y: 0 });
+        const expandingOrbProjectile = createMockProjectile({
+          type: 'expanding_orb',
+          ownerId: player.id,
+          x: 3, // 3 units to the right of player
+          y: 0,
+          velocityX: 0,
+          velocityY: 0,
+          lifetime: 10
+        });
+        const gameState = createMockGameState([player], [], [expandingOrbProjectile]);
+
+        const initialX = expandingOrbProjectile.x;
+        physicsSystem.update(gameState as any, dt);
+
+        // After one frame, should rotate slightly (π radians/sec)
+        expect(expandingOrbProjectile.x).not.toBe(initialX);
+        const dist = Math.sqrt(expandingOrbProjectile.x ** 2 + expandingOrbProjectile.y ** 2);
+        expect(dist).toBeCloseTo(3, 2); // Same orbit radius
+      });
+
+      it('should complete one revolution in 2 seconds', () => {
+        const player = createMockPlayer({ x: 0, y: 0 });
+        const expandingOrbProjectile = createMockProjectile({
+          type: 'expanding_orb',
+          ownerId: player.id,
+          x: 3,
+          y: 0,
+          lifetime: 10
+        });
+        const gameState = createMockGameState([player], [], [expandingOrbProjectile]);
+
+        // Simulate 2 seconds (π rad/sec * 2s = 2π = full circle)
+        const frames = Math.ceil(2 / dt);
+        for (let i = 0; i < frames; i++) {
+          physicsSystem.update(gameState as any, dt);
+        }
+
+        // Should be back near starting position
+        expect(expandingOrbProjectile.x).toBeCloseTo(3, 0);
+        expect(expandingOrbProjectile.y).toBeCloseTo(0, 0);
+      });
+
+      it('should maintain orbit radius at configured range', () => {
+        const player = createMockPlayer({ x: 0, y: 0 });
+        const expandingOrbProjectile = createMockProjectile({
+          type: 'expanding_orb',
+          ownerId: player.id,
+          x: 3,
+          y: 0,
+          lifetime: 10
+        });
+        const gameState = createMockGameState([player], [], [expandingOrbProjectile]);
+
+        // Run several frames
+        for (let i = 0; i < 60; i++) {
+          physicsSystem.update(gameState as any, dt);
+          const dist = Math.sqrt(expandingOrbProjectile.x ** 2 + expandingOrbProjectile.y ** 2);
+          expect(dist).toBeCloseTo(3, 1);
+        }
+      });
+
+      it('should follow player movement', () => {
+        const player = createMockPlayer({ x: 0, y: 0 });
+        const expandingOrbProjectile = createMockProjectile({
+          type: 'expanding_orb',
+          ownerId: player.id,
+          x: 3,
+          y: 0,
+          lifetime: 10
+        });
+        const gameState = createMockGameState([player], [], [expandingOrbProjectile]);
+
+        // First update to establish orbit
+        physicsSystem.update(gameState as any, dt);
+
+        // Move player a small distance (simulating normal movement)
+        player.x = 0.5;
+        player.y = 0.3;
+
+        // Update - orb should now orbit around new player position
+        physicsSystem.update(gameState as any, dt);
+
+        // Orb should still maintain orbit around player
+        const dx = expandingOrbProjectile.x - player.x;
+        const dy = expandingOrbProjectile.y - player.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        // Distance should be roughly the orbit radius (within reason)
+        expect(dist).toBeGreaterThan(2);
+        expect(dist).toBeLessThan(5);
+      });
+
+      it('should be removed when owner dies', () => {
+        const player = createMockPlayer({ x: 0, y: 0, dead: true });
+        const expandingOrbProjectile = createMockProjectile({
+          type: 'expanding_orb',
+          ownerId: player.id,
+          x: 3,
+          y: 0,
+          lifetime: 10
+        });
+        const gameState = createMockGameState([player], [], [expandingOrbProjectile]);
+
+        physicsSystem.update(gameState as any, dt);
+
+        expect(gameState.removeProjectile).toHaveBeenCalledWith(expandingOrbProjectile.id);
+      });
+
+      it('should be removed when owner disconnects', () => {
+        // No owner in players map
+        const expandingOrbProjectile = createMockProjectile({
+          type: 'expanding_orb',
+          ownerId: 'disconnected-player',
+          x: 3,
+          y: 0,
+          lifetime: 10
+        });
+        const gameState = createMockGameState([], [], [expandingOrbProjectile]);
+
+        physicsSystem.update(gameState as any, dt);
+
+        expect(gameState.removeProjectile).toHaveBeenCalledWith(expandingOrbProjectile.id);
+      });
+
+      it('should NOT move linearly like standard projectiles (regression test for BUG-053)', () => {
+        const player = createMockPlayer({ x: 0, y: 0 });
+        // Give it some velocity to verify it's NOT being used
+        const expandingOrbProjectile = createMockProjectile({
+          type: 'expanding_orb',
+          ownerId: player.id,
+          x: 3,
+          y: 0,
+          velocityX: 100, // High velocity that would move it far if used
+          velocityY: 100,
+          lifetime: 10
+        });
+        const gameState = createMockGameState([player], [], [expandingOrbProjectile]);
+
+        physicsSystem.update(gameState as any, dt);
+
+        // If the projectile were using linear movement, it would be at (3 + 100*dt, 100*dt)
+        // But since it orbits, it should stay close to radius 3 from player
+        const dist = Math.sqrt(expandingOrbProjectile.x ** 2 + expandingOrbProjectile.y ** 2);
+        expect(dist).toBeCloseTo(3, 1); // Should maintain orbit radius, not fly away
+        expect(expandingOrbProjectile.x).toBeLessThan(5); // Should not have moved far
+      });
+    });
   });
 
   // ===========================================================================

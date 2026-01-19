@@ -48,7 +48,8 @@ export class PhysicsSystem {
     const expiredProjectiles: string[] = [];
     state.projectiles.forEach((projectile, id) => {
       // Special handling for Bible orb projectiles - they orbit their owner
-      if (projectile.type === 'orb') {
+      // BUG-053 FIX: Also handle 'expanding_orb' type created by evolved Bible (Crusade)
+      if (projectile.type === 'orb' || projectile.type === 'expanding_orb') {
         const owner = state.players.get(projectile.ownerId);
         if (owner && !owner.dead) {
           // Calculate current angle from owner

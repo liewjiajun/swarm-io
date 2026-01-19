@@ -77,14 +77,17 @@ describe('InputSystem', () => {
       expect(result).toBe(false);
     });
 
-    it('should reject input for players with pending upgrades', () => {
+    // BUG-050 FIX: Players should be able to move during pending upgrades
+    // Per Game Design Principles: Player has FULL movement control during upgrade modal
+    it('should ACCEPT input for players with pending upgrades (BUG-050 fix)', () => {
       const player = createMockPlayer({ pendingUpgrade: true });
-      const input = createValidInput(1);
+      const input = createValidInput(1, 1, 0); // Moving right
 
       advanceTime(50);
       const result = inputSystem.processInput(player, input, dt);
 
-      expect(result).toBe(false);
+      expect(result).toBe(true); // Input should be processed
+      expect(player.x).toBeGreaterThan(0); // Player should have moved
     });
 
     it('should update facing direction when moving', () => {
