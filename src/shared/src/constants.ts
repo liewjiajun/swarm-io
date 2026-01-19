@@ -468,11 +468,14 @@ export const BOSS_ABILITY_CONFIGS: Record<string, BossAbilityConfig> = {
 // P9.5: Enemy XP values doubled for accelerated progression
 // Combined with XP_PROGRESSION_MULTIPLIER = 3.0 and compressed XP curve
 // BUG-040: Enemy speeds scaled 1.5x to match increased player speed (8→12)
+// P6.1: Health balanced for wave progression (early 2-3 hits, mid 4-6 hits, late 6-10 hits)
+// P6.2: Boss health tuned for level requirements (5-6, 10+, evolved weapons)
 export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
+  // === EARLY WAVE ENEMIES (0-60s) - Die in 2-3 hits at level 1-4 ===
   bat: {
     type: 'bat',
     name: 'Bat',
-    health: 10,
+    health: 20,        // P6.1: 10→20 for 2-hit kill with knife (10 dmg)
     speed: 9,          // BUG-040: 6→9 (1.5x scale for player speed 8→12)
     damage: 5,
     xpValue: 2,        // P9.5: Doubled from 1
@@ -482,17 +485,18 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
   skeleton: {
     type: 'skeleton',
     name: 'Skeleton',
-    health: 25,
+    health: 30,        // P6.1: 25→30 for 3-hit kill at level 1
     speed: 5.6,        // BUG-040: 3.75→5.6 (1.5x scale)
     damage: 10,
     xpValue: 6,        // P9.5: Doubled from 3
     size: 0.5,
     isBoss: false,
   },
+  // === MID WAVE ENEMIES (60-180s) - Die in 4-6 hits at level 5-10 ===
   zombie: {
     type: 'zombie',
     name: 'Zombie',
-    health: 50,
+    health: 80,        // P6.1: 50→80 for 4-5 hits at level 5 (18 dmg)
     speed: 3.4,        // BUG-040: 2.25→3.4 (1.5x scale)
     damage: 15,
     xpValue: 10,       // P9.5: Doubled from 5
@@ -502,7 +506,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
   ghost: {
     type: 'ghost',
     name: 'Ghost',
-    health: 15,
+    health: 35,        // P6.1: 15→35 (fragile but fast, 2-3 hits at level 5)
     speed: 6.75,       // BUG-040: 4.5→6.75 (1.5x scale)
     damage: 8,
     xpValue: 8,        // P9.5: Doubled from 4
@@ -512,7 +516,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
   slime: {
     type: 'slime',
     name: 'Slime',
-    health: 20,
+    health: 45,        // P6.1: 20→45 for 3 hits at level 5
     speed: 4.5,        // BUG-040: 3→4.5 (1.5x scale)
     damage: 8,
     xpValue: 4,        // P9.5: Doubled from 2
@@ -522,29 +526,31 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
   mini_slime: {
     type: 'mini_slime',
     name: 'Mini Slime',
-    health: 8,
+    health: 15,        // P6.1: 8→15 (spawns from boss, quick kills)
     speed: 5.6,        // BUG-040: 3.75→5.6 (1.5x scale)
     damage: 4,
     xpValue: 2,        // P9.5: Doubled from 1
     size: 0.3,
     isBoss: false,
   },
+  // === LATE WAVE ENEMIES (180s+) - Die in 6-10 hits at level 10+ ===
   demon: {
     type: 'demon',
     name: 'Demon',
-    health: 40,
+    health: 120,       // P6.1: 40→120 for 6-7 hits at level 10 (26 dmg)
     speed: 5.6,        // BUG-040: 3.75→5.6 (1.5x scale)
     damage: 20,
     xpValue: 16,       // P9.5: Doubled from 8
     size: 0.7,
     isBoss: false,
   },
+  // === BOSSES - Tuned for level requirements ===
   boss_slime: {
     type: 'boss_slime',
     name: 'Giant Slime',
-    health: 500,
+    health: 300,       // P6.2: 500→300 (beatable at level 5-6, ~18 dmg × 17 hits)
     speed: 2.25,       // BUG-040: 1.5→2.25 (1.5x scale)
-    damage: 30,
+    damage: 25,        // P6.2: 30→25 (less punishing for early boss)
     xpValue: 200,      // P9.5: Doubled from 100
     size: 3,
     isBoss: true,
@@ -552,9 +558,9 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
   boss_skeleton: {
     type: 'boss_skeleton',
     name: 'Skeleton King',
-    health: 800,
+    health: 600,       // P6.2: 800→600 (requires level 10+, ~26 dmg × 23 hits)
     speed: 3.4,        // BUG-040: 2.25→3.4 (1.5x scale)
-    damage: 40,
+    damage: 35,        // P6.2: 40→35 (manageable at level 10)
     xpValue: 300,      // P9.5: Doubled from 150
     size: 2.5,
     isBoss: true,
@@ -562,9 +568,9 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
   boss_demon: {
     type: 'boss_demon',
     name: 'Demon Lord',
-    health: 1200,
+    health: 1000,      // P6.2: 1200→1000 (requires evolutions, ~1.5x dmg bonus)
     speed: 4.5,        // BUG-040: 3→4.5 (1.5x scale)
-    damage: 50,
+    damage: 45,        // P6.2: 50→45 (deadly but survivable with evolutions)
     xpValue: 500,      // P9.5: Doubled from 250
     size: 3,
     isBoss: true,
