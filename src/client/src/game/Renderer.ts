@@ -230,6 +230,10 @@ export class Renderer {
   // Track projectile spawn offsets (calculated when projectile first appears)
   private projectileSpawnOffsets: Map<string, { x: number; y: number }> = new Map();
 
+  // BUG-043: Environment decorations (visual-only, non-collidable)
+  private environmentDecorations: THREE.Sprite[] = [];
+  private decorationsInitialized: boolean = false;
+
   constructor(canvas: HTMLCanvasElement) {
     // Initialize sprite system (P1.1 and P1.2)
     this.spriteLoader = new SpriteLoader('/assets/sprites/');
@@ -458,6 +462,9 @@ export class Renderer {
 
     // Create boundary warning ring (P1.7)
     this.createBoundaryRing(500); // Default world radius
+
+    // NOTE: Environment decorations (BUG-043) are created lazily after sprite mode initializes
+    // See render() method which calls createEnvironmentDecorations() when ready
   }
 
   /**
@@ -607,6 +614,97 @@ export class Renderer {
         this.createBoundaryRing(worldRadius);
       }
     }
+  }
+
+  /**
+   * BUG-043: Creates environment decoration sprites (visual-only, non-collidable)
+   * Scatters 70-100 decorative objects within world bounds for visual variety.
+   * Includes: rocks (3 variants), dead trees (2), debris/bones, pillars/ruins (4)
+   *
+   * Called lazily when sprite mode becomes ready (atlas must be loaded first).
+   *
+   * @param worldRadius - The current world radius to place decorations within
+   */
+  private createEnvironmentDecorations(worldRadius: number): void {
+    // Only create decorations once, and only after sprite atlas is loaded
+    if (this.decorationsInitialized) return;
+    if (!this.isSpriteMode()) return;
+
+    // Decoration types with their sprite names and relative weights/sizes
+    const decorationTypes = [
+      { sprite: 'deco_rock_1', weight: 20, scale: 1.2, yOffset: 0.5 },
+      { sprite: 'deco_rock_2', weight: 20, scale: 1.2, yOffset: 0.5 },
+      { sprite: 'deco_rock_3', weight: 15, scale: 1.3, yOffset: 0.5 },
+      { sprite: 'deco_debris', weight: 15, scale: 1.0, yOffset: 0.3 },
+      { sprite: 'deco_tree_1', weight: 8, scale: 2.0, yOffset: 1.2 },
+      { sprite: 'deco_tree_2', weight: 7, scale: 1.8, yOffset: 1.0 },
+      { sprite: 'deco_pillar_1', weight: 5, scale: 2.2, yOffset: 1.3 },
+      { sprite: 'deco_pillar_2', weight: 4, scale: 2.0, yOffset: 1.2 },
+      { sprite: 'deco_pillar_3', weight: 3, scale: 1.8, yOffset: 1.0 },
+      { sprite: 'deco_pillar_4', weight: 3, scale: 1.6, yOffset: 0.9 },
+    ];
+
+    // Calculate total weight for weighted random selection
+    const totalWeight = decorationTypes.reduce((sum, d) => sum + d.weight, 0);
+
+    // Generate 70-100 decorations randomly within world bounds
+    const decorationCount = 70 + Math.floor(Math.random() * 31); // 70-100
+
+    // Use seeded random for consistent decoration placement per session
+    // (using simple deterministic seed based on arbitrary constant)
+    const seed = 12345;
+    let seedState = seed;
+    const seededRandom = () => {
+      seedState = (seedState * 1103515245 + 12345) & 0x7fffffff;
+      return seedState / 0x7fffffff;
+    };
+
+    for (let i = 0; i < decorationCount; i++) {
+      // Select decoration type using weighted random
+      let randomWeight = seededRandom() * totalWeight;
+      let selectedType = decorationTypes[0];
+      for (const decoType of decorationTypes) {
+        randomWeight -= decoType.weight;
+        if (randomWeight <= 0) {
+          selectedType = decoType;
+          break;
+        }
+      }
+
+      // Generate random position within world bounds (with margin from edge)
+      const margin = 20; // Keep decorations away from boundary
+      const maxRadius = worldRadius - margin;
+      const angle = seededRandom() * Math.PI * 2;
+      const distance = seededRandom() * maxRadius;
+      const x = Math.cos(angle) * distance;
+      const z = Math.sin(angle) * distance;
+
+      // Try to create sprite from atlas
+      const material = this.spriteLoader.createAtlasSpriteMaterial('main', selectedType.sprite);
+      if (material) {
+        const sprite = new THREE.Sprite(material);
+
+        // Position decoration (y is height above ground)
+        sprite.position.set(x, selectedType.yOffset, z);
+
+        // Scale sprite (base scale + slight random variation)
+        const scaleVariation = 0.8 + seededRandom() * 0.4; // 0.8-1.2x variation
+        const finalScale = selectedType.scale * scaleVariation;
+        sprite.scale.set(finalScale, finalScale * 1.5, 1); // Taller than wide for 2.5D look
+
+        // Render order to ensure decorations appear above ground but below entities
+        sprite.renderOrder = 1;
+
+        this.scene.add(sprite);
+        this.environmentDecorations.push(sprite);
+      } else {
+        // Silently skip if sprite material creation fails
+        rendererLogger.debug({ sprite: selectedType.sprite }, 'Failed to load decoration sprite');
+      }
+    }
+
+    this.decorationsInitialized = true;
+    rendererLogger.info({ count: this.environmentDecorations.length }, 'Environment decorations created (BUG-043)');
   }
 
   private createEntityPools() {
@@ -935,6 +1033,11 @@ export class Renderer {
     const gameTime = performance.now() / 1000;
     const worldRadius = state.world?.worldRadius || 500;
     this.updateBoundaryRing(gameTime, worldRadius);
+
+    // BUG-043: Create environment decorations lazily (requires sprite mode to be ready)
+    if (!this.decorationsInitialized && this.isSpriteMode()) {
+      this.createEnvironmentDecorations(worldRadius);
+    }
 
     // Update CRT time uniform for animation effects
     if (this.crtEnabled && this.crtPass) {

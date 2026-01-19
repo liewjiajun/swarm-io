@@ -290,6 +290,48 @@
     "ui_leaderboard_highlight": {
       "frame": { "x": 240, "y": 192, "w": 128, "h": 16 },
       "sourceSize": { "w": 128, "h": 16 }
+    },
+
+    "_BUG-043_decorations": "Environment decoration sprites for visual variety",
+    "deco_rock_1": {
+      "frame": { "x": 0, "y": 240, "w": 24, "h": 24 },
+      "sourceSize": { "w": 24, "h": 24 }
+    },
+    "deco_rock_2": {
+      "frame": { "x": 24, "y": 240, "w": 24, "h": 24 },
+      "sourceSize": { "w": 24, "h": 24 }
+    },
+    "deco_rock_3": {
+      "frame": { "x": 48, "y": 240, "w": 24, "h": 24 },
+      "sourceSize": { "w": 24, "h": 24 }
+    },
+    "deco_debris": {
+      "frame": { "x": 72, "y": 240, "w": 24, "h": 24 },
+      "sourceSize": { "w": 24, "h": 24 }
+    },
+    "deco_tree_1": {
+      "frame": { "x": 96, "y": 240, "w": 32, "h": 48 },
+      "sourceSize": { "w": 32, "h": 48 }
+    },
+    "deco_tree_2": {
+      "frame": { "x": 128, "y": 240, "w": 32, "h": 48 },
+      "sourceSize": { "w": 32, "h": 48 }
+    },
+    "deco_pillar_1": {
+      "frame": { "x": 160, "y": 240, "w": 24, "h": 48 },
+      "sourceSize": { "w": 24, "h": 48 }
+    },
+    "deco_pillar_2": {
+      "frame": { "x": 184, "y": 240, "w": 24, "h": 48 },
+      "sourceSize": { "w": 24, "h": 48 }
+    },
+    "deco_pillar_3": {
+      "frame": { "x": 208, "y": 240, "w": 24, "h": 48 },
+      "sourceSize": { "w": 24, "h": 48 }
+    },
+    "deco_pillar_4": {
+      "frame": { "x": 232, "y": 240, "w": 24, "h": 48 },
+      "sourceSize": { "w": 24, "h": 48 }
     }
   }
 }

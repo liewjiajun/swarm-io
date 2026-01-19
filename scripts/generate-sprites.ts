@@ -981,6 +981,27 @@ const ENV_COLORS = {
   BOUNDARY_DANGER: { r: 255, g: 50, b: 50, a: 200 }, // Red danger glow
   BOUNDARY_WARN: { r: 255, g: 150, b: 50, a: 150 },  // Orange warning
   BOUNDARY_EDGE: { r: 100, g: 30, b: 30, a: 100 },   // Dark edge
+  // BUG-043: Decoration colors (4-color Game Boy palette per type)
+  // Rocks: Gray theme
+  ROCK_OUTLINE: { r: 40, g: 40, b: 50, a: 255 },
+  ROCK_DARK: { r: 70, g: 70, b: 85, a: 255 },
+  ROCK_MID: { r: 110, g: 110, b: 130, a: 255 },
+  ROCK_LIGHT: { r: 160, g: 160, b: 180, a: 255 },
+  // Dead trees: Brown/gray theme
+  TREE_OUTLINE: { r: 30, g: 20, b: 15, a: 255 },
+  TREE_DARK: { r: 60, g: 45, b: 35, a: 255 },
+  TREE_MID: { r: 90, g: 70, b: 55, a: 255 },
+  TREE_LIGHT: { r: 120, g: 100, b: 80, a: 255 },
+  // Debris/bones: Off-white/cream theme
+  BONE_OUTLINE: { r: 80, g: 75, b: 70, a: 255 },
+  BONE_DARK: { r: 180, g: 170, b: 160, a: 255 },
+  BONE_MID: { r: 220, g: 210, b: 195, a: 255 },
+  BONE_LIGHT: { r: 250, g: 245, b: 235, a: 255 },
+  // Pillars/ruins: Stone theme
+  PILLAR_OUTLINE: { r: 50, g: 45, b: 55, a: 255 },
+  PILLAR_DARK: { r: 85, g: 80, b: 95, a: 255 },
+  PILLAR_MID: { r: 130, g: 125, b: 145, a: 255 },
+  PILLAR_LIGHT: { r: 175, g: 170, b: 190, a: 255 },
 };
 
 /**
@@ -1114,6 +1135,281 @@ function drawBoundaryCorner(canvas: PixelCanvas, x: number, y: number): void {
       }
     }
   }
+}
+
+// =============================================================================
+// BUG-043: ENVIRONMENT DECORATIONS
+// Rocks (3 variants), Dead Trees (2), Debris/Bones, Pillars/Ruins (4)
+// All use 4-color Game Boy palette for consistent pixel art aesthetic
+// =============================================================================
+
+/**
+ * Draw rock variant 1 (24x24) - Small rounded boulder
+ */
+function drawRock1(canvas: PixelCanvas, x: number, y: number): void {
+  const cx = x + 12;
+  const cy = y + 14;
+
+  // Main rock body with outline
+  canvas.fillEllipseOutlined(cx, cy, 8, 6, ENV_COLORS.ROCK_MID, ENV_COLORS.ROCK_OUTLINE);
+
+  // Shadow (bottom portion)
+  canvas.fillEllipse(cx, cy + 3, 7, 3, ENV_COLORS.ROCK_DARK);
+
+  // Highlight (top-left)
+  canvas.fillCircle(cx - 3, cy - 2, 3, ENV_COLORS.ROCK_LIGHT);
+
+  // Cracks/texture details
+  canvas.setPixel(cx + 2, cy - 1, ENV_COLORS.ROCK_DARK);
+  canvas.setPixel(cx + 3, cy, ENV_COLORS.ROCK_DARK);
+}
+
+/**
+ * Draw rock variant 2 (24x24) - Jagged rock
+ */
+function drawRock2(canvas: PixelCanvas, x: number, y: number): void {
+  const cx = x + 12;
+  const cy = y + 14;
+
+  // Base rock (irregular shape using overlapping ellipses)
+  canvas.fillEllipseOutlined(cx - 2, cy, 6, 5, ENV_COLORS.ROCK_MID, ENV_COLORS.ROCK_OUTLINE);
+  canvas.fillEllipseOutlined(cx + 3, cy - 1, 5, 6, ENV_COLORS.ROCK_MID, ENV_COLORS.ROCK_OUTLINE);
+
+  // Shadow
+  canvas.fillEllipse(cx, cy + 3, 8, 2, ENV_COLORS.ROCK_DARK);
+
+  // Highlights
+  canvas.fillCircle(cx - 4, cy - 2, 2, ENV_COLORS.ROCK_LIGHT);
+  canvas.fillCircle(cx + 4, cy - 3, 2, ENV_COLORS.ROCK_LIGHT);
+
+  // Texture
+  canvas.setPixel(cx, cy - 1, ENV_COLORS.ROCK_OUTLINE);
+}
+
+/**
+ * Draw rock variant 3 (24x24) - Cluster of small rocks
+ */
+function drawRock3(canvas: PixelCanvas, x: number, y: number): void {
+  // Three smaller rocks in a cluster
+  // Rock 1 (left)
+  canvas.fillCircleOutlined(x + 6, y + 16, 4, ENV_COLORS.ROCK_MID, ENV_COLORS.ROCK_OUTLINE);
+  canvas.fillCircle(x + 5, y + 14, 2, ENV_COLORS.ROCK_LIGHT);
+
+  // Rock 2 (center, slightly forward)
+  canvas.fillCircleOutlined(x + 12, y + 14, 5, ENV_COLORS.ROCK_MID, ENV_COLORS.ROCK_OUTLINE);
+  canvas.fillCircle(x + 10, y + 12, 2, ENV_COLORS.ROCK_LIGHT);
+
+  // Rock 3 (right, back)
+  canvas.fillCircleOutlined(x + 18, y + 15, 3, ENV_COLORS.ROCK_DARK, ENV_COLORS.ROCK_OUTLINE);
+  canvas.fillCircle(x + 17, y + 14, 1, ENV_COLORS.ROCK_MID);
+
+  // Ground shadow
+  canvas.fillEllipse(x + 12, y + 19, 8, 2, { ...ENV_COLORS.ROCK_OUTLINE, a: 100 });
+}
+
+/**
+ * Draw dead tree variant 1 (32x48) - Bare trunk with branches
+ */
+function drawDeadTree1(canvas: PixelCanvas, x: number, y: number): void {
+  const cx = x + 16;
+
+  // Main trunk (tapers up)
+  canvas.fillRoundedRectOutlined(cx - 3, y + 20, 6, 26, ENV_COLORS.TREE_MID, ENV_COLORS.TREE_OUTLINE);
+  canvas.fillRect(cx - 2, y + 22, 2, 22, ENV_COLORS.TREE_LIGHT); // Highlight strip
+  canvas.fillRect(cx + 1, y + 22, 2, 22, ENV_COLORS.TREE_DARK);  // Shadow strip
+
+  // Left branch (upper)
+  canvas.drawLine(cx - 2, y + 12, cx - 10, y + 4, ENV_COLORS.TREE_OUTLINE);
+  canvas.drawLine(cx - 2, y + 13, cx - 9, y + 6, ENV_COLORS.TREE_MID);
+  canvas.drawLine(cx - 2, y + 14, cx - 8, y + 8, ENV_COLORS.TREE_DARK);
+
+  // Right branch (upper)
+  canvas.drawLine(cx + 2, y + 10, cx + 9, y + 2, ENV_COLORS.TREE_OUTLINE);
+  canvas.drawLine(cx + 2, y + 11, cx + 8, y + 4, ENV_COLORS.TREE_MID);
+  canvas.drawLine(cx + 2, y + 12, cx + 7, y + 6, ENV_COLORS.TREE_DARK);
+
+  // Lower right branch (broken)
+  canvas.drawLine(cx + 3, y + 26, cx + 8, y + 22, ENV_COLORS.TREE_OUTLINE);
+  canvas.drawLine(cx + 3, y + 27, cx + 7, y + 24, ENV_COLORS.TREE_MID);
+
+  // Roots
+  canvas.fillEllipse(cx, y + 45, 6, 3, ENV_COLORS.TREE_DARK);
+  canvas.fillEllipse(cx, y + 46, 5, 2, ENV_COLORS.TREE_OUTLINE);
+}
+
+/**
+ * Draw dead tree variant 2 (32x48) - Twisted stump
+ */
+function drawDeadTree2(canvas: PixelCanvas, x: number, y: number): void {
+  const cx = x + 16;
+
+  // Thick stump base
+  canvas.fillEllipseOutlined(cx, y + 40, 8, 4, ENV_COLORS.TREE_DARK, ENV_COLORS.TREE_OUTLINE);
+
+  // Main stump body (wider at base)
+  for (let i = 0; i < 20; i++) {
+    const width = 6 - Math.floor(i / 5);
+    canvas.fillRect(cx - width, y + 22 + i, width * 2, 1, ENV_COLORS.TREE_MID);
+    if (i < 18) {
+      canvas.setPixel(cx - width - 1, y + 22 + i, ENV_COLORS.TREE_OUTLINE);
+      canvas.setPixel(cx + width, y + 22 + i, ENV_COLORS.TREE_OUTLINE);
+    }
+  }
+
+  // Highlight and shadow on trunk
+  canvas.fillRect(cx - 3, y + 24, 2, 14, ENV_COLORS.TREE_LIGHT);
+  canvas.fillRect(cx + 2, y + 24, 2, 14, ENV_COLORS.TREE_DARK);
+
+  // Broken top (jagged)
+  canvas.setPixel(cx - 3, y + 20, ENV_COLORS.TREE_MID);
+  canvas.setPixel(cx - 2, y + 18, ENV_COLORS.TREE_MID);
+  canvas.setPixel(cx, y + 16, ENV_COLORS.TREE_MID);
+  canvas.setPixel(cx + 1, y + 19, ENV_COLORS.TREE_MID);
+  canvas.setPixel(cx + 3, y + 21, ENV_COLORS.TREE_MID);
+  // Outline jagged top
+  canvas.setPixel(cx - 4, y + 20, ENV_COLORS.TREE_OUTLINE);
+  canvas.setPixel(cx - 3, y + 17, ENV_COLORS.TREE_OUTLINE);
+  canvas.setPixel(cx - 1, y + 15, ENV_COLORS.TREE_OUTLINE);
+  canvas.setPixel(cx + 1, y + 15, ENV_COLORS.TREE_OUTLINE);
+  canvas.setPixel(cx + 2, y + 18, ENV_COLORS.TREE_OUTLINE);
+  canvas.setPixel(cx + 4, y + 20, ENV_COLORS.TREE_OUTLINE);
+
+  // Small branch stub on left
+  canvas.drawLine(cx - 4, y + 30, cx - 8, y + 28, ENV_COLORS.TREE_OUTLINE);
+  canvas.drawLine(cx - 4, y + 31, cx - 7, y + 29, ENV_COLORS.TREE_MID);
+}
+
+/**
+ * Draw debris/bones (24x24) - Scattered skeletal remains
+ */
+function drawDebris(canvas: PixelCanvas, x: number, y: number): void {
+  // Skull
+  canvas.fillCircleOutlined(x + 6, y + 10, 4, ENV_COLORS.BONE_MID, ENV_COLORS.BONE_OUTLINE);
+  canvas.fillCircle(x + 5, y + 9, 2, ENV_COLORS.BONE_LIGHT);
+  // Eye sockets
+  canvas.setPixel(x + 4, y + 9, ENV_COLORS.BONE_OUTLINE);
+  canvas.setPixel(x + 7, y + 9, ENV_COLORS.BONE_OUTLINE);
+
+  // Rib bones
+  canvas.fillEllipse(x + 15, y + 8, 5, 2, ENV_COLORS.BONE_MID);
+  canvas.drawLine(x + 12, y + 6, x + 18, y + 6, ENV_COLORS.BONE_DARK);
+  canvas.drawLine(x + 13, y + 10, x + 17, y + 10, ENV_COLORS.BONE_DARK);
+
+  // Leg bone (femur shape)
+  canvas.fillEllipse(x + 8, y + 18, 6, 2, ENV_COLORS.BONE_MID);
+  canvas.fillCircle(x + 3, y + 18, 2, ENV_COLORS.BONE_LIGHT);
+  canvas.fillCircle(x + 13, y + 18, 2, ENV_COLORS.BONE_LIGHT);
+  canvas.setPixel(x + 3, y + 17, ENV_COLORS.BONE_OUTLINE);
+  canvas.setPixel(x + 13, y + 17, ENV_COLORS.BONE_OUTLINE);
+
+  // Small bone fragments
+  canvas.drawLine(x + 17, y + 15, x + 21, y + 17, ENV_COLORS.BONE_MID);
+  canvas.drawLine(x + 18, y + 20, x + 22, y + 19, ENV_COLORS.BONE_DARK);
+}
+
+/**
+ * Draw pillar variant 1 (24x48) - Intact column
+ */
+function drawPillar1(canvas: PixelCanvas, x: number, y: number): void {
+  const cx = x + 12;
+
+  // Base pedestal
+  canvas.fillRoundedRectOutlined(cx - 8, y + 40, 16, 6, ENV_COLORS.PILLAR_DARK, ENV_COLORS.PILLAR_OUTLINE);
+  canvas.fillRect(cx - 6, y + 41, 12, 2, ENV_COLORS.PILLAR_MID);
+
+  // Column shaft
+  canvas.fillRoundedRectOutlined(cx - 4, y + 8, 8, 32, ENV_COLORS.PILLAR_MID, ENV_COLORS.PILLAR_OUTLINE);
+  // Fluting details (vertical grooves)
+  canvas.fillRect(cx - 3, y + 10, 1, 28, ENV_COLORS.PILLAR_LIGHT);
+  canvas.fillRect(cx, y + 10, 1, 28, ENV_COLORS.PILLAR_LIGHT);
+  canvas.fillRect(cx + 2, y + 10, 1, 28, ENV_COLORS.PILLAR_DARK);
+
+  // Capital (top decoration)
+  canvas.fillRoundedRectOutlined(cx - 6, y + 2, 12, 6, ENV_COLORS.PILLAR_LIGHT, ENV_COLORS.PILLAR_OUTLINE);
+  canvas.fillRect(cx - 5, y + 4, 10, 2, ENV_COLORS.PILLAR_MID);
+}
+
+/**
+ * Draw pillar variant 2 (24x48) - Broken/fallen column
+ */
+function drawPillar2(canvas: PixelCanvas, x: number, y: number): void {
+  const cx = x + 12;
+
+  // Base (still standing)
+  canvas.fillRoundedRectOutlined(cx - 6, y + 38, 12, 8, ENV_COLORS.PILLAR_DARK, ENV_COLORS.PILLAR_OUTLINE);
+  canvas.fillRect(cx - 5, y + 39, 10, 3, ENV_COLORS.PILLAR_MID);
+
+  // Broken shaft (shorter)
+  canvas.fillRoundedRectOutlined(cx - 4, y + 22, 8, 16, ENV_COLORS.PILLAR_MID, ENV_COLORS.PILLAR_OUTLINE);
+  canvas.fillRect(cx - 3, y + 24, 1, 12, ENV_COLORS.PILLAR_LIGHT);
+  canvas.fillRect(cx + 2, y + 24, 1, 12, ENV_COLORS.PILLAR_DARK);
+
+  // Jagged broken top
+  canvas.setPixel(cx - 4, y + 20, ENV_COLORS.PILLAR_MID);
+  canvas.setPixel(cx - 2, y + 18, ENV_COLORS.PILLAR_MID);
+  canvas.setPixel(cx, y + 20, ENV_COLORS.PILLAR_MID);
+  canvas.setPixel(cx + 2, y + 17, ENV_COLORS.PILLAR_MID);
+  canvas.setPixel(cx + 3, y + 21, ENV_COLORS.PILLAR_MID);
+
+  // Fallen piece on ground
+  canvas.fillEllipse(x + 4, y + 44, 4, 2, ENV_COLORS.PILLAR_DARK);
+  canvas.fillCircle(x + 4, y + 42, 3, ENV_COLORS.PILLAR_MID);
+}
+
+/**
+ * Draw pillar variant 3 (24x48) - Ruined arch fragment
+ */
+function drawPillar3(canvas: PixelCanvas, x: number, y: number): void {
+  // Left pillar stub
+  canvas.fillRoundedRectOutlined(x + 2, y + 30, 6, 16, ENV_COLORS.PILLAR_MID, ENV_COLORS.PILLAR_OUTLINE);
+  canvas.fillRect(x + 3, y + 32, 1, 12, ENV_COLORS.PILLAR_LIGHT);
+  canvas.fillRect(x + 6, y + 32, 1, 12, ENV_COLORS.PILLAR_DARK);
+
+  // Right pillar stub (shorter)
+  canvas.fillRoundedRectOutlined(x + 16, y + 36, 6, 10, ENV_COLORS.PILLAR_MID, ENV_COLORS.PILLAR_OUTLINE);
+  canvas.fillRect(x + 17, y + 38, 1, 6, ENV_COLORS.PILLAR_LIGHT);
+
+  // Arch fragment connecting them (partial)
+  canvas.drawLine(x + 7, y + 28, x + 12, y + 22, ENV_COLORS.PILLAR_OUTLINE);
+  canvas.drawLine(x + 8, y + 29, x + 12, y + 24, ENV_COLORS.PILLAR_MID);
+  canvas.drawLine(x + 8, y + 30, x + 11, y + 26, ENV_COLORS.PILLAR_DARK);
+
+  // Rubble at base
+  canvas.fillCircle(x + 10, y + 44, 3, ENV_COLORS.PILLAR_DARK);
+  canvas.fillCircle(x + 14, y + 45, 2, ENV_COLORS.PILLAR_MID);
+}
+
+/**
+ * Draw pillar variant 4 (24x48) - Overgrown ruin
+ */
+function drawPillar4(canvas: PixelCanvas, x: number, y: number): void {
+  const cx = x + 12;
+
+  // Crumbling base
+  canvas.fillEllipseOutlined(cx, y + 42, 8, 4, ENV_COLORS.PILLAR_DARK, ENV_COLORS.PILLAR_OUTLINE);
+
+  // Broken column segment
+  canvas.fillRoundedRectOutlined(cx - 3, y + 28, 6, 14, ENV_COLORS.PILLAR_MID, ENV_COLORS.PILLAR_OUTLINE);
+  canvas.fillRect(cx - 2, y + 30, 1, 10, ENV_COLORS.PILLAR_LIGHT);
+
+  // Vines/moss (green accents)
+  const vineColor = { r: 60, g: 90, b: 50, a: 255 };
+  const vineLight = { r: 80, g: 120, b: 60, a: 255 };
+  canvas.setPixel(cx - 4, y + 32, vineColor);
+  canvas.setPixel(cx - 4, y + 34, vineLight);
+  canvas.setPixel(cx - 3, y + 36, vineColor);
+  canvas.setPixel(cx + 3, y + 30, vineColor);
+  canvas.setPixel(cx + 4, y + 32, vineLight);
+  canvas.setPixel(cx + 3, y + 35, vineColor);
+
+  // Small rubble pile
+  canvas.fillCircle(cx + 6, y + 44, 2, ENV_COLORS.PILLAR_MID);
+  canvas.fillCircle(cx - 5, y + 45, 2, ENV_COLORS.PILLAR_DARK);
+
+  // Fallen capital piece
+  canvas.fillEllipse(cx - 2, y + 24, 4, 3, ENV_COLORS.PILLAR_LIGHT);
+  canvas.setPixel(cx - 3, y + 22, ENV_COLORS.PILLAR_OUTLINE);
+  canvas.setPixel(cx + 1, y + 22, ENV_COLORS.PILLAR_OUTLINE);
 }
 
 // =============================================================================
@@ -1411,6 +1707,27 @@ async function generateAtlas(): Promise<void> {
   drawModalEdgeV(canvas, 224, 192);        // 16x32 - ui_modal_edge_v
   drawLeaderboardHighlight(canvas, 240, 192); // 128x16 - ui_leaderboard_highlight
 
+  // =============================================================================
+  // BUG-043: ENVIRONMENT DECORATIONS (row 7+, y=240)
+  // =============================================================================
+  // Rocks (24x24 each) - row 7 at y=240
+  drawRock1(canvas, 0, 240);               // 24x24 - deco_rock_1
+  drawRock2(canvas, 24, 240);              // 24x24 - deco_rock_2
+  drawRock3(canvas, 48, 240);              // 24x24 - deco_rock_3
+
+  // Debris/bones (24x24) - row 7 at y=240
+  drawDebris(canvas, 72, 240);             // 24x24 - deco_debris
+
+  // Dead trees (32x48 each) - row 7-8 at y=240
+  drawDeadTree1(canvas, 96, 240);          // 32x48 - deco_tree_1
+  drawDeadTree2(canvas, 128, 240);         // 32x48 - deco_tree_2
+
+  // Pillars/ruins (24x48 each) - row 7-8 at y=240
+  drawPillar1(canvas, 160, 240);           // 24x48 - deco_pillar_1
+  drawPillar2(canvas, 184, 240);           // 24x48 - deco_pillar_2
+  drawPillar3(canvas, 208, 240);           // 24x48 - deco_pillar_3
+  drawPillar4(canvas, 232, 240);           // 24x48 - deco_pillar_4
+
   // Save the atlas
   const outputPath = path.join(__dirname, '../src/client/public/assets/sprites/atlas.png');
 
@@ -1432,7 +1749,8 @@ async function generateAtlas(): Promise<void> {
   console.log('  - Projectile sprites: 18 (all 8 weapons x 2 frames + 2 extra)');
   console.log('  - Environment tiles: 5 (P1.7)');
   console.log('  - UI frames: 9 (P1.8)');
-  console.log('  Total: 70 sprites (BUG-035 XP orb polish complete)');
+  console.log('  - Decoration sprites: 10 (3 rocks + 1 debris + 2 trees + 4 pillars - BUG-043)');
+  console.log('  Total: 80 sprites');
 }
 
 generateAtlas().catch(console.error);
