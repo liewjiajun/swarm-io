@@ -1134,6 +1134,13 @@ export class Renderer {
       // BUG-051 FIX: Store interpolated player position for projectile spawn sync
       this.lastPlayerPositions.set(id, { x: player.x, y: player.y });
 
+      // P8.1: Player size scales with level (visual only, hitbox unchanged)
+      // Formula: 1.0 + (level - 1) * 0.0125 (1.0x at level 1 → 1.5x at level 40)
+      const baseScale = 2; // Base sprite scale
+      const levelScale = 1.0 + (player.level - 1) * 0.0125;
+      const finalScale = baseScale * levelScale;
+      sprite.scale.set(finalScale, finalScale, 1);
+
       // Visual feedback for invulnerability
       if (player.invulnerableTime > 0) {
         sprite.material.opacity = 0.5 + Math.sin(Date.now() * 0.01) * 0.3;

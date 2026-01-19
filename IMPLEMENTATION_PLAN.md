@@ -3,10 +3,10 @@
 ## Current Status: Phase 7 - Gameplay Polish & New Content
 
 **Last Updated:** 2026-01-19
-**Implementation Progress:** 137/85 core tasks completed (161%) + 8 new tasks pending
+**Implementation Progress:** 138/85 core tasks completed (162%) + 7 new tasks pending
 **Test Count:** 1049 tests - ALL PASSING (555 server + 121 shared + 373 client)
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
-**Pending Tasks:** 8 HIGH PRIORITY tasks (see PRIORITIZED TASK LIST below)
+**Pending Tasks:** 7 HIGH PRIORITY tasks (see PRIORITIZED TASK LIST below)
 **Total Sprites:** 80 (player 9 + enemies 16 + weapons/projectiles 18 + XP orbs 6 + power-ups 6 + world events 6 + decorations 10 + misc 9)
 **Code Quality:** Excellent (0 TODOs, 0 FIXMEs, 0 skipped tests, 0 lint warnings, ~2 production `any` types - intentional for security logging)
 **CI/CD Status:** GitHub Actions configured (.github/workflows/test.yml, release.yml)
@@ -19,8 +19,8 @@
 
 | Metric | Value | Notes |
 |--------|-------|-------|
-| Core Tasks | 137/85 | 161% complete |
-| **Pending Tasks** | **8** | **HIGH PRIORITY - Implement now** |
+| Core Tasks | 138/85 | 162% complete |
+| **Pending Tasks** | **7** | **HIGH PRIORITY - Implement now** |
 | Test Coverage | 1049 tests | All passing |
 | Code Quality | Excellent | 0 TODOs, 0 FIXMEs, 0 skipped tests |
 
@@ -74,10 +74,10 @@ These tasks improve core gameplay feel. Use suggested values.
   - Scatters 70-100 visual-only decorations within world bounds (seeded random for consistency)
   - Atlas updated: `src/client/public/assets/sprites/atlas.json`
 
-- [ ] **P8.1: Player Size Scales With Level**
+- [x] **P8.1: Player Size Scales With Level** ✅ DONE (2026-01-19)
   - Scale formula: `1.0 + (level - 1) * 0.0125` (1.0x at level 1 → 1.5x at level 40)
-  - Modify player sprite rendering in `src/client/src/game/Renderer.ts`
-  - Visual only - hitbox unchanged
+  - Implemented in `updatePlayers()` method in `src/client/src/game/Renderer.ts`
+  - Visual only - hitbox unchanged, base scale of 2 multiplied by level scale
 
 ---
 
@@ -190,6 +190,7 @@ Batch spawning goes in `src/server/src/systems/SpawnSystem.ts`:
 ## CHANGELOG
 
 See git history for detailed changelog. Recent highlights:
+- 2026-01-19: P8.1 - Player size scales with level (1.0x at level 1 → 1.5x at level 40, visual only)
 - 2026-01-19: BUG-043 - Environment decorations (10 new sprites: rocks, trees, debris, pillars; 70-100 visual objects scattered in world)
 - 2026-01-19: P6.1/P6.2 - Balance tuning (enemy HP scaled for wave progression, boss HP/damage tuned for level requirements)
 - 2026-01-19: BUG-040/041/042 - Gameplay feel improvements (movement speed 8→12, batch spawning 2-3, projectile speeds)
@@ -202,7 +203,7 @@ See git history for detailed changelog. Recent highlights:
 
 ## COMPLETED TASKS
 
-**All planned tasks complete:** 137/85 tasks (161%)
+**All planned tasks complete:** 138/85 tasks (162%)
 
 **Phase 1-6 Summary:**
 - P1: Sprite/animation system, CRT shader, 32-color palette (11 tasks)
@@ -214,6 +215,7 @@ See git history for detailed changelog. Recent highlights:
 - P9: Retention systems - high scores, leaderboard, classes, evolution, accelerated XP (8 tasks)
 
 **Recent Balance & Bug Fixes:**
+- P8.1: Player size scales with level (1.0x at level 1 → 1.5x at level 40)
 - BUG-043: Environment decorations (10 new sprites, 70-100 visual objects)
 - P6.1: Enemy HP tuned for wave progression (early 2-3 hits, mid 4-6, late 6-10)
 - P6.2: Boss HP/damage tuned for level requirements (5-6, 10+, evolved)
