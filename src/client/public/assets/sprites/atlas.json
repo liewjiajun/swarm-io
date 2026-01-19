@@ -143,12 +143,36 @@
       "frame": { "x": 128, "y": 32, "w": 16, "h": 16 },
       "sourceSize": { "w": 16, "h": 16 }
     },
+    "xp_orb_small_0": {
+      "frame": { "x": 128, "y": 32, "w": 16, "h": 16 },
+      "sourceSize": { "w": 16, "h": 16 }
+    },
+    "xp_orb_small_1": {
+      "frame": { "x": 272, "y": 64, "w": 16, "h": 16 },
+      "sourceSize": { "w": 16, "h": 16 }
+    },
     "xp_orb_medium": {
       "frame": { "x": 144, "y": 32, "w": 24, "h": 24 },
       "sourceSize": { "w": 24, "h": 24 }
     },
+    "xp_orb_medium_0": {
+      "frame": { "x": 144, "y": 32, "w": 24, "h": 24 },
+      "sourceSize": { "w": 24, "h": 24 }
+    },
+    "xp_orb_medium_1": {
+      "frame": { "x": 288, "y": 64, "w": 24, "h": 24 },
+      "sourceSize": { "w": 24, "h": 24 }
+    },
     "xp_orb_large": {
       "frame": { "x": 168, "y": 32, "w": 32, "h": 32 },
+      "sourceSize": { "w": 32, "h": 32 }
+    },
+    "xp_orb_large_0": {
+      "frame": { "x": 168, "y": 32, "w": 32, "h": 32 },
+      "sourceSize": { "w": 32, "h": 32 }
+    },
+    "xp_orb_large_1": {
+      "frame": { "x": 312, "y": 64, "w": 32, "h": 32 },
       "sourceSize": { "w": 32, "h": 32 }
     },
     "projectile_slash_0": {

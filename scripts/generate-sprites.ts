@@ -68,7 +68,23 @@ const COLORS = {
   ENEMY_DEMON_MID: { r: 230, g: 80, b: 20, a: 255 },
   ENEMY_DEMON_LIGHT: { r: 255, g: 150, b: 80, a: 255 },
 
-  // XP orbs - distinct colors per size
+  // XP orbs - 4-color palettes per size (Game Boy aesthetic)
+  // Small orb: Green theme (emerald/jade)
+  XP_SMALL_OUTLINE: { r: 0, g: 80, b: 50, a: 255 },
+  XP_SMALL_DARK: { r: 0, g: 140, b: 80, a: 255 },
+  XP_SMALL_MID: { r: 0, g: 210, b: 120, a: 255 },
+  XP_SMALL_LIGHT: { r: 150, g: 255, b: 200, a: 255 },
+  // Medium orb: Cyan/aqua theme (crystal)
+  XP_MEDIUM_OUTLINE: { r: 0, g: 60, b: 80, a: 255 },
+  XP_MEDIUM_DARK: { r: 0, g: 120, b: 160, a: 255 },
+  XP_MEDIUM_MID: { r: 0, g: 200, b: 230, a: 255 },
+  XP_MEDIUM_LIGHT: { r: 180, g: 255, b: 255, a: 255 },
+  // Large orb: Gold/yellow theme (precious)
+  XP_LARGE_OUTLINE: { r: 100, g: 70, b: 0, a: 255 },
+  XP_LARGE_DARK: { r: 180, g: 130, b: 0, a: 255 },
+  XP_LARGE_MID: { r: 255, g: 200, b: 50, a: 255 },
+  XP_LARGE_LIGHT: { r: 255, g: 255, b: 180, a: 255 },
+  // Legacy (keep for backwards compatibility)
   XP_SMALL: { r: 0, g: 255, b: 136, a: 255 },
   XP_MEDIUM: { r: 0, g: 255, b: 255, a: 255 },
   XP_LARGE: { r: 255, g: 255, b: 0, a: 255 },
@@ -595,34 +611,85 @@ function drawDemon(canvas: PixelCanvas, x: number, y: number, frame: number): vo
   canvas.setPixel(cx + 2, cy + bob, COLORS.WHITE);
 }
 
-function drawXPOrb(canvas: PixelCanvas, x: number, y: number, size: 'small' | 'medium' | 'large'): void {
-  const colors = {
-    small: COLORS.XP_SMALL,
-    medium: COLORS.XP_MEDIUM,
-    large: COLORS.XP_LARGE,
+function drawXPOrb(canvas: PixelCanvas, x: number, y: number, size: 'small' | 'medium' | 'large', frame: number = 0): void {
+  // 4-color palettes for Game Boy aesthetic
+  const palettes = {
+    small: {
+      outline: COLORS.XP_SMALL_OUTLINE,
+      dark: COLORS.XP_SMALL_DARK,
+      mid: COLORS.XP_SMALL_MID,
+      light: COLORS.XP_SMALL_LIGHT,
+    },
+    medium: {
+      outline: COLORS.XP_MEDIUM_OUTLINE,
+      dark: COLORS.XP_MEDIUM_DARK,
+      mid: COLORS.XP_MEDIUM_MID,
+      light: COLORS.XP_MEDIUM_LIGHT,
+    },
+    large: {
+      outline: COLORS.XP_LARGE_OUTLINE,
+      dark: COLORS.XP_LARGE_DARK,
+      mid: COLORS.XP_LARGE_MID,
+      light: COLORS.XP_LARGE_LIGHT,
+    },
   };
-  const radii = { small: 5, medium: 8, large: 12 };
 
-  const color = colors[size];
+  const radii = { small: 5, medium: 8, large: 12 };
+  const palette = palettes[size];
   const radius = radii[size];
   const dims = { small: 16, medium: 24, large: 32 };
   const cx = x + dims[size] / 2;
   const cy = y + dims[size] / 2;
 
-  // Outer glow
-  canvas.fillCircle(cx, cy, radius, { ...color, a: 100 });
+  // Animation: Frame 0 = normal, Frame 1 = sparkle/pulse
+  const pulseOffset = frame === 1 ? 1 : 0;
+  const sparklePhase = frame === 1;
 
-  // Main orb
-  canvas.fillCircle(cx, cy, radius - 2, color);
+  // Outer glow (slightly larger on frame 1 for pulse effect)
+  canvas.fillCircle(cx, cy, radius + pulseOffset, { ...palette.dark, a: 80 });
 
-  // Inner shine
-  canvas.fillCircle(cx - 1, cy - 1, radius - 4, { ...color, a: 200 });
+  // Outline ring
+  canvas.fillCircle(cx, cy, radius - 1, palette.outline);
 
-  // Highlight
+  // Main orb body (dark to mid gradient)
+  canvas.fillCircle(cx, cy, radius - 2, palette.dark);
+  canvas.fillCircle(cx, cy, radius - 3, palette.mid);
+
+  // Inner highlight (light color)
+  const highlightOffset = Math.max(1, Math.floor(radius / 4));
+  canvas.fillCircle(cx - highlightOffset, cy - highlightOffset, Math.max(2, radius - 5), palette.light);
+
+  // Primary shine spot (top-left)
   canvas.setPixel(cx - radius + 4, cy - radius + 4, COLORS.WHITE);
   if (size !== 'small') {
     canvas.setPixel(cx - radius + 5, cy - radius + 4, COLORS.WHITE);
     canvas.setPixel(cx - radius + 4, cy - radius + 5, COLORS.WHITE);
+  }
+
+  // Frame 1: Add sparkle particles around the orb
+  if (sparklePhase) {
+    // Sparkle positions vary by size
+    const sparkleRadius = radius + 2;
+    const sparklePositions = [
+      { angle: Math.PI / 4, dist: sparkleRadius },         // Top-right
+      { angle: -Math.PI / 4, dist: sparkleRadius },        // Top-left
+      { angle: 3 * Math.PI / 4, dist: sparkleRadius },     // Bottom-left
+      { angle: -3 * Math.PI / 4, dist: sparkleRadius },    // Bottom-right
+    ];
+
+    for (const sp of sparklePositions) {
+      const sx = cx + Math.round(Math.cos(sp.angle) * sp.dist);
+      const sy = cy + Math.round(Math.sin(sp.angle) * sp.dist);
+      // Ensure sparkle is within sprite bounds
+      if (sx >= x && sx < x + dims[size] && sy >= y && sy < y + dims[size]) {
+        canvas.setPixel(sx, sy, palette.light);
+      }
+    }
+
+    // Extra shine on frame 1 (bottom-right reflection)
+    if (size !== 'small') {
+      canvas.setPixel(cx + radius - 5, cy + radius - 5, { ...palette.light, a: 180 });
+    }
   }
 }
 
@@ -1279,10 +1346,15 @@ async function generateAtlas(): Promise<void> {
   drawDemon(canvas, 448, 0, 0);
   drawDemon(canvas, 480, 0, 1);
 
-  // XP orbs (row 1, starting at x=128)
-  drawXPOrb(canvas, 128, 32, 'small');  // 16x16
-  drawXPOrb(canvas, 144, 32, 'medium'); // 24x24
-  drawXPOrb(canvas, 168, 32, 'large');  // 32x32
+  // XP orbs (row 1, starting at x=128) - Now with 2-frame animations (BUG-035)
+  // Frame 0 (normal)
+  drawXPOrb(canvas, 128, 32, 'small', 0);  // 16x16 - frame 0
+  drawXPOrb(canvas, 144, 32, 'medium', 0); // 24x24 - frame 0
+  drawXPOrb(canvas, 168, 32, 'large', 0);  // 32x32 - frame 0
+  // Frame 1 (sparkle) - placed in row 2 after other frame 1 sprites
+  drawXPOrb(canvas, 272, 64, 'small', 1);  // 16x16 - frame 1
+  drawXPOrb(canvas, 288, 64, 'medium', 1); // 24x24 - frame 1
+  drawXPOrb(canvas, 312, 64, 'large', 1);  // 32x32 - frame 1
 
   // Projectiles (row 1, starting at x=200) - All weapons now have 2-frame animations
   // Slash (Knife): 2 frames (animated)
@@ -1356,11 +1428,11 @@ async function generateAtlas(): Promise<void> {
   console.log('Atlas contents:');
   console.log('  - Player sprites: 20 (idle + 4-direction walk)');
   console.log('  - Enemy sprites: 12 (6 types x 2 frames)');
-  console.log('  - XP orb sprites: 3 (small, medium, large)');
-  console.log('  - Projectile sprites: 18 (all 8 weapons x 2 frames + 2 extra = slash x2, bullet x2, orb x2, lightning x2, axe x2, fireball x2, whip x2, garlic x2)');
+  console.log('  - XP orb sprites: 6 (3 sizes x 2 frames - BUG-035 polish)');
+  console.log('  - Projectile sprites: 18 (all 8 weapons x 2 frames + 2 extra)');
   console.log('  - Environment tiles: 5 (P1.7)');
   console.log('  - UI frames: 9 (P1.8)');
-  console.log('  Total: 67 sprites (BUG-052 complete: all 8 weapons now animated)');
+  console.log('  Total: 70 sprites (BUG-035 XP orb polish complete)');
 }
 
 generateAtlas().catch(console.error);

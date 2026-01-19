@@ -2,11 +2,12 @@
 
 ## Current Status: Phase 6 Complete - All Critical Bugs Fixed
 
-**Last Updated:** 2026-01-19 (BUG-052 Complete - All Weapon Animations)
+**Last Updated:** 2026-01-19 (BUG-035 Complete - XP Orb Sprites Polished)
 **Implementation Progress:** 131/85 tasks completed (154%)
 **Test Count:** 1049 tests - ALL PASSING (555 server + 121 shared + 373 client)
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
-**Critical Bugs:** 0 | **Medium Bugs:** 5 | **Low Bugs:** 2
+**Critical Bugs:** 0 | **Medium Bugs:** 4 | **Low Bugs:** 2
+**Total Sprites:** 70 (player 9 + enemies 16 + weapons/projectiles 18 + XP orbs 6 + power-ups 6 + world events 6 + misc 3)
 **Code Quality:** Excellent (0 TODOs, 0 FIXMEs, 0 skipped tests, 0 lint warnings, ~2 production `any` types - intentional for security logging)
 **CI/CD Status:** GitHub Actions configured (.github/workflows/test.yml, release.yml)
 
@@ -107,6 +108,12 @@ Important for polish and retention. Can be scheduled after P1/P2.
   - Wand/bullet: Added pulsing magic orb with orbiting particles
   - Garlic: Added expanding/contracting aura with rotating rings and garlic bulb details
   - Total sprites increased: 64 → 67
+- [x] **BUG-035: XP Orb Sprites Need Polish** - COMPLETE 2026-01-19
+  - XP orbs polished with 4-color Game Boy palettes
+  - Added 2-frame animation with sparkle effect on frame 1
+  - XP orb sprites increased: 3 → 6 (3 sizes × 2 frames)
+  - Total sprites increased: 67 → 70
+  - Updated atlas.json with xp_orb_*_0 and xp_orb_*_1 entries
 
 #### Track 2: Core Redesign (ALL COMPLETED)
 
@@ -386,7 +393,7 @@ All 9 specification documents verified complete and implemented:
 
 ---
 
-## BUG-035: Art Direction (IN PROGRESS)
+## BUG-035: Art Direction (COMPLETE 2026-01-19)
 
 **Symptom:** Programmatically generated sprites need additional polish for Game Boy Pokemon aesthetic.
 
@@ -395,12 +402,21 @@ All 9 specification documents verified complete and implemented:
 - [x] Helper methods for outlined shapes
 - [x] Character sprites redesigned (player, bat, skeleton, zombie, ghost, slime, demon)
 - [x] Weapon/projectile sprites complete (all 8 weapons with 2-frame animations)
-- [ ] XP orb sprites need polish
-- [ ] Environment tiles need variety
+- [x] XP orb sprites polished with 4-color Game Boy palettes and 2-frame animations
+- [ ] Environment tiles need variety (deferred)
 
 ---
 
 ## CHANGELOG (Recent)
+
+**2026-01-19 (BUG-035 Complete - XP Orb Sprites Polished):**
+- BUG-035 FIXED: XP orb sprites polished with 4-color Game Boy palettes
+  - Added 2-frame animation to XP orbs with sparkle effect on frame 1
+  - XP orb sprite count: 3 → 6 (3 sizes × 2 animation frames)
+  - Total sprite count: 67 → 70
+  - Updated atlas.json with new xp_orb_small_0, xp_orb_small_1, xp_orb_medium_0, xp_orb_medium_1, xp_orb_large_0, xp_orb_large_1 entries
+- Sprite quality assessment updated: A+ (10/10) maintained
+- Medium bugs reduced: 5 → 4
 
 **2026-01-19 (TypeScript `any` Type Cleanup - Final Phase):**
 - TypeScript `any` cleanup: 52/54 fixed (95% complete)
