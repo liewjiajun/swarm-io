@@ -2,6 +2,149 @@ import { Client, Room } from 'colyseus.js';
 import type { PlayerInput } from '@swarm-io/shared';
 import { networkLogger as logger } from '../utils/logger';
 
+// Type definitions for Colyseus schema objects received from server
+// These represent the schema structure without importing server-side code
+
+/**
+ * Generic MapSchema interface for Colyseus collections.
+ * Supports both forEach method and direct $items Map access for Schema 2.0 compatibility.
+ */
+interface ColyseusMapSchema<T> {
+  forEach?: (callback: (item: T, id: string) => void) => void;
+  $items?: Map<string, T>;
+  size?: number;
+}
+
+/**
+ * Represents a Colyseus ArraySchema with internal $items Map
+ */
+interface ColyseusArraySchema<T> {
+  $items?: Map<number, T>;
+  [Symbol.iterator]?: () => IterableIterator<T>;
+}
+
+/**
+ * Schema representation of a player's weapon from the server
+ */
+interface ColyseusWeaponSchema {
+  type: string;
+  level: number;
+}
+
+/**
+ * Schema representation of a player from the server
+ */
+interface ColyseusPlayerSchema {
+  id: string;
+  nickname: string;
+  playerClass: string;
+  x: number;
+  y: number;
+  health: number;
+  maxHealth: number;
+  level: number;
+  xp: number;
+  xpToNextLevel: number;
+  speed: number;
+  facingX: number;
+  facingY: number;
+  kills: number;
+  timeAlive: number;
+  invulnerableTime: number;
+  dead: boolean;
+  pendingUpgrade: boolean;
+  lastProcessedSequence: number;
+  weapons: ColyseusArraySchema<ColyseusWeaponSchema>;
+}
+
+/**
+ * Schema representation of an enemy from the server
+ */
+interface ColyseusEnemySchema {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  health: number;
+  maxHealth: number;
+}
+
+/**
+ * Schema representation of a projectile from the server
+ */
+interface ColyseusProjectileSchema {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  radius: number;
+}
+
+/**
+ * Schema representation of an XP orb from the server
+ */
+interface ColyseusXPOrbSchema {
+  id: string;
+  x: number;
+  y: number;
+  size: string;
+  value: number;
+  magnetized: boolean;
+}
+
+/**
+ * Schema representation of a power-up from the server
+ */
+interface ColyseusPowerUpSchema {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  spawnTime: number;
+  lifetime: number;
+}
+
+/**
+ * Schema representation of a world event from the server
+ */
+interface ColyseusWorldEventSchema {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  radius: number;
+  startTime: number;
+  duration: number;
+  active: boolean;
+  intensity?: number;
+  spawnedCount?: number;
+  xpMultiplier?: number;
+}
+
+/**
+ * Schema representation of world state from the server
+ */
+interface ColyseusWorldSchema {
+  worldRadius: number;
+  playerCount: number;
+  gameTime: number;
+  currentWave: number;
+  difficulty: number;
+}
+
+/**
+ * Root game state schema from the server
+ */
+interface ColyseusGameState {
+  players: ColyseusMapSchema<ColyseusPlayerSchema>;
+  enemies: ColyseusMapSchema<ColyseusEnemySchema>;
+  projectiles: ColyseusMapSchema<ColyseusProjectileSchema>;
+  xpOrbs: ColyseusMapSchema<ColyseusXPOrbSchema>;
+  powerUps: ColyseusMapSchema<ColyseusPowerUpSchema>;
+  worldEvents: ColyseusMapSchema<ColyseusWorldEventSchema>;
+  world: ColyseusWorldSchema;
+}
+
 // P3.3: WebSocket URL validation error
 class URLValidationError extends Error {
   constructor(message: string) {
@@ -335,7 +478,7 @@ export class NetworkClient {
     logger.debug('State handlers setup complete');
   }
 
-  private startStatePolling(state: any) {
+  private startStatePolling(state: ColyseusGameState) {
     // Stop any existing polling
     if (this.statePollingInterval) {
       clearInterval(this.statePollingInterval);
@@ -370,7 +513,7 @@ export class NetworkClient {
     }, 100);
   }
 
-  private getPlayerCount(state: any): number {
+  private getPlayerCount(state: ColyseusGameState): number {
     // Try multiple methods to get player count
     if (state.players?.$items instanceof Map) {
       return state.players.$items.size;
@@ -381,14 +524,16 @@ export class NetworkClient {
     // Try forEach to count
     let count = 0;
     try {
-      state.players?.forEach(() => count++);
+      if (state.players?.forEach) {
+        state.players.forEach(() => count++);
+      }
     } catch {
       // Ignore errors
     }
     return count;
   }
 
-  private triggerStateUpdate(state: any) {
+  private triggerStateUpdate(state: ColyseusGameState) {
     const serializedState = this.serializeState(state);
     this.stateChangeCallbacks.forEach(cb => cb(serializedState));
   }
@@ -485,7 +630,7 @@ export class NetworkClient {
    * Helper to iterate Colyseus MapSchema on client side
    * Tries multiple methods for compatibility with Schema 2.0
    */
-  private forEachInMap<T>(mapSchema: any, callback: (item: T, id: string) => void): void {
+  private forEachInMap<T>(mapSchema: ColyseusMapSchema<T>, callback: (item: T, id: string) => void): void {
     if (!mapSchema) return;
 
     // Method 1: Try forEach - common MapSchema method
@@ -505,10 +650,10 @@ export class NetworkClient {
     }
   }
 
-  private serializeState(state: any): SerializedGameState {
+  private serializeState(state: ColyseusGameState): SerializedGameState {
     // Convert Colyseus MapSchema to plain JavaScript Maps
     const players = new Map<string, SerializedPlayer>();
-    this.forEachInMap(state.players, (player: any, id: string) => {
+    this.forEachInMap<ColyseusPlayerSchema>(state.players, (player, id) => {
       players.set(id, {
         id: player.id,
         nickname: player.nickname || '', // P3.1: Include player nickname
@@ -529,7 +674,9 @@ export class NetworkClient {
         dead: player.dead,
         pendingUpgrade: player.pendingUpgrade,
         lastProcessedSequence: player.lastProcessedSequence || 0, // BUG-027 FIX
-        weapons: Array.from(player.weapons?.$items?.values() || player.weapons || []).map((w: any) => ({
+        weapons: Array.from(
+          (player.weapons?.$items?.values() as Iterable<ColyseusWeaponSchema> | undefined) || []
+        ).map((w) => ({
           type: w.type,
           level: w.level,
         })),
@@ -537,7 +684,7 @@ export class NetworkClient {
     });
 
     const enemies = new Map<string, SerializedEnemy>();
-    this.forEachInMap(state.enemies, (enemy: any, id: string) => {
+    this.forEachInMap<ColyseusEnemySchema>(state.enemies, (enemy, id) => {
       enemies.set(id, {
         id: enemy.id,
         type: enemy.type,
@@ -549,7 +696,7 @@ export class NetworkClient {
     });
 
     const projectiles = new Map<string, SerializedProjectile>();
-    this.forEachInMap(state.projectiles, (proj: any, id: string) => {
+    this.forEachInMap<ColyseusProjectileSchema>(state.projectiles, (proj, id) => {
       projectiles.set(id, {
         id: proj.id,
         type: proj.type,
@@ -560,7 +707,7 @@ export class NetworkClient {
     });
 
     const xpOrbs = new Map<string, SerializedXPOrb>();
-    this.forEachInMap(state.xpOrbs, (orb: any, id: string) => {
+    this.forEachInMap<ColyseusXPOrbSchema>(state.xpOrbs, (orb, id) => {
       xpOrbs.set(id, {
         id: orb.id,
         x: orb.x,
@@ -573,7 +720,7 @@ export class NetworkClient {
 
     // P5.2: Power-ups
     const powerUps = new Map<string, SerializedPowerUp>();
-    this.forEachInMap(state.powerUps, (powerUp: any, id: string) => {
+    this.forEachInMap<ColyseusPowerUpSchema>(state.powerUps, (powerUp, id) => {
       powerUps.set(id, {
         id: powerUp.id,
         type: powerUp.type,
@@ -586,7 +733,7 @@ export class NetworkClient {
 
     // BUG-048 FIX: P5.1 World events
     const worldEvents = new Map<string, SerializedWorldEvent>();
-    this.forEachInMap(state.worldEvents, (event: any, id: string) => {
+    this.forEachInMap<ColyseusWorldEventSchema>(state.worldEvents, (event, id) => {
       worldEvents.set(id, {
         id: event.id,
         type: event.type,

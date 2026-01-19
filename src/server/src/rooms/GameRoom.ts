@@ -1,5 +1,6 @@
 import { Room, Client, Delayed } from '@colyseus/core';
 import { GameState } from '../state/GameState.js';
+import { PlayerSchema } from '../state/PlayerSchema.js';
 import {
   SpatialHash,
   InputSystem,
@@ -39,6 +40,34 @@ interface BanEntry {
   violations: number;
 }
 
+/**
+ * Options passed when creating or joining the room.
+ * Includes Colyseus room configuration options for compatibility with Server.define().
+ */
+interface GameRoomOptions {
+  nickname?: string;
+  playerClass?: string;
+  // Colyseus room configuration options (used in Server.define())
+  autoDispose?: boolean;
+}
+
+/**
+ * Extended Client type that includes WebSocket request info for IP extraction.
+ * Colyseus doesn't officially expose these properties, but they exist at runtime.
+ */
+interface ClientWithRequest extends Client {
+  req?: {
+    headers?: Record<string, string | string[] | undefined>;
+    socket?: { remoteAddress?: string };
+    connection?: { remoteAddress?: string };
+  };
+  _req?: {
+    headers?: Record<string, string | string[] | undefined>;
+    socket?: { remoteAddress?: string };
+    connection?: { remoteAddress?: string };
+  };
+}
+
 export class GameRoom extends Room<GameState> {
   maxClients = 150;
 
@@ -76,7 +105,7 @@ export class GameRoom extends Room<GameState> {
   // Game timing
   private gameLoopInterval: Delayed | null = null;
 
-  onCreate(options: any) {
+  onCreate(options: GameRoomOptions) {
     gameRoomLogger.info({ options }, 'Room created');
 
     // Initialize game state
@@ -124,7 +153,8 @@ export class GameRoom extends Room<GameState> {
    */
   private getClientIP(client: Client): string {
     // Colyseus exposes the underlying WebSocket, which has the request info
-    const req = (client as any).req || (client as any)._req;
+    const clientWithReq = client as ClientWithRequest;
+    const req = clientWithReq.req || clientWithReq._req;
     if (req) {
       // Check for forwarded IP (behind proxy)
       const forwarded = req.headers?.['x-forwarded-for'];
@@ -337,7 +367,7 @@ export class GameRoom extends Room<GameState> {
     });
   }
 
-  onJoin(client: Client, options: any) {
+  onJoin(client: Client, options: GameRoomOptions) {
     gameRoomLogger.info({ playerId: client.sessionId }, 'Player joining');
 
     try {
@@ -665,7 +695,7 @@ export class GameRoom extends Room<GameState> {
   /**
    * P4.2: Complete the revival of a dead player
    */
-  private completeRevival(deadPlayer: any, reviver: any) {
+  private completeRevival(deadPlayer: PlayerSchema, reviver: PlayerSchema) {
     // Revive the player (keeps level, weapons, etc.)
     deadPlayer.revive();
 
@@ -1248,7 +1278,7 @@ export class GameRoom extends Room<GameState> {
   /**
    * P4.6: Clear pending trade state from a player
    */
-  private clearTradeState(player: any): void {
+  private clearTradeState(player: PlayerSchema): void {
     player.pendingTradeOfferId = '';
     player.pendingTradeFromId = '';
     player.pendingTradeWeapon = '';

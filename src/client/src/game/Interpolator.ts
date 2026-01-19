@@ -11,7 +11,7 @@ import {
 } from '@swarm-io/shared';
 
 // BUG-048 FIX: Extended game state that includes P5.1 world events and P5.2 power-ups
-interface ExtendedGameState extends GameState {
+export interface ExtendedGameState extends GameState {
   worldEvents?: Map<string, WorldEventState>;
   powerUps?: Map<string, PowerUpState>;
 }

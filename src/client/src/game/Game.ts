@@ -1,10 +1,10 @@
 import { Renderer } from './Renderer';
 import { InputManager } from './InputManager';
-import { Interpolator } from './Interpolator';
+import { Interpolator, ExtendedGameState } from './Interpolator';
 import { NetworkClient, SerializedGameState } from '../network';
 import { HUD } from '../ui';
 import { AudioManager } from '../audio';
-import type { PlayerInput, WeaponType } from '@swarm-io/shared';
+import type { PlayerInput, WeaponType, PlayerState, ProjectileState, EnemyState, XPOrbState } from '@swarm-io/shared';
 import { gameLogger as logger } from '../utils/logger';
 
 export class Game {
@@ -311,7 +311,7 @@ export class Game {
     logger.debug('Network handlers setup complete');
   }
 
-  private convertToRenderState(state: SerializedGameState): any {
+  private convertToRenderState(state: SerializedGameState): ExtendedGameState {
     // Convert SerializedGameState to the format expected by Interpolator/Renderer
     // The Renderer expects PlayerState interface but we have SerializedPlayer
     const players = new Map();
@@ -559,7 +559,7 @@ export class Game {
    * - Removed enemies (killed)
    * - Player health decrease (damage taken)
    */
-  private processAudioEvents(state: any, localPlayer: any): void {
+  private processAudioEvents(state: ExtendedGameState, localPlayer: PlayerState | undefined): void {
     // Detect player damage
     if (localPlayer) {
       if (localPlayer.health < this.lastPlayerHealth && this.lastPlayerHealth > 0) {
@@ -572,7 +572,7 @@ export class Game {
 
     // Detect new projectiles (weapon fired) - only from local player
     const currentProjectileIds = new Set<string>();
-    state.projectiles.forEach((proj: any, id: string) => {
+    state.projectiles.forEach((proj: ProjectileState, id: string) => {
       currentProjectileIds.add(id);
 
       // If this is a new projectile we haven't seen
@@ -588,7 +588,7 @@ export class Game {
 
     // Detect XP orb collection (orbs that disappeared while player nearby)
     const currentXpOrbIds = new Set<string>();
-    state.xpOrbs.forEach((_orb: any, id: string) => {
+    state.xpOrbs.forEach((_orb: XPOrbState, id: string) => {
       currentXpOrbIds.add(id);
     });
 
@@ -603,7 +603,7 @@ export class Game {
 
     // Detect enemy deaths and spawn explosions
     const currentEnemyIds = new Set<string>();
-    state.enemies.forEach((enemy: any, id: string) => {
+    state.enemies.forEach((enemy: EnemyState, id: string) => {
       currentEnemyIds.add(id);
       // Track position for death explosion
       this.lastEnemyPositions.set(id, { x: enemy.x, y: enemy.y, type: enemy.type });
@@ -652,7 +652,7 @@ export class Game {
 
     // Detect boss presence for music switching
     this.bossPresent = false;
-    state.enemies.forEach((enemy: any) => {
+    state.enemies.forEach((enemy: EnemyState) => {
       if (enemy.type.startsWith('boss_')) {
         this.bossPresent = true;
       }
