@@ -1,4 +1,6 @@
 import type { GameState } from '../state/GameState';
+import type { EnemySchema } from '../state/EnemySchema';
+import type { PlayerSchema } from '../state/PlayerSchema';
 import type { SpatialHash } from './SpatialHash';
 import { GAME_CONSTANTS, ENEMY_ATTACK_CONFIGS, BOSS_ABILITY_CONFIGS, ENEMY_CONFIGS } from '@swarm-io/shared';
 import { direction, distance } from '@swarm-io/shared';
@@ -133,7 +135,7 @@ export class PhysicsSystem {
     });
   }
 
-  private updateEnemyAI(state: GameState, enemy: any, dt: number) {
+  private updateEnemyAI(state: GameState, enemy: EnemySchema, dt: number) {
     // P9.8: Handle knockback state - enemy is pushed back and cannot move normally
     const currentTime = Date.now() / 1000;
     if (enemy.isKnockedBack) {
@@ -268,7 +270,7 @@ export class PhysicsSystem {
    */
   private handleBossAbility(
     state: GameState,
-    enemy: any,
+    enemy: EnemySchema,
     target: { x: number; y: number; id: string },
     dist: number,
     ability: typeof BOSS_ABILITY_CONFIGS[string]
@@ -307,7 +309,7 @@ export class PhysicsSystem {
    */
   private updateChargingBoss(
     state: GameState,
-    enemy: any,
+    enemy: EnemySchema,
     dt: number,
     ability: typeof BOSS_ABILITY_CONFIGS[string]
   ): void {
@@ -364,7 +366,7 @@ export class PhysicsSystem {
    */
   private getBossTarget(
     state: GameState,
-    enemy: any,
+    enemy: EnemySchema,
     dt: number
   ): { x: number; y: number; id: string } | null {
     // Get or create aggro state for this boss
@@ -382,7 +384,7 @@ export class PhysicsSystem {
     const nearbyPlayers = this.spatialHash.queryRadius(
       enemy.x, enemy.y, GAME_CONSTANTS.ENEMY_DETECTION_RANGE, 'player'
     ).filter(p => {
-      const player = p.entity as any;
+      const player = p.entity as PlayerSchema;
       return player && !player.dead;
     });
 
@@ -392,14 +394,14 @@ export class PhysicsSystem {
 
     // If only one player, target them
     if (nearbyPlayers.length === 1) {
-      const player = nearbyPlayers[0].entity as any;
+      const player = nearbyPlayers[0].entity as PlayerSchema;
       enemy.targetPlayerId = player.id;
       return { x: player.x, y: player.y, id: player.id };
     }
 
     // Multiple players nearby - implement shared aggro
     const currentTarget = enemy.targetPlayerId
-      ? nearbyPlayers.find(p => (p.entity as any).id === enemy.targetPlayerId)
+      ? nearbyPlayers.find(p => (p.entity as PlayerSchema).id === enemy.targetPlayerId)
       : null;
 
     // Check if we should switch targets
@@ -409,10 +411,10 @@ export class PhysicsSystem {
       // Roll for target switch
       if (Math.random() < BOSS_AGGRO_SWITCH_CHANCE) {
         // Pick a random different player
-        const otherPlayers = nearbyPlayers.filter(p => (p.entity as any).id !== enemy.targetPlayerId);
+        const otherPlayers = nearbyPlayers.filter(p => (p.entity as PlayerSchema).id !== enemy.targetPlayerId);
         if (otherPlayers.length > 0) {
           const newTarget = otherPlayers[Math.floor(Math.random() * otherPlayers.length)];
-          const player = newTarget.entity as any;
+          const player = newTarget.entity as PlayerSchema;
           enemy.targetPlayerId = player.id;
           aggroState.targetTime = 0;
 
@@ -430,7 +432,7 @@ export class PhysicsSystem {
 
     // Keep current target if valid, otherwise pick nearest
     if (currentTarget) {
-      const player = currentTarget.entity as any;
+      const player = currentTarget.entity as PlayerSchema;
       return { x: player.x, y: player.y, id: player.id };
     }
 
@@ -438,14 +440,14 @@ export class PhysicsSystem {
     let nearestPlayer = nearbyPlayers[0];
     let nearestDist = distance(
       { x: enemy.x, y: enemy.y },
-      { x: (nearestPlayer.entity as any).x, y: (nearestPlayer.entity as any).y }
+      { x: (nearestPlayer.entity as PlayerSchema).x, y: (nearestPlayer.entity as PlayerSchema).y }
     );
 
     for (let i = 1; i < nearbyPlayers.length; i++) {
       const p = nearbyPlayers[i];
       const d = distance(
         { x: enemy.x, y: enemy.y },
-        { x: (p.entity as any).x, y: (p.entity as any).y }
+        { x: (p.entity as PlayerSchema).x, y: (p.entity as PlayerSchema).y }
       );
       if (d < nearestDist) {
         nearestDist = d;
@@ -453,14 +455,14 @@ export class PhysicsSystem {
       }
     }
 
-    const player = nearestPlayer.entity as any;
+    const player = nearestPlayer.entity as PlayerSchema;
     enemy.targetPlayerId = player.id;
     return { x: player.x, y: player.y, id: player.id };
   }
 
   private fireEnemyProjectile(
     state: GameState,
-    enemy: any,
+    enemy: EnemySchema,
     target: { x: number; y: number; id: string },
     attackConfig: typeof ENEMY_ATTACK_CONFIGS[string]
   ): void {

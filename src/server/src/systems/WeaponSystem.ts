@@ -1,5 +1,5 @@
-import { GameState, PlayerSchema, EnemySchema } from '../state/GameState.js';
-import { WEAPON_CONFIGS, getCharacterClass, getWeaponEvolution, WeaponEvolutionConfig } from '@swarm-io/shared';
+import { GameState, PlayerSchema, EnemySchema, WeaponSchema } from '../state/GameState.js';
+import { WEAPON_CONFIGS, getCharacterClass, getWeaponEvolution, WeaponEvolutionConfig, WeaponConfig } from '@swarm-io/shared';
 import { SpatialHash } from './SpatialHash.js';
 import { weaponSystemLogger } from '../utils/logger.js';
 
@@ -64,7 +64,7 @@ export class WeaponSystem {
     });
   }
 
-  private fireWeapon(gameState: GameState, player: PlayerSchema, weapon: any): void {
+  private fireWeapon(gameState: GameState, player: PlayerSchema, weapon: WeaponSchema): void {
     const config = WEAPON_CONFIGS[weapon.type];
     if (!config) return;
 
@@ -135,7 +135,7 @@ export class WeaponSystem {
 
   // KNIFE: Directional slash projectiles in facing direction
   // P9.4 Evolution (Thousand Cuts): 3x projectiles, faster attack
-  private fireKnife(gameState: GameState, player: PlayerSchema, weapon: any, damage: number, evolution: WeaponEvolutionConfig | null): void {
+  private fireKnife(gameState: GameState, player: PlayerSchema, weapon: WeaponSchema, damage: number, evolution: WeaponEvolutionConfig | null): void {
     const config = WEAPON_CONFIGS.knife;
 
     // Calculate number of projectiles (1 + level scaling)
@@ -186,7 +186,7 @@ export class WeaponSystem {
 
   // WAND: Targets nearest enemy or fires in facing direction
   // P9.4 Evolution (Arcane Barrage): Homing projectiles that pierce all
-  private fireWand(gameState: GameState, player: PlayerSchema, weapon: any, damage: number, evolution: WeaponEvolutionConfig | null): void {
+  private fireWand(gameState: GameState, player: PlayerSchema, weapon: WeaponSchema, damage: number, evolution: WeaponEvolutionConfig | null): void {
     const config = WEAPON_CONFIGS.wand;
 
     // Find nearest enemy within range
@@ -260,7 +260,7 @@ export class WeaponSystem {
 
   // BIBLE: Creates orbital projectiles that circle the player
   // P9.4 Evolution (Crusade): Orbitals expand outward over time, more orbs
-  private fireBible(gameState: GameState, player: PlayerSchema, weapon: any, damage: number, evolution: WeaponEvolutionConfig | null): void {
+  private fireBible(gameState: GameState, player: PlayerSchema, weapon: WeaponSchema, damage: number, evolution: WeaponEvolutionConfig | null): void {
     const config = WEAPON_CONFIGS.bible;
 
     // Calculate number of orbs (2 + level scaling, max 8)
@@ -324,7 +324,7 @@ export class WeaponSystem {
 
   // GARLIC: Area-of-effect damage around player position
   // P9.4 Evolution (Holy Aura): 2x radius, heals player on damage
-  private fireGarlic(gameState: GameState, player: PlayerSchema, weapon: any, damage: number, evolution: WeaponEvolutionConfig | null): void {
+  private fireGarlic(gameState: GameState, player: PlayerSchema, weapon: WeaponSchema, damage: number, evolution: WeaponEvolutionConfig | null): void {
     const config = WEAPON_CONFIGS.garlic;
 
     // Scale range with level (same formula as other weapons: +10% per level)
@@ -375,7 +375,7 @@ export class WeaponSystem {
 
   // LIGHTNING: Random multi-target strikes to nearby enemies
   // P9.4 Evolution (Divine Storm): Double strikes, chains to nearby enemies
-  private fireLightning(gameState: GameState, player: PlayerSchema, weapon: any, damage: number, evolution: WeaponEvolutionConfig | null): void {
+  private fireLightning(gameState: GameState, player: PlayerSchema, weapon: WeaponSchema, damage: number, evolution: WeaponEvolutionConfig | null): void {
     const config = WEAPON_CONFIGS.lightning;
     if (!this.spatialHash) return;
 
@@ -429,7 +429,7 @@ export class WeaponSystem {
 
   // AXE: Thrown spinning axes that pierce through enemies
   // P9.4 Evolution (Executioner): Instant kill enemies below 20% HP, more axes
-  private fireAxe(gameState: GameState, player: PlayerSchema, weapon: any, damage: number, evolution: WeaponEvolutionConfig | null): void {
+  private fireAxe(gameState: GameState, player: PlayerSchema, weapon: WeaponSchema, damage: number, evolution: WeaponEvolutionConfig | null): void {
     const config = WEAPON_CONFIGS.axe;
     const speed = config.projectileSpeed || 8;
 
@@ -473,7 +473,7 @@ export class WeaponSystem {
 
   // FIREBALL: Targeted explosive projectile toward nearest enemy
   // P9.4 Evolution (Inferno): Leaves damaging fire trail
-  private fireFireball(gameState: GameState, player: PlayerSchema, weapon: any, damage: number, evolution: WeaponEvolutionConfig | null): void {
+  private fireFireball(gameState: GameState, player: PlayerSchema, weapon: WeaponSchema, damage: number, evolution: WeaponEvolutionConfig | null): void {
     const config = WEAPON_CONFIGS.fireball;
     if (!this.spatialHash) return;
 
@@ -526,7 +526,7 @@ export class WeaponSystem {
 
   // WHIP: Wide horizontal arc attack
   // P9.4 Evolution (Chain Whip): Bounces to nearby enemies
-  private fireWhip(gameState: GameState, player: PlayerSchema, weapon: any, damage: number, evolution: WeaponEvolutionConfig | null): void {
+  private fireWhip(gameState: GameState, player: PlayerSchema, weapon: WeaponSchema, damage: number, evolution: WeaponEvolutionConfig | null): void {
     const config = WEAPON_CONFIGS.whip;
 
     // Scale range and arc width with level
@@ -574,7 +574,7 @@ export class WeaponSystem {
   }
 
   // Utility methods for weapon calculations
-  private calculateWeaponDamage(config: any, level: number, player: PlayerSchema): number {
+  private calculateWeaponDamage(config: WeaponConfig, level: number, player: PlayerSchema): number {
     // Damage scales by +20% per level
     let scaledDamage = config.damage * (1 + (level - 1) * 0.2);
 
@@ -604,7 +604,7 @@ export class WeaponSystem {
     return scaledDamage;
   }
 
-  private calculateWeaponCooldown(config: any, level: number): number {
+  private calculateWeaponCooldown(config: WeaponConfig, level: number): number {
     // Cooldown reduces by 5% per level (minimum 40% of base)
     const reduction = (level - 1) * 0.05;
     const minMultiplier = 0.4;
@@ -617,13 +617,13 @@ export class WeaponSystem {
    * Calculates scaled weapon range based on level.
    * Range increases by +10% per level per spec (05-weapon-combat.md line 80).
    */
-  private calculateWeaponRange(config: any, level: number): number {
+  private calculateWeaponRange(config: WeaponConfig, level: number): number {
     // Range scales by +10% per level
     const baseRange = config.baseRange || config.range;
     return baseRange * (1 + (level - 1) * 0.1);
   }
 
-  private logSecurityViolation(reason: string, data: any): void {
+  private logSecurityViolation(reason: string, data: Record<string, unknown>): void {
     weaponSystemLogger.warn({ reason, ...data }, 'Security violation');
     this.weaponMetrics.securityViolations++;
   }

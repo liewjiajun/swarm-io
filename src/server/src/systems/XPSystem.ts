@@ -1,7 +1,7 @@
 import { GameState, PlayerSchema, XPOrbSchema } from '../state/GameState.js';
 import { SpatialHash } from './SpatialHash.js';
 import type { WorldEventSystem } from './WorldEventSystem.js';
-import { GAME_CONSTANTS, UPGRADE_POOL, getXPForLevel, WEAPON_CONFIGS, getCharacterClass, canWeaponEvolve, getWeaponEvolution } from '@swarm-io/shared';
+import { GAME_CONSTANTS, UPGRADE_POOL, getXPForLevel, WEAPON_CONFIGS, getCharacterClass, canWeaponEvolve, getWeaponEvolution, UpgradeDefinition } from '@swarm-io/shared';
 import { xpSystemLogger } from '../utils/logger.js';
 
 interface XPMetrics {
@@ -15,13 +15,14 @@ interface XPMetrics {
   weaponEvolutions: number; // P9.4: Track weapon evolutions
 }
 
+// Simplified upgrade choice for client communication
+// Uses 'weapon'/'stat' instead of detailed types for simpler client handling
 interface UpgradeChoice {
   id: string;
   type: 'weapon' | 'stat';
   weaponType?: string;
   statType?: string;
   description: string;
-  weight: number;
 }
 
 export class XPSystem {
@@ -292,13 +293,13 @@ export class XPSystem {
     return choices;
   }
 
-  private selectWeightedUpgrade(upgrades: any[], player: PlayerSchema): UpgradeChoice | null {
+  private selectWeightedUpgrade(upgrades: UpgradeDefinition[], player: PlayerSchema): UpgradeChoice | null {
     // Filter valid upgrades for this player
     const validUpgrades = upgrades.filter(upgrade => {
       if (upgrade.type === 'new_weapon' || upgrade.type === 'upgrade_weapon') {
         // Only offer weapon upgrades if player doesn't have it or can upgrade it
-        const hasWeapon = player.hasWeapon(upgrade.weaponType);
-        const weaponLevel = player.getWeaponLevel(upgrade.weaponType);
+        const hasWeapon = player.hasWeapon(upgrade.weaponType!);
+        const weaponLevel = player.getWeaponLevel(upgrade.weaponType!);
 
         return !hasWeapon || (hasWeapon && weaponLevel < 10);
       } else if (upgrade.type === 'stat_boost') {
@@ -321,34 +322,36 @@ export class XPSystem {
     for (const upgrade of validUpgrades) {
       random -= upgrade.weight;
       if (random <= 0) {
+        // Convert detailed type to simplified client type
+        const clientType = (upgrade.type === 'new_weapon' || upgrade.type === 'upgrade_weapon') ? 'weapon' : 'stat';
         return {
           id: `${upgrade.type}_${upgrade.weaponType || upgrade.statType}_${Date.now()}`,
-          type: (upgrade.type === 'new_weapon' || upgrade.type === 'upgrade_weapon') ? 'weapon' : 'stat',
+          type: clientType as 'weapon' | 'stat',
           weaponType: upgrade.weaponType,
           statType: upgrade.statType,
-          description: this.generateUpgradeDescription(upgrade, player),
-          weight: upgrade.weight
+          description: this.generateUpgradeDescription(upgrade, player)
         };
       }
     }
 
     // Fallback to first upgrade
     const fallback = validUpgrades[0];
+    const fallbackType = (fallback.type === 'new_weapon' || fallback.type === 'upgrade_weapon') ? 'weapon' : 'stat';
     return {
       id: `${fallback.type}_${fallback.weaponType || fallback.statType}_${Date.now()}`,
-      type: (fallback.type === 'new_weapon' || fallback.type === 'upgrade_weapon') ? 'weapon' : 'stat',
+      type: fallbackType as 'weapon' | 'stat',
       weaponType: fallback.weaponType,
       statType: fallback.statType,
-      description: this.generateUpgradeDescription(fallback, player),
-      weight: fallback.weight
+      description: this.generateUpgradeDescription(fallback, player)
     };
   }
 
-  private generateUpgradeDescription(upgrade: any, player: PlayerSchema): string {
+  private generateUpgradeDescription(upgrade: UpgradeDefinition, player: PlayerSchema): string {
     if (upgrade.type === 'new_weapon' || upgrade.type === 'upgrade_weapon') {
-      const weaponConfig = WEAPON_CONFIGS[upgrade.weaponType];
-      const hasWeapon = player.hasWeapon(upgrade.weaponType);
-      const currentLevel = player.getWeaponLevel(upgrade.weaponType);
+      const weaponType = upgrade.weaponType!;
+      const weaponConfig = WEAPON_CONFIGS[weaponType];
+      const hasWeapon = player.hasWeapon(weaponType);
+      const currentLevel = player.getWeaponLevel(weaponType);
 
       if (!hasWeapon) {
         return `${weaponConfig?.name || upgrade.weaponType} - ${weaponConfig?.description || 'New weapon'}`;
@@ -525,7 +528,7 @@ export class XPSystem {
     toRemove.forEach(orbId => gameState.removeXPOrb(orbId));
   }
 
-  private logSecurityViolation(reason: string, data: any): void {
+  private logSecurityViolation(reason: string, data: Record<string, unknown>): void {
     xpSystemLogger.warn({ reason, ...data }, 'Security violation');
     this.xpMetrics.securityViolations++;
   }

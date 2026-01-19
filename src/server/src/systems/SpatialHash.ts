@@ -1,9 +1,18 @@
+import type { PlayerSchema } from '../state/PlayerSchema';
+import type { EnemySchema } from '../state/EnemySchema';
+import type { ProjectileSchema } from '../state/ProjectileSchema';
+import type { XPOrbSchema } from '../state/XPOrbSchema';
+import type { PowerUpSchema } from '../state/PowerUpSchema';
+
+// Union type for all entities stored in the spatial hash
+export type SpatialEntityType = PlayerSchema | EnemySchema | ProjectileSchema | XPOrbSchema | PowerUpSchema;
+
 export interface SpatialEntity {
   id: string;
   x: number;
   y: number;
   type: 'player' | 'enemy' | 'projectile' | 'xp' | 'powerup';
-  entity: any;
+  entity: SpatialEntityType;
 }
 
 export class SpatialHash {

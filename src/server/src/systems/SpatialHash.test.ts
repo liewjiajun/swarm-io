@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { SpatialHash, SpatialEntity } from './SpatialHash';
+import { SpatialHash, SpatialEntity, SpatialEntityType } from './SpatialHash';
+
+// Helper to create a minimal mock entity for testing (tests only need id/x/y/type)
+const mockEntity = {} as SpatialEntityType;
 
 describe('SpatialHash', () => {
   let spatialHash: SpatialHash;
@@ -27,7 +30,7 @@ describe('SpatialHash', () => {
         x: 10,
         y: 10,
         type: 'player',
-        entity: {},
+        entity: mockEntity,
       };
       spatialHash.insert(entity);
       const results = spatialHash.queryRadius(10, 10, 1);
@@ -42,7 +45,7 @@ describe('SpatialHash', () => {
           x: i * 5,
           y: i * 5,
           type: 'enemy',
-          entity: {},
+          entity: mockEntity,
         });
       }
       const results = spatialHash.queryRadius(25, 25, 100);
@@ -55,7 +58,7 @@ describe('SpatialHash', () => {
         x: -100,
         y: -100,
         type: 'player',
-        entity: {},
+        entity: mockEntity,
       });
       const results = spatialHash.queryRadius(-100, -100, 1);
       expect(results).toHaveLength(1);
@@ -64,8 +67,8 @@ describe('SpatialHash', () => {
 
   describe('clear', () => {
     it('should remove all entities', () => {
-      spatialHash.insert({ id: 'e1', x: 0, y: 0, type: 'player', entity: {} });
-      spatialHash.insert({ id: 'e2', x: 10, y: 10, type: 'enemy', entity: {} });
+      spatialHash.insert({ id: 'e1', x: 0, y: 0, type: 'player', entity: mockEntity });
+      spatialHash.insert({ id: 'e2', x: 10, y: 10, type: 'enemy', entity: mockEntity });
       spatialHash.clear();
       expect(spatialHash.queryRadius(0, 0, 100)).toHaveLength(0);
     });
@@ -81,7 +84,7 @@ describe('SpatialHash', () => {
             x,
             y,
             type: 'enemy',
-            entity: {},
+            entity: mockEntity,
           });
         }
       }
@@ -104,7 +107,7 @@ describe('SpatialHash', () => {
 
     it('should filter by type', () => {
       // Add a player
-      spatialHash.insert({ id: 'player1', x: 0, y: 0, type: 'player', entity: {} });
+      spatialHash.insert({ id: 'player1', x: 0, y: 0, type: 'player', entity: mockEntity });
 
       const enemies = spatialHash.queryRadius(0, 0, 50, 'enemy');
       const players = spatialHash.queryRadius(0, 0, 50, 'player');
@@ -130,10 +133,10 @@ describe('SpatialHash', () => {
 
   describe('queryNearestOfType', () => {
     beforeEach(() => {
-      spatialHash.insert({ id: 'e1', x: 10, y: 0, type: 'enemy', entity: {} });
-      spatialHash.insert({ id: 'e2', x: 20, y: 0, type: 'enemy', entity: {} });
-      spatialHash.insert({ id: 'e3', x: 5, y: 0, type: 'enemy', entity: {} });
-      spatialHash.insert({ id: 'p1', x: 3, y: 0, type: 'player', entity: {} });
+      spatialHash.insert({ id: 'e1', x: 10, y: 0, type: 'enemy', entity: mockEntity });
+      spatialHash.insert({ id: 'e2', x: 20, y: 0, type: 'enemy', entity: mockEntity });
+      spatialHash.insert({ id: 'e3', x: 5, y: 0, type: 'enemy', entity: mockEntity });
+      spatialHash.insert({ id: 'p1', x: 3, y: 0, type: 'player', entity: mockEntity });
     });
 
     it('should find the nearest entity of a type', () => {
@@ -160,8 +163,8 @@ describe('SpatialHash', () => {
 
     it('should handle ties by returning any nearest', () => {
       spatialHash.clear();
-      spatialHash.insert({ id: 'a', x: 5, y: 0, type: 'enemy', entity: {} });
-      spatialHash.insert({ id: 'b', x: -5, y: 0, type: 'enemy', entity: {} });
+      spatialHash.insert({ id: 'a', x: 5, y: 0, type: 'enemy', entity: mockEntity });
+      spatialHash.insert({ id: 'b', x: -5, y: 0, type: 'enemy', entity: mockEntity });
       const nearest = spatialHash.queryNearestOfType(0, 0, 'enemy', 10);
       expect(nearest).not.toBeNull();
       expect(['a', 'b']).toContain(nearest!.id);
@@ -171,8 +174,8 @@ describe('SpatialHash', () => {
   describe('cross-cell queries', () => {
     it('should find entities across cell boundaries', () => {
       const hash = new SpatialHash(10); // Small cells
-      hash.insert({ id: 'e1', x: 9, y: 9, type: 'enemy', entity: {} });
-      hash.insert({ id: 'e2', x: 11, y: 11, type: 'enemy', entity: {} });
+      hash.insert({ id: 'e1', x: 9, y: 9, type: 'enemy', entity: mockEntity });
+      hash.insert({ id: 'e2', x: 11, y: 11, type: 'enemy', entity: mockEntity });
 
       // Query point at boundary should find both
       const results = hash.queryRadius(10, 10, 5);
@@ -189,7 +192,7 @@ describe('SpatialHash', () => {
           x: Math.random() * 1000 - 500,
           y: Math.random() * 1000 - 500,
           type: 'enemy',
-          entity: {},
+          entity: mockEntity,
         });
       }
 

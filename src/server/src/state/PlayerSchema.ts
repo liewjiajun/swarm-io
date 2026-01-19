@@ -2,6 +2,15 @@ import { Schema, ArraySchema, defineTypes } from '@colyseus/schema';
 import { WeaponSchema } from './WeaponSchema';
 import { GAME_CONSTANTS, WEAPON_CONFIGS, getXPForLevel, getCharacterClass, getClassStartingWeapons } from '@swarm-io/shared';
 
+// Simplified upgrade choice type (matches XPSystem's internal type)
+interface UpgradeChoice {
+  id: string;
+  type: 'weapon' | 'stat';
+  weaponType?: string;
+  statType?: string;
+  description: string;
+}
+
 export class PlayerSchema extends Schema {
   // Don't use class field initializers - they bypass prototype getters/setters
   id!: string;
@@ -47,7 +56,7 @@ export class PlayerSchema extends Schema {
   magnetBoostTime!: number; // Remaining seconds of magnet boost
 
   // Not synchronized - server only (can use regular initializers)
-  pendingChoices: any[] = [];
+  pendingChoices: UpgradeChoice[] = [];
   deathTime: number = 0;
   killedBy: string = '';
   outgoingTradeOfferId: string = ''; // ID of trade offer this player sent (server only)
