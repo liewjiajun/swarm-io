@@ -222,6 +222,13 @@ export class Renderer {
   private shakeOffsetX: number = 0;        // Current X offset applied to camera
   private shakeOffsetY: number = 0;        // Current Y offset applied to camera
 
+  // BUG-051 FIX: Track interpolated player positions for projectile spawn sync
+  // When a projectile spawns, it uses server position but player renders at interpolated position.
+  // We track the offset to correct projectile spawn visuals.
+  private lastPlayerPositions: Map<string, { x: number; y: number }> = new Map();
+  // Track projectile spawn offsets (calculated when projectile first appears)
+  private projectileSpawnOffsets: Map<string, { x: number; y: number }> = new Map();
+
   constructor(canvas: HTMLCanvasElement) {
     // Initialize sprite system (P1.1 and P1.2)
     this.spriteLoader = new SpriteLoader('/assets/sprites/');
@@ -951,6 +958,8 @@ export class Renderer {
         this.playerSprites.delete(id);
         this.playerAnimStates.delete(id);
         this.playerPrevPositions.delete(id);
+        // BUG-051 FIX: Clean up player position tracking
+        this.lastPlayerPositions.delete(id);
       }
     });
 
@@ -1017,6 +1026,9 @@ export class Renderer {
 
       // Store current position for next frame's velocity calculation
       this.playerPrevPositions.set(id, { x: player.x, y: player.y });
+
+      // BUG-051 FIX: Store interpolated player position for projectile spawn sync
+      this.lastPlayerPositions.set(id, { x: player.x, y: player.y });
 
       // Visual feedback for invulnerability
       if (player.invulnerableTime > 0) {
@@ -1505,6 +1517,7 @@ export class Renderer {
   /**
    * Update projectiles using sprite-based rendering (P1.9)
    * BUG-038 FIX: Projectiles that fail sprite creation are rendered procedurally
+   * BUG-051 FIX: Apply spawn offset to sync visual with interpolated player position
    */
   private updateProjectilesSprite(projectiles: Map<string, ProjectileState>) {
     // Remove sprites for destroyed projectiles
@@ -1519,6 +1532,12 @@ export class Renderer {
     this.projectileSpriteFailures.forEach(id => {
       if (!currentIds.has(id)) {
         this.projectileSpriteFailures.delete(id);
+      }
+    });
+    // BUG-051 FIX: Clean up spawn offsets for destroyed projectiles
+    this.projectileSpawnOffsets.forEach((_, id) => {
+      if (!currentIds.has(id)) {
+        this.projectileSpawnOffsets.delete(id);
       }
     });
 
@@ -1538,6 +1557,7 @@ export class Renderer {
 
       let sprite = this.projectileSprites.get(id);
       const spriteName = this.getProjectileSpriteName(projectile.type);
+      const isNewProjectile = !sprite && !this.projectileSpriteFailures.has(id);
 
       if (!sprite) {
         // BUG-038 FIX: Check if we already tried and failed to create this sprite
@@ -1562,6 +1582,25 @@ export class Renderer {
         }
       }
 
+      // BUG-051 FIX: Calculate spawn offset for new projectiles
+      // This compensates for the difference between server spawn position and
+      // interpolated player position, making projectiles appear to spawn from
+      // the correct visual position of the player sprite
+      if (isNewProjectile && projectile.ownerId) {
+        const ownerPos = this.lastPlayerPositions.get(projectile.ownerId);
+        if (ownerPos) {
+          // Calculate offset: where player is rendered vs where projectile spawned
+          // Projectile spawns at server player position, player renders at interpolated position
+          // We need to shift the projectile to match the visual player position
+          const offsetX = ownerPos.x - projectile.x;
+          const offsetY = ownerPos.y - projectile.y;
+          // Only apply significant offsets (small movements can be ignored)
+          if (Math.abs(offsetX) > 0.05 || Math.abs(offsetY) > 0.05) {
+            this.projectileSpawnOffsets.set(id, { x: offsetX, y: offsetY });
+          }
+        }
+      }
+
       sprite.visible = true;
 
       // Update sprite texture for animated projectiles
@@ -1578,7 +1617,19 @@ export class Renderer {
       const scale = visualSize * 2.5; // Slightly larger for visibility
       sprite.scale.set(scale, scale, 1);
 
-      sprite.position.set(projectile.x, 1.0, projectile.y);
+      // BUG-051 FIX: Apply spawn offset to projectile position
+      // The offset decays over the projectile's remaining lifetime to smooth the visual
+      const spawnOffset = this.projectileSpawnOffsets.get(id);
+      if (spawnOffset) {
+        // Decay offset as projectile travels (lifetime-based fade)
+        // Most projectiles start with ~0.2-1.0 second lifetime
+        const decayFactor = Math.min(1.0, projectile.lifetime * 5); // Fade over ~0.2 seconds
+        const adjustedX = projectile.x + spawnOffset.x * decayFactor;
+        const adjustedY = projectile.y + spawnOffset.y * decayFactor;
+        sprite.position.set(adjustedX, 1.0, adjustedY);
+      } else {
+        sprite.position.set(projectile.x, 1.0, projectile.y);
+      }
     });
 
     // BUG-038 FIX: Render failed projectiles using procedural method
@@ -1593,18 +1644,49 @@ export class Renderer {
 
   /**
    * Update projectiles using procedural InstancedMesh rendering (fallback)
+   * BUG-051 FIX: Apply spawn offset to sync visual with interpolated player position
    */
   private updateProjectilesProcedural(projectiles: Map<string, ProjectileState>) {
+    // BUG-051 FIX: Clean up spawn offsets for projectiles no longer being rendered
+    const currentIds = new Set(projectiles.keys());
+    this.projectileSpawnOffsets.forEach((_, id) => {
+      if (!currentIds.has(id)) {
+        this.projectileSpawnOffsets.delete(id);
+      }
+    });
+
     // Filter and sort projectiles with frustum culling and LOD
     let indexHi = 0;  // High detail (close to camera)
     let indexLo = 0;  // Low detail (far from camera)
     const time = Date.now() / 1000; // Current time in seconds for animation
 
-    projectiles.forEach(projectile => {
+    projectiles.forEach((projectile, id) => {
       // Skip projectiles outside view
       if (!this.isInView(projectile.x, projectile.y, projectile.radius)) return;
 
-      this.dummy.position.set(projectile.x, 1.0, projectile.y);
+      // BUG-051 FIX: Calculate spawn offset for new projectiles (not in tracking map yet)
+      if (!this.projectileSpawnOffsets.has(id) && projectile.ownerId) {
+        const ownerPos = this.lastPlayerPositions.get(projectile.ownerId);
+        if (ownerPos) {
+          const offsetX = ownerPos.x - projectile.x;
+          const offsetY = ownerPos.y - projectile.y;
+          if (Math.abs(offsetX) > 0.05 || Math.abs(offsetY) > 0.05) {
+            this.projectileSpawnOffsets.set(id, { x: offsetX, y: offsetY });
+          }
+        }
+      }
+
+      // BUG-051 FIX: Apply spawn offset with decay
+      const spawnOffset = this.projectileSpawnOffsets.get(id);
+      let renderX = projectile.x;
+      let renderY = projectile.y;
+      if (spawnOffset) {
+        const decayFactor = Math.min(1.0, projectile.lifetime * 5);
+        renderX = projectile.x + spawnOffset.x * decayFactor;
+        renderY = projectile.y + spawnOffset.y * decayFactor;
+      }
+
+      this.dummy.position.set(renderX, 1.0, renderY);
 
       // Apply rotation animation based on projectile type
       const rotationSpeed = this.getProjectileRotationSpeed(projectile.type);
@@ -1655,15 +1737,38 @@ export class Renderer {
   /**
    * BUG-038 FIX: Update a subset of projectiles using procedural rendering
    * Used for fallback when sprite creation fails for specific projectiles
+   * BUG-051 FIX: Apply spawn offset to sync visual with interpolated player position
    */
   private updateProjectilesProceduralPartial(projectiles: Map<string, ProjectileState>) {
     let indexHi = 0;
     let indexLo = 0;
     const time = Date.now() / 1000;
 
-    projectiles.forEach(projectile => {
+    projectiles.forEach((projectile, id) => {
+      // BUG-051 FIX: Calculate spawn offset for new projectiles
+      if (!this.projectileSpawnOffsets.has(id) && projectile.ownerId) {
+        const ownerPos = this.lastPlayerPositions.get(projectile.ownerId);
+        if (ownerPos) {
+          const offsetX = ownerPos.x - projectile.x;
+          const offsetY = ownerPos.y - projectile.y;
+          if (Math.abs(offsetX) > 0.05 || Math.abs(offsetY) > 0.05) {
+            this.projectileSpawnOffsets.set(id, { x: offsetX, y: offsetY });
+          }
+        }
+      }
+
+      // BUG-051 FIX: Apply spawn offset with decay
+      const spawnOffset = this.projectileSpawnOffsets.get(id);
+      let renderX = projectile.x;
+      let renderY = projectile.y;
+      if (spawnOffset) {
+        const decayFactor = Math.min(1.0, projectile.lifetime * 5);
+        renderX = projectile.x + spawnOffset.x * decayFactor;
+        renderY = projectile.y + spawnOffset.y * decayFactor;
+      }
+
       // Frustum culling already done in sprite method
-      this.dummy.position.set(projectile.x, 1.0, projectile.y);
+      this.dummy.position.set(renderX, 1.0, renderY);
 
       const rotationSpeed = this.getProjectileRotationSpeed(projectile.type);
       if (rotationSpeed > 0) {
