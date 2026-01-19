@@ -2,7 +2,7 @@
 
 ## Current Status: Phase 6 Complete - All Critical Bugs Fixed
 
-**Last Updated:** 2026-01-19 (BUG-035 Complete - XP Orb Sprites Polished)
+**Last Updated:** 2026-01-19 (BUG-044 moved to DEFERRED - CRT is a working feature)
 **Implementation Progress:** 131/85 tasks completed (154%)
 **Test Count:** 1049 tests - ALL PASSING (555 server + 121 shared + 373 client)
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
@@ -127,7 +127,6 @@ Important for polish and retention. Can be scheduled after P1/P2.
 
 Polish items. Address when higher priorities complete.
 
-- [ ] **BUG-044: Remove CRT Option** - LOW
 - [x] **Console.warn Review** - COMPLETED (4 instances are intentional security/debug logging)
   - Security logging in InputSystem.ts (kept for security monitoring)
   - Animation warnings in AnimationController.ts (kept for debugging)
@@ -177,6 +176,13 @@ Items explicitly deferred for future consideration.
 
 - [ ] **P6.1** Playtest and tune enemy health/damage vs player DPS per wave
 - [ ] **P6.2** Verify boss difficulty spikes are appropriate
+
+#### Design Preferences
+
+- [ ] **BUG-044: Remove CRT Option** - DEFERRED
+  - CRT shader is a complete, tested feature (P1.10)
+  - Currently provides optional retro scanline effect
+  - Decision: Keep until user feedback suggests removal
 
 ---
 
@@ -271,7 +277,7 @@ All 9 specification documents verified complete and implemented:
 | Total Tasks | 85 | Across 6 phases |
 | Completed | 128 | 151% (all phases complete + extras) |
 | Critical Bugs | 0 | All fixed (BUG-050, BUG-053) |
-| Medium Bugs | 5 | BUG-040-044 (BUG-052 fixed) |
+| Medium Bugs | 4 | BUG-040-043 (BUG-044 deferred, BUG-052 fixed) |
 | Test Coverage | 1049 tests | All passing (373 client + 555 server + 121 shared) |
 | Testing Gaps | None | All major client files tested |
 | Code Quality | Excellent | 0 TODOs, 0 FIXMEs, 0 skipped tests |
