@@ -1549,10 +1549,13 @@ npm run test:memory --players=20 --duration=30
 
 ## CHANGELOG SUMMARY
 
-**2026-01-19 (CI Fix):**
-- Fixed GitHub Actions CI workflow failing due to @swarm-io/shared module not found
-- Root cause: shared package must be built before typecheck because server/client import from dist/
-- Fix: Added "Build shared package first" step before typecheck in test.yml and release.yml
+**2026-01-19 (CI Fix - RESOLVED):**
+- Issue: GitHub Actions CI failing with "Cannot find module '@swarm-io/shared'"
+- Root cause 1: Shared package must be built before typecheck (server/client import from dist/)
+- Root cause 2: tsconfig.tsbuildinfo was committed to git, causing tsc to skip emitting dist/ (thinks outputs up-to-date from stale tsbuildinfo)
+- Fix 1: Added "Build shared package first" step before typecheck in test.yml and release.yml
+- Fix 2: Added *.tsbuildinfo to .gitignore and removed from git tracking
+- Status: CI now passing (tag 0.4.57)
 
 **2026-01-19 (P7.6 Code Coverage + P7.7 Pre-commit Hooks):**
 - **P7.6 COMPLETED**: Added code coverage reporting configuration
