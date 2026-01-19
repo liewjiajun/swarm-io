@@ -1765,13 +1765,15 @@ export class HUD {
         if (name.length > 10) {
           name = name.slice(0, 9) + '…';
         }
+        // Escape HTML to prevent XSS
+        const escapedName = this.escapeHtml(name);
         const score = this.calculateScore(player);
         // P3.2b: Show kill count with skull emoji
         const kills = player.kills;
         return `
           <div class="leaderboard-entry ${isLocal ? 'you' : ''}">
             <span class="leaderboard-rank">${index + 1}.</span>
-            <span class="leaderboard-name">${name}</span>
+            <span class="leaderboard-name">${escapedName}</span>
             <span class="leaderboard-kills">💀${kills}</span>
             <span class="leaderboard-score">${score}</span>
           </div>
@@ -1783,7 +1785,7 @@ export class HUD {
         <div class="leaderboard-separator">···</div>
         <div class="leaderboard-entry you">
           <span class="leaderboard-rank">${localPlayerRank}.</span>
-          <span class="leaderboard-name">${localPlayer.nickname || 'YOU'}</span>
+          <span class="leaderboard-name">${this.escapeHtml(localPlayer.nickname || 'YOU')}</span>
           <span class="leaderboard-kills">💀${localPlayer.kills}</span>
           <span class="leaderboard-score">${this.calculateScore(localPlayer)}</span>
         </div>
