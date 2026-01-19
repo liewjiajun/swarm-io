@@ -14,8 +14,10 @@
     "build": "npm run build --workspaces",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
+    "test:coverage": "npm run test:coverage --workspaces --if-present",
     "lint": "eslint src --ext .ts,.tsx",
-    "generate:sprites": "npx tsx scripts/generate-sprites.ts"
+    "generate:sprites": "npx tsx scripts/generate-sprites.ts",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
@@ -23,7 +25,14 @@
     "@typescript-eslint/parser": "^8.53.0",
     "concurrently": "^8.2.2",
     "eslint": "^8.55.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
     "sharp": "^0.34.5",
     "typescript": "^5.3.0"
+  },
+  "lint-staged": {
+    "src/**/*.{ts,tsx}": [
+      "eslint --fix"
+    ]
   }
 }
