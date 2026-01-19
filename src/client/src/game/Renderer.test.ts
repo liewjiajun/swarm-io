@@ -763,6 +763,7 @@ describe('Renderer', () => {
         enemies: new Map(),
         projectiles: new Map(),
         xpOrbs: new Map(),
+        hazards: new Map(), // P5.4: Environmental hazards
         world: {
           worldRadius: 500,
           playerCount: 0,

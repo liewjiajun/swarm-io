@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 // Post-processing modules are lazily loaded to reduce initial bundle size
 // See setupPostProcessing() for dynamic imports when CRT effect is enabled
-import type { PlayerState, EnemyState, ProjectileState, XPOrbState, PowerUpState, WorldEventState } from '@swarm-io/shared';
+import type { PlayerState, EnemyState, ProjectileState, XPOrbState, PowerUpState, WorldEventState, HazardState } from '@swarm-io/shared';
 import { DEATH_PARTICLE_COLORS } from '@swarm-io/shared';
 import { SpriteLoader } from './SpriteLoader';
 import { AnimationController, createSimpleAnimation, createWalkAnimations } from './AnimationController';
@@ -207,6 +207,9 @@ export class Renderer {
 
   // BUG-048 FIX: P5.1 World event visual elements
   private worldEventMeshes: Map<string, THREE.Mesh> = new Map();
+
+  // P5.4: Environmental hazard visual elements
+  private hazardMeshes: Map<string, THREE.Mesh> = new Map();
 
   // Post-processing (P1.10 CRT shader)
   // Types are 'any' because modules are lazily loaded to reduce bundle size
@@ -1021,6 +1024,11 @@ export class Renderer {
     // BUG-048 FIX: P5.1 Update world events
     if (state.worldEvents) {
       this.updateWorldEvents(state.worldEvents);
+    }
+
+    // P5.4: Update environmental hazards
+    if (state.hazards) {
+      this.updateHazards(state.hazards);
     }
 
     // Update particle effects
@@ -2278,6 +2286,128 @@ export class Renderer {
         return 0x00ff88; // Green-cyan for bonus
       case 'invasion_wave':
         return 0xff0000; // Red for enemy wave
+      default:
+        return 0xffffff; // White for unknown
+    }
+  }
+
+  /**
+   * P5.4: Update environmental hazard rendering
+   * Hazards are rendered as circular zones on the ground:
+   * - Lava: Red-orange bubbling pool that deals DOT
+   * - Ice: Blue-white crystalline patch that slows movement
+   * - Teleporter: Purple swirling portal that teleports players
+   */
+  private updateHazards(hazards: Map<string, HazardState>) {
+    // Remove meshes for despawned hazards
+    const currentIds = new Set(hazards.keys());
+    this.hazardMeshes.forEach((mesh, id) => {
+      if (!currentIds.has(id)) {
+        this.scene.remove(mesh);
+        this.hazardMeshes.delete(id);
+      }
+    });
+
+    const time = Date.now() / 1000;
+
+    // Update/create meshes for each active hazard
+    hazards.forEach((hazard, id) => {
+      // Only render active hazards
+      if (!hazard.active) {
+        const existingMesh = this.hazardMeshes.get(id);
+        if (existingMesh) {
+          existingMesh.visible = false;
+        }
+        return;
+      }
+
+      // Skip if outside view frustum
+      if (!this.isInView(hazard.x, hazard.y, hazard.radius + 3)) {
+        const existingMesh = this.hazardMeshes.get(id);
+        if (existingMesh) {
+          existingMesh.visible = false;
+        }
+        return;
+      }
+
+      let mesh = this.hazardMeshes.get(id);
+
+      if (!mesh) {
+        // Create circular zone mesh
+        const color = this.getHazardColor(hazard.type);
+        const geometry = new THREE.CircleGeometry(hazard.radius, 32);
+        const material = new THREE.MeshBasicMaterial({
+          color,
+          transparent: true,
+          opacity: 0.5,
+          side: THREE.DoubleSide
+        });
+        mesh = new THREE.Mesh(geometry, material);
+        mesh.rotation.x = -Math.PI / 2; // Lay flat on ground
+        this.hazardMeshes.set(id, mesh);
+        this.scene.add(mesh);
+      }
+
+      mesh.visible = true;
+
+      // Position on ground
+      mesh.position.set(hazard.x, 0.08, hazard.y);
+
+      // Animate based on hazard type
+      const material = mesh.material as THREE.MeshBasicMaterial;
+      switch (hazard.type) {
+        case 'lava': {
+          // Bubbling lava effect - rapid pulsing red-orange
+          material.opacity = 0.5 + Math.abs(Math.sin(time * 4)) * 0.2;
+          // Shift between red and orange for bubbling effect
+          const lavaHue = 0xff4500 + Math.floor(Math.sin(time * 6) * 0x001500);
+          material.color.setHex(Math.max(0xff0000, Math.min(0xffff00, lavaHue)));
+          break;
+        }
+        case 'ice':
+          // Icy shimmer effect - gentle blue-white sparkle
+          material.opacity = 0.4 + Math.sin(time * 2) * 0.1;
+          material.color.setHex(0x87ceeb); // Sky blue
+          break;
+        case 'teleporter':
+          // Swirling portal effect - rotating purple glow
+          material.opacity = 0.6 + Math.sin(time * 5) * 0.2;
+          material.color.setHex(0x9932cc); // Dark orchid
+          // Rotate the mesh for swirling effect (around Y axis since it's flat)
+          mesh.rotation.z = time * 2; // Rotation in local space
+          break;
+        default:
+          material.opacity = 0.4;
+      }
+
+      // Scale pulsing effect (different rates per type)
+      let pulseScale = 1;
+      switch (hazard.type) {
+        case 'lava':
+          pulseScale = 1 + Math.sin(time * 3) * 0.05;
+          break;
+        case 'ice':
+          pulseScale = 1 + Math.sin(time * 1.5) * 0.02;
+          break;
+        case 'teleporter':
+          pulseScale = 1 + Math.sin(time * 6) * 0.08;
+          break;
+      }
+      mesh.scale.set(pulseScale, pulseScale, 1);
+    });
+  }
+
+  /**
+   * P5.4: Get color for hazard type
+   */
+  private getHazardColor(type: string): number {
+    switch (type) {
+      case 'lava':
+        return 0xff4500; // Orange-red for lava
+      case 'ice':
+        return 0x87ceeb; // Sky blue for ice
+      case 'teleporter':
+        return 0x9932cc; // Dark orchid for teleporter
       default:
         return 0xffffff; // White for unknown
     }

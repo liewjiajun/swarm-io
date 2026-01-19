@@ -7,6 +7,7 @@ import { XPOrbSchema } from './XPOrbSchema';
 import { WorldSchema } from './WorldSchema';
 import { WorldEventSchema } from './WorldEventSchema';
 import { PowerUpSchema } from './PowerUpSchema';
+import { HazardSchema, resetHazard } from './HazardSchema';
 import { generateId, getCharacterClass, getClassStartingWeapons } from '@swarm-io/shared';
 import { GAME_CONSTANTS } from '@swarm-io/shared';
 import { ObjectPool, resetProjectile, resetEnemy, resetXPOrb, resetPowerUp } from '../systems/ObjectPool';
@@ -106,6 +107,9 @@ export class GameState extends Schema {
   // P5.2: Power-ups (hidden collectibles that grant temporary buffs)
   powerUps!: MapSchema<PowerUpSchema>;
 
+  // P5.4: Environmental hazards (lava, ice, teleporters)
+  hazards!: MapSchema<HazardSchema>;
+
   // Object pools for reducing GC pressure (not synced)
   // Pre-allocate commonly created/destroyed entities
   private projectilePool = new ObjectPool<ProjectileSchema>(
@@ -136,6 +140,13 @@ export class GameState extends Schema {
     resetPowerUp as (obj: PowerUpSchema) => void
   );
 
+  private hazardPool = new ObjectPool<HazardSchema>(
+    () => new HazardSchema(),
+    20,    // Initial size: pre-allocate 20 hazards
+    100,   // Max size: cap at 100
+    resetHazard as (obj: HazardSchema) => void
+  );
+
   constructor() {
     super();
     // Initialize all synced MapSchema/Schema fields through the setters
@@ -147,6 +158,7 @@ export class GameState extends Schema {
     this.world = new WorldSchema();
     this.worldEvents = new MapSchema<WorldEventSchema>();
     this.powerUps = new MapSchema<PowerUpSchema>();
+    this.hazards = new MapSchema<HazardSchema>();
   }
 
   addPlayer(id: string, x: number, y: number, nickname?: string, playerClass?: string): PlayerSchema {
@@ -348,6 +360,45 @@ export class GameState extends Schema {
       this.powerUpPool.release(powerUp);
     }
   }
+
+  /**
+   * P5.4: Add a hazard
+   */
+  addHazard(
+    type: string,
+    x: number,
+    y: number,
+    radius: number,
+    duration: number,
+    linkedHazardId: string = ''
+  ): HazardSchema {
+    const id = generateId();
+    const hazard = this.hazardPool.acquire();
+    hazard.id = id;
+    hazard.type = type;
+    hazard.x = x;
+    hazard.y = y;
+    hazard.radius = radius;
+    hazard.duration = duration;
+    hazard.spawnTime = this.world.gameTime;
+    hazard.active = true;
+    hazard.linkedHazardId = linkedHazardId;
+    hazard.animationTime = 0;
+
+    this.hazards.set(id, hazard);
+    return hazard;
+  }
+
+  /**
+   * P5.4: Remove a hazard and return it to the pool
+   */
+  removeHazard(id: string): void {
+    const hazard = this.hazards.get(id);
+    if (hazard) {
+      this.hazards.delete(id);
+      this.hazardPool.release(hazard);
+    }
+  }
 }
 
 // Use defineTypes for esbuild/tsx compatibility (decorators don't work properly)
@@ -359,7 +410,8 @@ defineTypes(GameState, {
   xpOrbs: { map: XPOrbSchema },
   world: WorldSchema,
   worldEvents: { map: WorldEventSchema },
-  powerUps: { map: PowerUpSchema }
+  powerUps: { map: PowerUpSchema },
+  hazards: { map: HazardSchema }
 });
 
 // Apply filter decorators manually (these work differently than @type)
@@ -375,3 +427,4 @@ export { WeaponSchema } from './WeaponSchema';
 export { WorldSchema } from './WorldSchema';
 export { WorldEventSchema } from './WorldEventSchema';
 export { PowerUpSchema } from './PowerUpSchema';
+export { HazardSchema } from './HazardSchema';

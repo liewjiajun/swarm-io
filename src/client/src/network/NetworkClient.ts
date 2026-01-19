@@ -122,6 +122,22 @@ interface ColyseusWorldEventSchema {
 }
 
 /**
+ * P5.4: Schema representation of an environmental hazard from the server
+ */
+interface ColyseusHazardSchema {
+  id: string;
+  type: string;          // 'lava' | 'ice' | 'teleporter'
+  x: number;
+  y: number;
+  radius: number;
+  active: boolean;
+  spawnTime: number;
+  duration: number;
+  linkedHazardId: string;
+  animationTime: number;
+}
+
+/**
  * Schema representation of world state from the server
  */
 interface ColyseusWorldSchema {
@@ -142,6 +158,7 @@ interface ColyseusGameState {
   xpOrbs: ColyseusMapSchema<ColyseusXPOrbSchema>;
   powerUps: ColyseusMapSchema<ColyseusPowerUpSchema>;
   worldEvents: ColyseusMapSchema<ColyseusWorldEventSchema>;
+  hazards: ColyseusMapSchema<ColyseusHazardSchema>; // P5.4: Environmental hazards
   world: ColyseusWorldSchema;
 }
 
@@ -259,6 +276,20 @@ interface SerializedWorldEvent {
   xpMultiplier: number;
 }
 
+// P5.4: Environmental hazard serialized state
+interface SerializedHazard {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  radius: number;
+  active: boolean;
+  spawnTime: number;
+  duration: number;
+  linkedHazardId: string;
+  animationTime: number;
+}
+
 interface SerializedWorld {
   worldRadius: number;
   playerCount: number;
@@ -274,6 +305,7 @@ export interface SerializedGameState {
   xpOrbs: Map<string, SerializedXPOrb>;
   powerUps: Map<string, SerializedPowerUp>; // P5.2: Power-ups
   worldEvents: Map<string, SerializedWorldEvent>; // BUG-048 FIX: P5.1 World events
+  hazards: Map<string, SerializedHazard>; // P5.4: Environmental hazards
   world: SerializedWorld;
 }
 
@@ -749,6 +781,23 @@ export class NetworkClient {
       });
     });
 
+    // P5.4: Environmental hazards
+    const hazards = new Map<string, SerializedHazard>();
+    this.forEachInMap<ColyseusHazardSchema>(state.hazards, (hazard, id) => {
+      hazards.set(id, {
+        id: hazard.id,
+        type: hazard.type,
+        x: hazard.x,
+        y: hazard.y,
+        radius: hazard.radius,
+        active: hazard.active,
+        spawnTime: hazard.spawnTime,
+        duration: hazard.duration,
+        linkedHazardId: hazard.linkedHazardId,
+        animationTime: hazard.animationTime,
+      });
+    });
+
     return {
       players,
       enemies,
@@ -756,6 +805,7 @@ export class NetworkClient {
       xpOrbs,
       powerUps,
       worldEvents,
+      hazards,
       world: {
         worldRadius: state.world.worldRadius,
         playerCount: state.world.playerCount,

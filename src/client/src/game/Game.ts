@@ -418,6 +418,23 @@ export class Game {
       });
     });
 
+    // P5.4: Environmental hazards
+    const hazards = new Map();
+    state.hazards?.forEach((hazard, id) => {
+      hazards.set(id, {
+        id: hazard.id,
+        type: hazard.type,
+        x: hazard.x,
+        y: hazard.y,
+        radius: hazard.radius,
+        active: hazard.active,
+        spawnTime: hazard.spawnTime,
+        duration: hazard.duration,
+        linkedHazardId: hazard.linkedHazardId,
+        animationTime: hazard.animationTime
+      });
+    });
+
     return {
       players,
       enemies,
@@ -425,6 +442,7 @@ export class Game {
       xpOrbs,
       powerUps,
       worldEvents,
+      hazards,
       world: {
         worldRadius: state.world.worldRadius,
         playerCount: state.world.playerCount,
@@ -469,6 +487,7 @@ export class Game {
       enemies: new Map(),
       projectiles: new Map(),
       xpOrbs: new Map(),
+      hazards: new Map(), // P5.4: Environmental hazards
       world: {
         worldRadius: 500,
         playerCount: 1,

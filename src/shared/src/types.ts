@@ -183,6 +183,7 @@ export interface GameState {
   enemies: Map<string, EnemyState>;
   projectiles: Map<string, ProjectileState>;
   xpOrbs: Map<string, XPOrbState>;
+  hazards: Map<string, HazardState>; // P5.4: Environmental hazards
 }
 
 // =============================================================================
@@ -322,6 +323,27 @@ export interface PowerUpState extends Entity {
   type: string;       // PowerUpType at runtime
   spawnTime: number;  // Game time when spawned
   lifetime: number;   // How long before despawning
+}
+
+// =============================================================================
+// P5.4: ENVIRONMENTAL HAZARDS
+// =============================================================================
+
+export type HazardType =
+  | 'lava'        // DOT damage, spawns randomly
+  | 'ice'         // Slow movement, spawns in groups
+  | 'teleporter'; // Paired portals, random placement
+
+export interface HazardState extends Entity {
+  type: string;        // HazardType at runtime
+  radius: number;      // Collision/effect radius
+  active: boolean;     // Whether hazard is currently active
+  spawnTime: number;   // Game time when spawned
+  duration: number;    // How long before despawning (0 = permanent)
+  // Teleporter-specific
+  linkedHazardId: string; // ID of paired teleporter (empty for non-teleporters)
+  // Visual state
+  animationTime: number;  // For client-side animation timing
 }
 
 // =============================================================================

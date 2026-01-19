@@ -54,6 +54,11 @@ export const COLOR_PALETTE = {
   // Effect colors (2)
   EFFECT_EXPLOSION: 0xff6600, // Explosion - orange
   EFFECT_ENEMY_PROJ: 0xff0000, // Enemy projectile - red
+
+  // P5.4: Hazard colors (3)
+  HAZARD_LAVA: 0xff4500,       // Lava - orange-red
+  HAZARD_ICE: 0x87ceeb,        // Ice - sky blue
+  HAZARD_TELEPORTER: 0x9932cc, // Teleporter - dark orchid (purple)
 } as const;
 
 // Death particle colors by enemy type
@@ -169,6 +174,30 @@ export const GAME_CONSTANTS = {
   // P5.2e: Magnet Boost power-up
   POWERUP_MAGNET_BOOST_MULTIPLIER: 3, // 3x magnet range
   POWERUP_MAGNET_BOOST_DURATION: 20, // Duration in seconds
+
+  // P5.4: Environmental Hazards - spawn random hazards that affect gameplay
+  HAZARD_MIN_SPAWN_INTERVAL: 30, // Minimum seconds between hazard spawns
+  HAZARD_MAX_SPAWN_INTERVAL: 60, // Maximum seconds between hazard spawns
+  HAZARD_SPAWN_CHANCE: 0.5, // 50% chance to spawn when interval passes
+  HAZARD_MAX_ACTIVE: 10, // Maximum hazards in the world at once
+  HAZARD_MIN_DISTANCE_FROM_PLAYER: 15, // Minimum distance from any player when spawning
+  HAZARD_MIN_DISTANCE_BETWEEN: 20, // Minimum distance between hazards
+
+  // P5.4a: Lava Pools - DOT damage
+  HAZARD_LAVA_RADIUS: 4, // Collision radius
+  HAZARD_LAVA_DAMAGE_PER_SECOND: 15, // Damage per second while standing in lava
+  HAZARD_LAVA_DURATION: 60, // Seconds before despawning (0 = permanent)
+
+  // P5.4b: Ice Patches - Slow movement
+  HAZARD_ICE_RADIUS: 5, // Collision radius (larger than lava)
+  HAZARD_ICE_SLOW_MULTIPLIER: 0.5, // 50% speed reduction while on ice
+  HAZARD_ICE_DURATION: 45, // Seconds before despawning
+  HAZARD_ICE_GROUP_SIZE: 3, // Number of ice patches spawned together
+
+  // P5.4c: Teleporters - Paired portals
+  HAZARD_TELEPORTER_RADIUS: 2, // Collision radius (smaller, precise)
+  HAZARD_TELEPORTER_COOLDOWN: 3, // Seconds before same player can teleport again
+  HAZARD_TELEPORTER_DURATION: 90, // Seconds before despawning
 
   // Combat
   PVP_DAMAGE_MULTIPLIER: 0.15, // 15% damage to other players

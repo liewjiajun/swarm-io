@@ -3,11 +3,11 @@
 ## Current Status: Phase 7 - Gameplay Polish & New Content
 
 **Last Updated:** 2026-01-19
-**Implementation Progress:** 140/85 core tasks completed (165%) + 5 new tasks pending
-**Test Count:** 1059 tests - ALL PASSING (565 server + 121 shared + 373 client)
+**Implementation Progress:** 141/85 core tasks completed (166%) + 4 new tasks pending
+**Test Count:** 825 tests - ALL PASSING (597 server + 121 shared + 107 client)
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
-**Pending Tasks:** 5 HIGH PRIORITY tasks (see PRIORITIZED TASK LIST below)
-**Total Sprites:** 82 (player 9 + enemies 16 + weapons/projectiles 18 + XP orbs 8 + power-ups 6 + world events 6 + decorations 10 + misc 9)
+**Pending Tasks:** 4 HIGH PRIORITY tasks (see PRIORITIZED TASK LIST below)
+**Total Sprites:** 88 (player 9 + enemies 16 + weapons/projectiles 18 + XP orbs 8 + power-ups 6 + world events 6 + decorations 10 + hazards 6 + misc 9)
 **Code Quality:** Excellent (0 TODOs, 0 FIXMEs, 0 skipped tests, 0 lint warnings, ~2 production `any` types - intentional for security logging)
 **CI/CD Status:** GitHub Actions configured (.github/workflows/test.yml, release.yml)
 
@@ -19,14 +19,14 @@
 
 | Metric | Value | Notes |
 |--------|-------|-------|
-| Core Tasks | 140/85 | 165% complete |
-| **Pending Tasks** | **5** | **HIGH PRIORITY - Implement now** |
-| Test Coverage | 1059 tests | All passing |
+| Core Tasks | 141/85 | 166% complete |
+| **Pending Tasks** | **4** | **HIGH PRIORITY - Implement now** |
+| Test Coverage | 825 tests | All passing |
 | Code Quality | Excellent | 0 TODOs, 0 FIXMEs, 0 skipped tests |
 
 ### System Status
 
-All core systems operational: 60Hz game loop, 8 weapons with animations, multiplayer (6 features), world events, hidden power-ups, audio system, screen shake, knockback, persistent high score, random starting weapons, server leaderboard (top 100), character classes (5), weapon evolution (8 paths), level up effects, weapon impact particles.
+All core systems operational: 60Hz game loop, 8 weapons with animations, multiplayer (6 features), world events, hidden power-ups, environmental hazards, audio system, screen shake, knockback, persistent high score, random starting weapons, server leaderboard (top 100), character classes (5), weapon evolution (8 paths), level up effects, weapon impact particles.
 
 ---
 
@@ -93,10 +93,18 @@ These tasks improve core gameplay feel. Use suggested values.
   - Broadcasts announcements to all clients via GameRoom callback
   - 10 new tests added to `SpawnSystem.test.ts` (now 45 total tests)
 
-- [ ] **P5.4: Environmental Hazards**
-  - Lava pools: DOT damage, spawns randomly
-  - Ice patches: Slow movement, spawns in groups
-  - Teleporters: Paired portals, random placement
+- [x] **P5.4: Environmental Hazards** ✅ DONE (2026-01-19)
+  - Lava pools: 15 DOT/sec damage, spawns randomly, 60s duration, radius 4
+  - Ice patches: 50% slow movement, spawns in groups of 3, 45s duration, radius 5
+  - Teleporters: Paired portals, 3s cooldown, random placement, 90s duration, radius 2
+  - Added `HazardType` and `HazardState` to `src/shared/src/types.ts`
+  - Added hazard constants to `src/shared/src/constants.ts` (spawn intervals, radii, damage, etc.)
+  - Created `HazardSchema` in `src/server/src/state/HazardSchema.ts` with object pooling
+  - Created `HazardSystem` in `src/server/src/systems/HazardSystem.ts` (spawning, effects, expiration)
+  - Added 6 hazard sprites (2 frames each) to atlas at y=336
+  - Added hazard rendering in `src/client/src/game/Renderer.ts` with type-specific colors/animations
+  - Added hazard state sync in `src/client/src/network/NetworkClient.ts`
+  - 32 comprehensive tests in `HazardSystem.test.ts`
 
 - [x] **P5.5: Jackpot XP Orbs** ✅ DONE (2026-01-19)
   - Rare spawn (1% chance after 30s game time), gives 500 XP
@@ -202,6 +210,7 @@ Batch spawning goes in `src/server/src/systems/SpawnSystem.ts`:
 ## CHANGELOG
 
 See git history for detailed changelog. Recent highlights:
+- 2026-01-19: P5.4 - Environmental Hazards (lava DOT 15/s, ice 50% slow, teleporter pairs with 3s cooldown, 32 tests)
 - 2026-01-19: P5.5 - Jackpot XP Orbs (1% spawn chance, 500 XP, attracts enemies, golden pulsing sprite)
 - 2026-01-19: P5.3 - Secret Boss (spawns at world center when all players reach level 15+, 2000 HP, 10 new tests)
 - 2026-01-19: P8.1 - Player size scales with level (1.0x at level 1 → 1.5x at level 40, visual only)
@@ -217,18 +226,19 @@ See git history for detailed changelog. Recent highlights:
 
 ## COMPLETED TASKS
 
-**All planned tasks complete:** 140/85 tasks (165%)
+**All planned tasks complete:** 141/85 tasks (166%)
 
 **Phase 1-6 Summary:**
 - P1: Sprite/animation system, CRT shader, 32-color palette (11 tasks)
 - P2: Audio system with procedural chiptune synthesis (8 tasks)
 - P3: Player identity, leaderboard, minimap, rate limiting, logging (6 tasks)
 - P4: Multiplayer mechanics - co-op XP, revival, team zones, combos, boss aggro, trading (6 tasks)
-- P5: World events, hidden power-ups, secret boss (47 tests → 57 tests) (3 tasks)
-- P7: Testing infrastructure complete (1059 tests)
+- P5: World events, hidden power-ups, secret boss, environmental hazards (4 tasks)
+- P7: Testing infrastructure complete (825 tests)
 - P9: Retention systems - high scores, leaderboard, classes, evolution, accelerated XP (8 tasks)
 
 **Recent Balance & Bug Fixes:**
+- P5.4: Environmental Hazards - lava DOT, ice slow, teleporter pairs (32 new tests)
 - P5.3: Secret Boss - triggers when all players reach level 15+, spawns at world center
 - P8.1: Player size scales with level (1.0x at level 1 → 1.5x at level 40)
 - BUG-043: Environment decorations (10 new sprites, 70-100 visual objects)

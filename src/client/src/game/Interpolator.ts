@@ -8,9 +8,11 @@ import {
   WorldState,
   WorldEventState,
   PowerUpState,
+  HazardState,
 } from '@swarm-io/shared';
 
 // BUG-048 FIX: Extended game state that includes P5.1 world events and P5.2 power-ups
+// Note: hazards is already included in GameState from P5.4
 export interface ExtendedGameState extends GameState {
   worldEvents?: Map<string, WorldEventState>;
   powerUps?: Map<string, PowerUpState>;
@@ -71,6 +73,7 @@ export class Interpolator {
       enemies: new Map<string, EnemyState>(),
       projectiles: new Map<string, ProjectileState>(),
       xpOrbs: new Map<string, XPOrbState>(),
+      hazards: new Map<string, HazardState>(), // P5.4: Copy hazards (no interpolation needed)
       world: to.world,
     };
 
@@ -140,6 +143,11 @@ export class Interpolator {
       result.powerUps = new Map(to.powerUps);
     }
 
+    // P5.4: Pass through hazards without interpolation (static zones)
+    if (to.hazards) {
+      result.hazards = new Map(to.hazards);
+    }
+
     return result;
   }
 
@@ -158,6 +166,7 @@ export class Interpolator {
       enemies: cloneMap(state.enemies),
       projectiles: cloneMap(state.projectiles),
       xpOrbs: cloneMap(state.xpOrbs),
+      hazards: cloneMap(state.hazards), // P5.4: Clone hazards
       world: { ...state.world },
     };
 
@@ -169,6 +178,11 @@ export class Interpolator {
     // P5.2: Clone power-ups
     if (state.powerUps) {
       cloned.powerUps = cloneMap(state.powerUps);
+    }
+
+    // P5.4: Clone hazards
+    if (state.hazards) {
+      cloned.hazards = cloneMap(state.hazards);
     }
 
     return cloned;
@@ -188,6 +202,7 @@ export class Interpolator {
       enemies: new Map<string, EnemyState>(),
       projectiles: new Map<string, ProjectileState>(),
       xpOrbs: new Map<string, XPOrbState>(),
+      hazards: new Map<string, HazardState>(), // P5.4: Environmental hazards
       worldEvents: new Map<string, WorldEventState>(),
       powerUps: new Map<string, PowerUpState>(),
       world: emptyWorld,

@@ -10,7 +10,8 @@ import {
   CombatSystem,
   XPSystem,
   WorldEventSystem,
-  PowerUpSystem
+  PowerUpSystem,
+  HazardSystem
 } from '../systems/index.js';
 import { GAME_CONSTANTS, randomPointOnCircle, getCharacterClassIds } from '@swarm-io/shared';
 import { InputMessage, UpgradeMessage, TradeOfferMessage, TradeResponseMessage } from '@swarm-io/shared';
@@ -81,6 +82,7 @@ export class GameRoom extends Room<GameState> {
   private xpSystem = new XPSystem();
   private worldEventSystem = new WorldEventSystem(); // P5.1: Random world events
   private powerUpSystem = new PowerUpSystem(); // P5.2: Hidden power-ups
+  private hazardSystem = new HazardSystem(); // P5.4: Environmental hazards
 
   // Client management
   private clientData = new Map<string, ClientData>();
@@ -490,6 +492,7 @@ export class GameRoom extends Room<GameState> {
     this.xpSystem.reset();
     this.worldEventSystem.reset(); // P5.1: Reset world events
     this.powerUpSystem.reset(); // P5.2: Reset power-ups
+    this.hazardSystem.reset(); // P5.4: Reset hazards
 
     gameRoomLogger.info('Room disposed');
   }
@@ -520,6 +523,7 @@ export class GameRoom extends Room<GameState> {
       this.spawnSystem.update(this.state, deltaTime);
       this.worldEventSystem.update(this.state, deltaTime); // P5.1: World events
       this.powerUpSystem.update(this.state, this.spatialHash, deltaTime); // P5.2: Power-ups
+      this.hazardSystem.update(this.state, this.spatialHash, deltaTime); // P5.4: Environmental hazards
 
       // Update player timers and states
       this.updatePlayerTimers(deltaTime);
@@ -1360,6 +1364,7 @@ export class GameRoom extends Room<GameState> {
       xpOrbCount: this.state.xpOrbs.size,
       worldEventCount: this.state.worldEvents.size, // P5.1
       powerUpCount: this.state.powerUps.size, // P5.2
+      hazardCount: this.state.hazards.size, // P5.4
       gameTime: this.state.world.gameTime,
       currentWave: this.state.world.currentWave,
       worldRadius: this.state.world.worldRadius,
@@ -1368,7 +1373,16 @@ export class GameRoom extends Room<GameState> {
       combatMetrics: this.combatSystem.getCombatMetrics(),
       xpMetrics: this.xpSystem.getXPMetrics(),
       worldEventMetrics: this.worldEventSystem.getMetrics(), // P5.1
-      powerUpMetrics: this.powerUpSystem.getMetrics() // P5.2
+      powerUpMetrics: this.powerUpSystem.getMetrics(), // P5.2
+      hazardMetrics: this.hazardSystem.getMetrics() // P5.4
     };
+  }
+
+  /**
+   * P5.4: Get speed multiplier from hazard system (for ice patches)
+   * Called by InputSystem for player movement
+   */
+  getHazardSpeedMultiplier(playerId: string): number {
+    return this.hazardSystem.getSpeedMultiplier(playerId);
   }
 }

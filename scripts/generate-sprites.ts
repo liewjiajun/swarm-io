@@ -106,6 +106,23 @@ const COLORS = {
   PROJ_WHIP: { r: 165, g: 42, b: 42, a: 255 },
   PROJ_GARLIC: { r: 144, g: 238, b: 144, a: 255 },
 
+  // P5.4: Hazard colors
+  // Lava - warm red-orange bubbling pool
+  HAZARD_LAVA_OUTLINE: { r: 80, g: 20, b: 0, a: 255 },
+  HAZARD_LAVA_DARK: { r: 180, g: 40, b: 0, a: 255 },
+  HAZARD_LAVA_MID: { r: 255, g: 100, b: 0, a: 255 },
+  HAZARD_LAVA_LIGHT: { r: 255, g: 200, b: 80, a: 255 },
+  // Ice - cool blue crystalline
+  HAZARD_ICE_OUTLINE: { r: 30, g: 60, b: 100, a: 255 },
+  HAZARD_ICE_DARK: { r: 100, g: 150, b: 200, a: 255 },
+  HAZARD_ICE_MID: { r: 180, g: 220, b: 255, a: 255 },
+  HAZARD_ICE_LIGHT: { r: 220, g: 240, b: 255, a: 255 },
+  // Teleporter - magical purple-blue portal
+  HAZARD_TELEPORTER_OUTLINE: { r: 60, g: 20, b: 100, a: 255 },
+  HAZARD_TELEPORTER_DARK: { r: 120, g: 60, b: 180, a: 255 },
+  HAZARD_TELEPORTER_MID: { r: 180, g: 100, b: 255, a: 255 },
+  HAZARD_TELEPORTER_LIGHT: { r: 220, g: 180, b: 255, a: 255 },
+
   // Common
   BLACK: { r: 0, g: 0, b: 0, a: 255 },
   WHITE: { r: 255, g: 255, b: 255, a: 255 },
@@ -1609,6 +1626,140 @@ function drawLeaderboardHighlight(canvas: PixelCanvas, x: number, y: number): vo
   canvas.fillRect(x, y + 15, 128, 1, { r: 26, g: 188, b: 156, a: 150 });
 }
 
+// =============================================================================
+// P5.4: ENVIRONMENTAL HAZARD SPRITES (32x32 each, 2 frames)
+// =============================================================================
+
+/**
+ * Draw lava pool hazard (32x32)
+ * Bubbling pool of lava that deals DOT damage
+ */
+function drawHazardLava(canvas: PixelCanvas, x: number, y: number, frame: number): void {
+  const cx = x + 16;
+  const cy = y + 16;
+
+  // Lava pool base (ellipse on ground)
+  canvas.fillEllipseOutlined(cx, cy + 4, 14, 10, COLORS.HAZARD_LAVA_DARK, COLORS.HAZARD_LAVA_OUTLINE);
+
+  // Inner lava with hot spots
+  canvas.fillEllipse(cx, cy + 4, 11, 7, COLORS.HAZARD_LAVA_MID);
+
+  // Animated bubbles - positions alternate between frames
+  const bubbleOffset = frame === 0 ? 0 : 3;
+  // Bubble 1
+  canvas.fillCircle(cx - 5 + bubbleOffset, cy + 2, 2, COLORS.HAZARD_LAVA_LIGHT);
+  canvas.fillCircle(cx - 5 + bubbleOffset, cy + 2, 1, COLORS.WHITE);
+  // Bubble 2
+  canvas.fillCircle(cx + 4 - bubbleOffset, cy + 5, 2, COLORS.HAZARD_LAVA_LIGHT);
+  // Bubble 3
+  canvas.fillCircle(cx - 1, cy + 1 - bubbleOffset, 2, COLORS.HAZARD_LAVA_LIGHT);
+
+  // Frame 1: rising bubble animation
+  if (frame === 1) {
+    canvas.fillCircle(cx + 2, cy - 2, 1, COLORS.HAZARD_LAVA_MID);
+    canvas.fillCircle(cx - 3, cy - 1, 1, COLORS.HAZARD_LAVA_MID);
+  }
+
+  // Hot center glow
+  canvas.fillCircle(cx, cy + 4, 3, COLORS.HAZARD_LAVA_LIGHT);
+}
+
+/**
+ * Draw ice patch hazard (32x32)
+ * Slippery surface that slows movement
+ */
+function drawHazardIce(canvas: PixelCanvas, x: number, y: number, frame: number): void {
+  const cx = x + 16;
+  const cy = y + 16;
+
+  // Ice base (slightly irregular ellipse)
+  canvas.fillEllipseOutlined(cx, cy + 2, 14, 10, COLORS.HAZARD_ICE_MID, COLORS.HAZARD_ICE_OUTLINE);
+
+  // Inner ice surface with crystalline pattern
+  canvas.fillEllipse(cx, cy + 2, 11, 7, COLORS.HAZARD_ICE_LIGHT);
+
+  // Crystal/frost patterns (change with frame)
+  const offset = frame === 0 ? 0 : 1;
+
+  // Frost lines
+  canvas.drawLine(cx - 6, cy - 2 + offset, cx - 3, cy + 4, COLORS.HAZARD_ICE_DARK);
+  canvas.drawLine(cx + 2, cy + offset, cx + 6, cy + 5, COLORS.HAZARD_ICE_DARK);
+  canvas.drawLine(cx - 2, cy + 3, cx + 1, cy - 1 + offset, COLORS.HAZARD_ICE_DARK);
+
+  // Sparkle highlights (animated)
+  if (frame === 0) {
+    canvas.setPixel(cx - 4, cy, COLORS.WHITE);
+    canvas.setPixel(cx + 5, cy + 3, COLORS.WHITE);
+    canvas.setPixel(cx, cy + 1, COLORS.WHITE);
+  } else {
+    canvas.setPixel(cx - 2, cy + 2, COLORS.WHITE);
+    canvas.setPixel(cx + 3, cy - 1, COLORS.WHITE);
+    canvas.setPixel(cx + 1, cy + 4, COLORS.WHITE);
+  }
+
+  // Small crystal formations at edges
+  canvas.fillCircle(cx - 8, cy + 5, 1, COLORS.HAZARD_ICE_LIGHT);
+  canvas.fillCircle(cx + 9, cy + 3, 1, COLORS.HAZARD_ICE_LIGHT);
+}
+
+/**
+ * Draw teleporter portal hazard (32x32)
+ * Magical portal that teleports players
+ */
+function drawHazardTeleporter(canvas: PixelCanvas, x: number, y: number, frame: number): void {
+  const cx = x + 16;
+  const cy = y + 16;
+
+  // Outer ring (portal frame)
+  canvas.fillCircleOutlined(cx, cy, 12, COLORS.HAZARD_TELEPORTER_OUTLINE, COLORS.BLACK);
+  canvas.fillCircle(cx, cy, 10, COLORS.HAZARD_TELEPORTER_DARK);
+
+  // Inner swirling portal
+  canvas.fillCircle(cx, cy, 8, COLORS.HAZARD_TELEPORTER_MID);
+
+  // Animated swirl pattern (rotates between frames)
+  const angle1 = frame === 0 ? 0 : Math.PI / 4;
+  const angle2 = frame === 0 ? Math.PI / 2 : Math.PI * 3 / 4;
+  const angle3 = frame === 0 ? Math.PI : Math.PI * 5 / 4;
+  const angle4 = frame === 0 ? Math.PI * 3 / 2 : Math.PI * 7 / 4;
+
+  // Swirl arms
+  for (let r = 2; r < 7; r++) {
+    const x1 = cx + Math.cos(angle1 + r * 0.2) * r;
+    const y1 = cy + Math.sin(angle1 + r * 0.2) * r;
+    canvas.setPixel(Math.round(x1), Math.round(y1), COLORS.HAZARD_TELEPORTER_LIGHT);
+
+    const x2 = cx + Math.cos(angle2 + r * 0.2) * r;
+    const y2 = cy + Math.sin(angle2 + r * 0.2) * r;
+    canvas.setPixel(Math.round(x2), Math.round(y2), COLORS.HAZARD_TELEPORTER_LIGHT);
+
+    const x3 = cx + Math.cos(angle3 + r * 0.2) * r;
+    const y3 = cy + Math.sin(angle3 + r * 0.2) * r;
+    canvas.setPixel(Math.round(x3), Math.round(y3), COLORS.WHITE);
+
+    const x4 = cx + Math.cos(angle4 + r * 0.2) * r;
+    const y4 = cy + Math.sin(angle4 + r * 0.2) * r;
+    canvas.setPixel(Math.round(x4), Math.round(y4), COLORS.WHITE);
+  }
+
+  // Center bright point
+  canvas.fillCircle(cx, cy, 2, COLORS.HAZARD_TELEPORTER_LIGHT);
+  canvas.setPixel(cx, cy, COLORS.WHITE);
+
+  // Outer energy particles (animated positions)
+  if (frame === 0) {
+    canvas.setPixel(cx - 11, cy, COLORS.HAZARD_TELEPORTER_LIGHT);
+    canvas.setPixel(cx + 11, cy, COLORS.HAZARD_TELEPORTER_LIGHT);
+    canvas.setPixel(cx, cy - 11, COLORS.HAZARD_TELEPORTER_LIGHT);
+    canvas.setPixel(cx, cy + 11, COLORS.HAZARD_TELEPORTER_LIGHT);
+  } else {
+    canvas.setPixel(cx - 8, cy - 8, COLORS.HAZARD_TELEPORTER_LIGHT);
+    canvas.setPixel(cx + 8, cy - 8, COLORS.HAZARD_TELEPORTER_LIGHT);
+    canvas.setPixel(cx - 8, cy + 8, COLORS.HAZARD_TELEPORTER_LIGHT);
+    canvas.setPixel(cx + 8, cy + 8, COLORS.HAZARD_TELEPORTER_LIGHT);
+  }
+}
+
 async function generateAtlas(): Promise<void> {
   console.log('Generating sprite atlas...');
 
@@ -1744,6 +1895,21 @@ async function generateAtlas(): Promise<void> {
   drawPillar3(canvas, 208, 240);           // 24x48 - deco_pillar_3
   drawPillar4(canvas, 232, 240);           // 24x48 - deco_pillar_4
 
+  // =============================================================================
+  // P5.4: ENVIRONMENTAL HAZARDS (row 10.5, y=336 - after jackpot orbs at y=288)
+  // =============================================================================
+  // Lava pool (32x32 each, 2 frames)
+  drawHazardLava(canvas, 0, 336, 0);       // 32x32 - hazard_lava_0
+  drawHazardLava(canvas, 32, 336, 1);      // 32x32 - hazard_lava_1
+
+  // Ice patch (32x32 each, 2 frames)
+  drawHazardIce(canvas, 64, 336, 0);       // 32x32 - hazard_ice_0
+  drawHazardIce(canvas, 96, 336, 1);       // 32x32 - hazard_ice_1
+
+  // Teleporter portal (32x32 each, 2 frames)
+  drawHazardTeleporter(canvas, 128, 336, 0); // 32x32 - hazard_teleporter_0
+  drawHazardTeleporter(canvas, 160, 336, 1); // 32x32 - hazard_teleporter_1
+
   // Save the atlas
   const outputPath = path.join(__dirname, '../src/client/public/assets/sprites/atlas.png');
 
@@ -1766,7 +1932,8 @@ async function generateAtlas(): Promise<void> {
   console.log('  - Environment tiles: 5 (P1.7)');
   console.log('  - UI frames: 9 (P1.8)');
   console.log('  - Decoration sprites: 10 (3 rocks + 1 debris + 2 trees + 4 pillars - BUG-043)');
-  console.log('  Total: 82 sprites');
+  console.log('  - Hazard sprites: 6 (lava 2 + ice 2 + teleporter 2 - P5.4)');
+  console.log('  Total: 88 sprites');
 }
 
 generateAtlas().catch(console.error);

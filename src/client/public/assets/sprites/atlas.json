@@ -345,6 +345,32 @@
     "deco_pillar_4": {
       "frame": { "x": 232, "y": 240, "w": 24, "h": 48 },
       "sourceSize": { "w": 24, "h": 48 }
+    },
+
+    "_P5.4_hazards": "P5.4: Environmental hazard sprites - lava, ice, teleporters",
+    "hazard_lava_0": {
+      "frame": { "x": 0, "y": 336, "w": 32, "h": 32 },
+      "sourceSize": { "w": 32, "h": 32 }
+    },
+    "hazard_lava_1": {
+      "frame": { "x": 32, "y": 336, "w": 32, "h": 32 },
+      "sourceSize": { "w": 32, "h": 32 }
+    },
+    "hazard_ice_0": {
+      "frame": { "x": 64, "y": 336, "w": 32, "h": 32 },
+      "sourceSize": { "w": 32, "h": 32 }
+    },
+    "hazard_ice_1": {
+      "frame": { "x": 96, "y": 336, "w": 32, "h": 32 },
+      "sourceSize": { "w": 32, "h": 32 }
+    },
+    "hazard_teleporter_0": {
+      "frame": { "x": 128, "y": 336, "w": 32, "h": 32 },
+      "sourceSize": { "w": 32, "h": 32 }
+    },
+    "hazard_teleporter_1": {
+      "frame": { "x": 160, "y": 336, "w": 32, "h": 32 },
+      "sourceSize": { "w": 32, "h": 32 }
     }
   }
 }

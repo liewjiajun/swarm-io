@@ -8,3 +8,4 @@ export * from './WeaponSchema';
 export * from './WorldSchema';
 export * from './WorldEventSchema';
 export * from './PowerUpSchema';
+export * from './HazardSchema';
