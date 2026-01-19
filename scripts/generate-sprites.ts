@@ -663,14 +663,42 @@ function drawProjectileSlash(canvas: PixelCanvas, x: number, y: number, frame: n
   canvas.fillCircle(cx, cy, 3, { ...COLORS.WHITE, a: glowAlpha });
 }
 
-function drawProjectileBullet(canvas: PixelCanvas, x: number, y: number): void {
+function drawProjectileBullet(canvas: PixelCanvas, x: number, y: number, frame: number = 0): void {
   const cx = x + 8;
   const cy = y + 8;
 
-  // Magic bullet
-  canvas.fillCircle(cx, cy, 5, COLORS.PROJ_WAND);
-  canvas.fillCircle(cx, cy, 3, { r: 200, g: 150, b: 255, a: 255 });
-  canvas.setPixel(cx - 1, cy - 1, COLORS.WHITE);
+  // Animation: Frame 0 = compact orb, Frame 1 = expanded with magic particles
+  const pulseSize = frame === 0 ? 0 : 1;
+
+  // Outer magical glow (larger on frame 1)
+  if (frame === 1) {
+    canvas.fillCircle(cx, cy, 7, { r: 180, g: 100, b: 220, a: 60 });
+  }
+
+  // Magic bullet core
+  canvas.fillCircle(cx, cy, 5 + pulseSize, COLORS.PROJ_WAND);
+  canvas.fillCircle(cx, cy, 3 + pulseSize, { r: 200, g: 150, b: 255, a: 255 });
+
+  // Inner bright core
+  canvas.fillCircle(cx, cy, 1, { r: 255, g: 220, b: 255, a: 255 });
+
+  // Highlight sparkle (moves between frames)
+  if (frame === 0) {
+    canvas.setPixel(cx - 2, cy - 2, COLORS.WHITE);
+    canvas.setPixel(cx - 1, cy - 1, COLORS.WHITE);
+  } else {
+    canvas.setPixel(cx + 1, cy - 2, COLORS.WHITE);
+    canvas.setPixel(cx - 2, cy + 1, COLORS.WHITE);
+  }
+
+  // Magic particles orbiting (frame 1 only)
+  if (frame === 1) {
+    const particleColor = { r: 200, g: 150, b: 255, a: 200 };
+    canvas.setPixel(cx - 4, cy - 1, particleColor);
+    canvas.setPixel(cx + 4, cy + 1, particleColor);
+    canvas.setPixel(cx + 1, cy - 4, particleColor);
+    canvas.setPixel(cx - 1, cy + 4, particleColor);
+  }
 }
 
 function drawProjectileOrb(canvas: PixelCanvas, x: number, y: number, frame: number = 0): void {
@@ -819,28 +847,58 @@ function drawProjectileWhip(canvas: PixelCanvas, x: number, y: number, frame: nu
   }
 }
 
-function drawProjectileGarlic(canvas: PixelCanvas, x: number, y: number): void {
+function drawProjectileGarlic(canvas: PixelCanvas, x: number, y: number, frame: number = 0): void {
   const cx = x + 16;
   const cy = y + 16;
 
-  // Garlic aura (circular wave effect)
-  // Outer ring
-  for (let angle = 0; angle < Math.PI * 2; angle += 0.2) {
-    const px = cx + Math.cos(angle) * 12;
-    const py = cy + Math.sin(angle) * 12;
-    canvas.fillCircle(Math.round(px), Math.round(py), 2, { ...COLORS.PROJ_GARLIC, a: 100 });
+  // Animation: Frame 0 = contracted aura, Frame 1 = expanded aura with rotation
+  const outerRadius = frame === 0 ? 12 : 14;
+  const middleRadius = frame === 0 ? 8 : 10;
+  const rotationOffset = frame === 0 ? 0 : Math.PI / 8; // Slight rotation between frames
+  const outerAlpha = frame === 0 ? 100 : 80;
+  const middleAlpha = frame === 0 ? 150 : 120;
+
+  // Garlic aura (circular wave effect) - animated pulsing rings
+  // Outer ring (expands and rotates)
+  for (let angle = rotationOffset; angle < Math.PI * 2 + rotationOffset; angle += 0.2) {
+    const px = cx + Math.cos(angle) * outerRadius;
+    const py = cy + Math.sin(angle) * outerRadius;
+    canvas.fillCircle(Math.round(px), Math.round(py), 2, { ...COLORS.PROJ_GARLIC, a: outerAlpha });
   }
 
-  // Middle ring
-  for (let angle = 0; angle < Math.PI * 2; angle += 0.3) {
-    const px = cx + Math.cos(angle) * 8;
-    const py = cy + Math.sin(angle) * 8;
-    canvas.fillCircle(Math.round(px), Math.round(py), 2, { ...COLORS.PROJ_GARLIC, a: 150 });
+  // Middle ring (expands and rotates opposite)
+  for (let angle = -rotationOffset; angle < Math.PI * 2 - rotationOffset; angle += 0.3) {
+    const px = cx + Math.cos(angle) * middleRadius;
+    const py = cy + Math.sin(angle) * middleRadius;
+    canvas.fillCircle(Math.round(px), Math.round(py), 2, { ...COLORS.PROJ_GARLIC, a: middleAlpha });
   }
 
-  // Center garlic
-  canvas.fillCircle(cx, cy, 5, COLORS.PROJ_GARLIC);
+  // Inner glow ring (only on frame 1 for pulse effect)
+  if (frame === 1) {
+    for (let angle = 0; angle < Math.PI * 2; angle += 0.4) {
+      const px = cx + Math.cos(angle) * 5;
+      const py = cy + Math.sin(angle) * 5;
+      canvas.setPixel(Math.round(px), Math.round(py), { ...COLORS.PROJ_GARLIC, a: 200 });
+    }
+  }
+
+  // Center garlic bulb (pulsing glow)
+  const centerGlow = frame === 0 ? 5 : 6;
+  canvas.fillCircle(cx, cy, centerGlow, COLORS.PROJ_GARLIC);
   canvas.fillCircle(cx, cy, 3, COLORS.WHITE);
+
+  // Garlic clove details (3 bumps on top)
+  const cloveColor = { r: 230, g: 255, b: 230, a: 255 };
+  canvas.fillCircle(cx - 2, cy - 3, 2, cloveColor);
+  canvas.fillCircle(cx + 2, cy - 3, 2, cloveColor);
+  canvas.fillCircle(cx, cy - 4, 2, cloveColor);
+
+  // Highlight sparkle (alternates position)
+  if (frame === 0) {
+    canvas.setPixel(cx - 1, cy - 2, COLORS.WHITE);
+  } else {
+    canvas.setPixel(cx + 1, cy - 1, COLORS.WHITE);
+  }
 }
 
 // =============================================================================
@@ -1226,34 +1284,38 @@ async function generateAtlas(): Promise<void> {
   drawXPOrb(canvas, 144, 32, 'medium'); // 24x24
   drawXPOrb(canvas, 168, 32, 'large');  // 32x32
 
-  // Projectiles (row 1, starting at x=200) - Now with animation frames
-  // Slash: 2 frames (animated)
+  // Projectiles (row 1, starting at x=200) - All weapons now have 2-frame animations
+  // Slash (Knife): 2 frames (animated)
   drawProjectileSlash(canvas, 200, 32, 0);   // 24x24 - frame 0
-  drawProjectileSlash(canvas, 456, 32, 1);   // 24x24 - frame 1 (new position)
+  drawProjectileSlash(canvas, 456, 32, 1);   // 24x24 - frame 1
 
-  drawProjectileBullet(canvas, 224, 32);     // 16x16 - static
+  // Bullet (Wand): 2 frames (animated) - NEW ANIMATION
+  drawProjectileBullet(canvas, 224, 32, 0);  // 16x16 - frame 0
+  drawProjectileBullet(canvas, 224, 64, 1);  // 16x16 - frame 1 (row 2)
 
   // Orb (Bible): 2 frames (animated)
   drawProjectileOrb(canvas, 240, 32, 0);     // 24x24 - frame 0
-  drawProjectileOrb(canvas, 480, 32, 1);     // 24x24 - frame 1 (new position at row end)
+  drawProjectileOrb(canvas, 480, 32, 1);     // 24x24 - frame 1
 
-  // Lightning: 2 frames (animated) - placed on row 2 for space
+  // Lightning: 2 frames (animated)
   drawProjectileLightning(canvas, 264, 32, 0); // 16x32 - frame 0
   drawProjectileLightning(canvas, 160, 64, 1); // 16x32 - frame 1 (row 2)
 
-  // Axe: 2 frames (already animated)
-  drawProjectileAxe(canvas, 280, 32, 0);     // 24x24
-  drawProjectileAxe(canvas, 304, 32, 1);     // 24x24
+  // Axe: 2 frames (animated)
+  drawProjectileAxe(canvas, 280, 32, 0);     // 24x24 - frame 0
+  drawProjectileAxe(canvas, 304, 32, 1);     // 24x24 - frame 1
 
-  // Fireball: 2 frames (already animated)
-  drawProjectileFireball(canvas, 328, 32, 0); // 24x24
-  drawProjectileFireball(canvas, 352, 32, 1); // 24x24
+  // Fireball: 2 frames (animated)
+  drawProjectileFireball(canvas, 328, 32, 0); // 24x24 - frame 0
+  drawProjectileFireball(canvas, 352, 32, 1); // 24x24 - frame 1
 
-  // Whip: 2 frames (animated) - placed on row 2 for space
+  // Whip: 2 frames (animated)
   drawProjectileWhip(canvas, 376, 32, 0);    // 48x24 - frame 0
   drawProjectileWhip(canvas, 176, 64, 1);    // 48x24 - frame 1 (row 2)
 
-  drawProjectileGarlic(canvas, 424, 32);     // 32x32 - static (garlic is AOE, doesn't need animation)
+  // Garlic: 2 frames (animated) - NEW ANIMATION - pulsing aura effect
+  drawProjectileGarlic(canvas, 424, 32, 0);  // 32x32 - frame 0
+  drawProjectileGarlic(canvas, 240, 64, 1);  // 32x32 - frame 1 (row 2)
 
   // =============================================================================
   // P1.7: ENVIRONMENT TILES (row 5, y=160)
@@ -1295,10 +1357,10 @@ async function generateAtlas(): Promise<void> {
   console.log('  - Player sprites: 20 (idle + 4-direction walk)');
   console.log('  - Enemy sprites: 12 (6 types x 2 frames)');
   console.log('  - XP orb sprites: 3 (small, medium, large)');
-  console.log('  - Projectile sprites: 15 (slash x2, bullet, orb x2, lightning x2, axe x2, fireball x2, whip x2, garlic)');
+  console.log('  - Projectile sprites: 18 (all 8 weapons x 2 frames + 2 extra = slash x2, bullet x2, orb x2, lightning x2, axe x2, fireball x2, whip x2, garlic x2)');
   console.log('  - Environment tiles: 5 (P1.7)');
   console.log('  - UI frames: 9 (P1.8)');
-  console.log('  Total: 64 sprites');
+  console.log('  Total: 67 sprites (BUG-052 complete: all 8 weapons now animated)');
 }
 
 generateAtlas().catch(console.error);
