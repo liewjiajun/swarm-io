@@ -91,6 +91,10 @@ export const GAME_CONSTANTS = {
   XP_MAGNET_RADIUS: 3, // Radius for magnetizing XP orbs
   XP_ORB_SPEED: 8, // Speed when magnetized
 
+  // P9.5: Accelerated Progression - 3x XP gain for ~5 minute sessions
+  // Target: Reach level 8 by minute 3 (Snake.io style pacing)
+  XP_PROGRESSION_MULTIPLIER: 3.0, // Global XP multiplier applied to all XP gains
+
   // P4.1: Cooperative XP Sharing - players near each other share XP from kills
   COOP_XP_SHARE_RADIUS: 10, // Radius within which players share XP
   COOP_XP_SHARE_PERCENTAGE: 0.5, // 50% of XP shared with nearby players
@@ -461,6 +465,8 @@ export const BOSS_ABILITY_CONFIGS: Record<string, BossAbilityConfig> = {
   },
 };
 
+// P9.5: Enemy XP values doubled for accelerated progression
+// Combined with XP_PROGRESSION_MULTIPLIER = 3.0 and compressed XP curve
 export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
   bat: {
     type: 'bat',
@@ -468,7 +474,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
     health: 10,
     speed: 6,          // Increased from 4 (BUG-037: 50% faster)
     damage: 5,
-    xpValue: 1,
+    xpValue: 2,        // P9.5: Doubled from 1
     size: 0.4,
     isBoss: false,
   },
@@ -478,7 +484,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
     health: 25,
     speed: 3.75,       // Increased from 2.5 (BUG-037: 50% faster)
     damage: 10,
-    xpValue: 3,
+    xpValue: 6,        // P9.5: Doubled from 3
     size: 0.5,
     isBoss: false,
   },
@@ -488,7 +494,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
     health: 50,
     speed: 2.25,       // Increased from 1.5 (BUG-037: 50% faster)
     damage: 15,
-    xpValue: 5,
+    xpValue: 10,       // P9.5: Doubled from 5
     size: 0.6,
     isBoss: false,
   },
@@ -498,7 +504,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
     health: 15,
     speed: 4.5,        // Increased from 3 (BUG-037: 50% faster)
     damage: 8,
-    xpValue: 4,
+    xpValue: 8,        // P9.5: Doubled from 4
     size: 0.5,
     isBoss: false,
   },
@@ -508,7 +514,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
     health: 20,
     speed: 3,          // Increased from 2 (BUG-037: 50% faster)
     damage: 8,
-    xpValue: 2,
+    xpValue: 4,        // P9.5: Doubled from 2
     size: 0.5,
     isBoss: false,
   },
@@ -518,7 +524,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
     health: 8,
     speed: 3.75,       // Increased from 2.5 (BUG-037: 50% faster)
     damage: 4,
-    xpValue: 1,
+    xpValue: 2,        // P9.5: Doubled from 1
     size: 0.3,
     isBoss: false,
   },
@@ -528,7 +534,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
     health: 40,
     speed: 3.75,       // Increased from 2.5 (BUG-037: 50% faster)
     damage: 20,
-    xpValue: 8,
+    xpValue: 16,       // P9.5: Doubled from 8
     size: 0.7,
     isBoss: false,
   },
@@ -538,7 +544,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
     health: 500,
     speed: 1.5,        // Increased from 1 (BUG-037: 50% faster)
     damage: 30,
-    xpValue: 100,
+    xpValue: 200,      // P9.5: Doubled from 100
     size: 3,
     isBoss: true,
   },
@@ -548,7 +554,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
     health: 800,
     speed: 2.25,       // Increased from 1.5 (BUG-037: 50% faster)
     damage: 40,
-    xpValue: 150,
+    xpValue: 300,      // P9.5: Doubled from 150
     size: 2.5,
     isBoss: true,
   },
@@ -558,7 +564,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
     health: 1200,
     speed: 3,          // Increased from 2 (BUG-037: 50% faster)
     damage: 50,
-    xpValue: 250,
+    xpValue: 500,      // P9.5: Doubled from 250
     size: 3,
     isBoss: true,
   },
@@ -568,10 +574,12 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
 // XP ORBS
 // =============================================================================
 
+// P9.5: XP orb values doubled for accelerated progression
+// Combined with XP_PROGRESSION_MULTIPLIER = 3.0 for ~6x effective XP from orbs
 export const XP_ORB_VALUES = {
-  small: 1,
-  medium: 5,
-  large: 25,
+  small: 2,   // P9.5: Doubled from 1
+  medium: 10, // P9.5: Doubled from 5
+  large: 50,  // P9.5: Doubled from 25
 } as const;
 
 // =============================================================================
@@ -584,24 +592,58 @@ export interface WaveConfig {
   bossType?: string;
 }
 
+// P9.5: Compressed wave schedule for ~5 minute sessions
+// Waves now transition every 20-30 seconds instead of 30-60 seconds
+// First boss at 60s instead of 120s for earlier power spikes
 export const WAVE_SCHEDULE: WaveConfig[] = [
-  { time: 0, enemies: { bat: 20 } },
-  { time: 30, enemies: { bat: 30, skeleton: 5 } },
-  { time: 60, enemies: { bat: 25, skeleton: 15 } },
-  { time: 90, enemies: { skeleton: 20, zombie: 10 } },
-  { time: 120, enemies: { zombie: 20, ghost: 15 }, bossType: 'boss_slime' },
-  { time: 180, enemies: { ghost: 30, slime: 20 } },
-  { time: 240, enemies: { slime: 30, demon: 10 }, bossType: 'boss_skeleton' },
-  { time: 300, enemies: { demon: 25, zombie: 30 } },
-  { time: 360, enemies: { demon: 40, ghost: 30 }, bossType: 'boss_demon' },
-  // After 360s, repeat last wave with increasing difficulty multiplier
+  { time: 0, enemies: { bat: 25 } },                                              // Wave 1: 0-20s
+  { time: 20, enemies: { bat: 35, skeleton: 8 } },                                // Wave 2: 20-45s
+  { time: 45, enemies: { bat: 30, skeleton: 20 } },                               // Wave 3: 45-60s
+  { time: 60, enemies: { skeleton: 25, zombie: 15 }, bossType: 'boss_slime' },    // Wave 4: 60-90s, FIRST BOSS
+  { time: 90, enemies: { zombie: 25, ghost: 20 } },                               // Wave 5: 90-120s
+  { time: 120, enemies: { ghost: 35, slime: 25 } },                               // Wave 6: 120-150s
+  { time: 150, enemies: { slime: 35, demon: 15 }, bossType: 'boss_skeleton' },    // Wave 7: 150-180s, SECOND BOSS
+  { time: 180, enemies: { demon: 30, zombie: 35 } },                              // Wave 8: 180-210s
+  { time: 210, enemies: { demon: 40, ghost: 35 } },                               // Wave 9: 210-240s
+  { time: 240, enemies: { demon: 50, ghost: 40 }, bossType: 'boss_demon' },       // Wave 10: 240-270s, THIRD BOSS
+  { time: 270, enemies: { demon: 60, zombie: 45, ghost: 40 } },                   // Wave 11: 270-300s, ENDGAME
+  { time: 300, enemies: { demon: 70, boss_slime: 1, zombie: 50 }, bossType: 'boss_demon' }, // Wave 12: 300s+, CHAOS
+  // After 300s (~5 min), repeat with increasing difficulty multiplier for extended sessions
 ];
 
 // =============================================================================
 // XP CURVE
 // =============================================================================
 
+/**
+ * P9.5: Compressed XP curve for ~5 minute sessions
+ *
+ * Original curve (for reference):
+ *   Level 1->2: 5 XP, Level 2->3: 15 XP, etc.
+ *   Total to level 8: ~245 XP
+ *
+ * New compressed curve:
+ *   Level 1->2: 3 XP, Level 2->3: 6 XP, etc.
+ *   Total to level 8: ~84 XP (with 3x XP_PROGRESSION_MULTIPLIER = effective ~252 XP value)
+ *
+ * Combined with XP_PROGRESSION_MULTIPLIER = 3.0, players gain XP 3x faster
+ * and level requirements are reduced, achieving ~9x effective progression boost.
+ *
+ * Target: Reach level 8 by minute 3 for Snake.io style pacing.
+ */
 export function getXPForLevel(level: number): number {
+  // P9.5: Compressed XP requirements for faster progression
+  if (level < 2) return 3;  // Was 5
+  if (level <= 20) return 3 + (level - 1) * 5;  // Was 5 + (level-1) * 10, now ~50% XP req
+  if (level <= 40) return 98 + (level - 20) * 7;  // Compressed mid-game
+  return 238 + (level - 40) * 10;  // Compressed late-game
+}
+
+/**
+ * Original XP curve preserved for reference/testing
+ * Can be used for "Classic" mode in future
+ */
+export function getXPForLevelOriginal(level: number): number {
   if (level < 2) return 5;
   if (level <= 20) return 5 + (level - 1) * 10;
   if (level <= 40) return 195 + (level - 20) * 13;

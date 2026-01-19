@@ -212,7 +212,7 @@ describe('XPSystem', () => {
   });
 
   describe('XP orb collection', () => {
-    it('should collect XP orb within collection radius', () => {
+    it('should collect XP orb within collection radius with P9.5 multiplier', () => {
       const player = createMockPlayer({ id: 'player-1', x: 0, y: 0 });
       const orb = createMockXPOrb({ id: 'orb-1', x: 0.5, y: 0, value: 10 });
       const gameState = createMockGameState([player], [orb]);
@@ -221,7 +221,9 @@ describe('XPSystem', () => {
       xpSystem.update(gameState, spatialHash, deltaTime);
 
       expect(orb.collected).toBe(true);
-      expect(player.addXP).toHaveBeenCalledWith(10);
+      // P9.5: XP is multiplied by XP_PROGRESSION_MULTIPLIER (3.0)
+      // 10 * 3 = 30
+      expect(player.addXP).toHaveBeenCalledWith(30);
     });
 
     it('should not collect orbs outside collection radius', () => {
@@ -258,7 +260,7 @@ describe('XPSystem', () => {
       expect(orb.collected).toBe(false);
     });
 
-    it('should track XP collected metric', () => {
+    it('should track XP collected metric with P9.5 progression multiplier', () => {
       const player = createMockPlayer({ id: 'player-1', x: 0, y: 0 });
       const orb = createMockXPOrb({ id: 'orb-1', x: 0, y: 0, value: 15 });
       const gameState = createMockGameState([player], [orb]);
@@ -267,7 +269,9 @@ describe('XPSystem', () => {
       xpSystem.update(gameState, spatialHash, deltaTime);
 
       const metrics = xpSystem.getXPMetrics();
-      expect(metrics.totalXPCollected).toBe(15);
+      // P9.5: XP is multiplied by XP_PROGRESSION_MULTIPLIER (3.0)
+      // 15 * 3 = 45
+      expect(metrics.totalXPCollected).toBe(45);
       expect(metrics.orbsCollected).toBe(1);
     });
   });
@@ -297,7 +301,7 @@ describe('XPSystem', () => {
       expect(player.addXP).not.toHaveBeenCalled();
     });
 
-    it('should cap XP at maximum value', () => {
+    it('should cap XP at maximum value then apply P9.5 progression multiplier', () => {
       const player = createMockPlayer({ id: 'player-1', x: 0, y: 0 });
       const orb = createMockXPOrb({ id: 'orb-1', x: 0, y: 0, value: 9999 });
       const gameState = createMockGameState([player], [orb]);
@@ -305,8 +309,9 @@ describe('XPSystem', () => {
 
       xpSystem.update(gameState, spatialHash, deltaTime);
 
-      // Should be capped at 1000
-      expect(player.addXP).toHaveBeenCalledWith(1000);
+      // P9.5: XP is capped at 1000, then multiplied by XP_PROGRESSION_MULTIPLIER (3.0)
+      // 1000 (cap) * 3 = 3000
+      expect(player.addXP).toHaveBeenCalledWith(3000);
     });
   });
 

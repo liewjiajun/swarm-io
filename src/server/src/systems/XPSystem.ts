@@ -135,6 +135,10 @@ export class XPSystem {
       return;
     }
 
+    // P9.5: Apply global XP progression multiplier for accelerated leveling
+    // This achieves the Snake.io style ~5 minute session target
+    validatedValue = Math.floor(validatedValue * GAME_CONSTANTS.XP_PROGRESSION_MULTIPLIER);
+
     // P5.1c: Apply double XP zone multiplier if player is in a double XP zone
     if (this.worldEventSystem) {
       const xpMultiplier = this.worldEventSystem.isInDoubleXpZone(gameState, player.x, player.y);
@@ -143,9 +147,10 @@ export class XPSystem {
         xpSystemLogger.debug({
           playerId: player.id,
           baseXp: orb.value,
-          multiplier: xpMultiplier,
+          progressionMultiplier: GAME_CONSTANTS.XP_PROGRESSION_MULTIPLIER,
+          zoneMultiplier: xpMultiplier,
           finalXp: validatedValue
-        }, 'Double XP zone applied');
+        }, 'XP multipliers applied');
       }
     }
 

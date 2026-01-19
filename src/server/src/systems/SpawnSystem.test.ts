@@ -103,8 +103,10 @@ describe('SpawnSystem', () => {
     it('should return empty boss spawn status initially', () => {
       const status = spawnSystem.getBossSpawnStatus();
 
-      // Should have entries for waves with bosses (waves 4, 6, 8 based on WAVE_SCHEDULE)
-      expect(status.length).toBe(3);
+      // P9.5: Compressed wave schedule has 4 boss waves (indices 3, 6, 9, 11)
+      // Wave 3 (60s): boss_slime, Wave 6 (150s): boss_skeleton,
+      // Wave 9 (240s): boss_demon, Wave 11 (300s): boss_demon
+      expect(status.length).toBe(4);
       status.forEach(s => {
         expect(s.spawned).toBe(false);
       });
@@ -121,8 +123,9 @@ describe('SpawnSystem', () => {
       expect(world.currentWave).toBe(0);
     });
 
-    it('should progress to wave 1 at 30 seconds', () => {
-      const world = createMockWorld({ gameTime: 30, currentWave: 0 });
+    it('should progress to wave 1 at 20 seconds', () => {
+      // P9.5: Compressed wave schedule - wave 1 starts at 20s (was 30s)
+      const world = createMockWorld({ gameTime: 20, currentWave: 0 });
       const gameState = createMockGameState(world, [createMockPlayer()]);
 
       spawnSystem.update(gameState, deltaTime);
@@ -130,13 +133,14 @@ describe('SpawnSystem', () => {
       expect(world.currentWave).toBe(1);
     });
 
-    it('should progress to wave 4 at 120 seconds', () => {
+    it('should progress to wave 5 at 120 seconds', () => {
+      // P9.5: Compressed wave schedule - at 120s we're at wave 5 (was wave 4)
       const world = createMockWorld({ gameTime: 120, currentWave: 0 });
       const gameState = createMockGameState(world, [createMockPlayer()]);
 
       spawnSystem.update(gameState, deltaTime);
 
-      expect(world.currentWave).toBe(4);
+      expect(world.currentWave).toBe(5);
     });
 
     it('should reach final wave at 360 seconds', () => {
@@ -160,8 +164,8 @@ describe('SpawnSystem', () => {
 
   describe('boss spawning', () => {
     it('should spawn boss when wave with boss becomes active', () => {
-      // Wave 4 (at 120s) has boss_slime
-      const world = createMockWorld({ gameTime: 120, currentWave: 3, worldRadius: 100 });
+      // P9.5: Wave 3 (index 3, at 60s) has boss_slime (was wave 4 at 120s)
+      const world = createMockWorld({ gameTime: 60, currentWave: 2, worldRadius: 100 });
       const gameState = createMockGameState(world, [createMockPlayer()]);
 
       spawnSystem.update(gameState, deltaTime);
@@ -175,7 +179,8 @@ describe('SpawnSystem', () => {
     });
 
     it('should spawn boss only once per wave', () => {
-      const world = createMockWorld({ gameTime: 120, currentWave: 3, worldRadius: 100 });
+      // P9.5: Wave 3 (at 60s) has boss_slime
+      const world = createMockWorld({ gameTime: 60, currentWave: 2, worldRadius: 100 });
       const gameState = createMockGameState(world, [createMockPlayer()]);
 
       // First update - boss spawns
@@ -183,7 +188,7 @@ describe('SpawnSystem', () => {
       const _firstCallCount = gameState.addEnemy.mock.calls.length;
 
       // Second update - boss should NOT spawn again
-      world.gameTime = 121;
+      world.gameTime = 61;
       spawnSystem.update(gameState, deltaTime);
 
       // Check that boss wasn't spawned again (allow for regular enemy spawns)
@@ -194,20 +199,23 @@ describe('SpawnSystem', () => {
     });
 
     it('should track boss spawn status', () => {
-      const world = createMockWorld({ gameTime: 120, currentWave: 3, worldRadius: 100 });
+      // P9.5: Wave 3 (at 60s) has boss_slime
+      const world = createMockWorld({ gameTime: 60, currentWave: 2, worldRadius: 100 });
       const gameState = createMockGameState(world, [createMockPlayer()]);
 
       spawnSystem.update(gameState, deltaTime);
 
       const status = spawnSystem.getBossSpawnStatus();
-      const wave4Status = status.find(s => s.wave === 4);
-      expect(wave4Status?.spawned).toBe(true);
+      // P9.5: Wave 3 is the first boss wave (index 3)
+      const wave3Status = status.find(s => s.wave === 3);
+      expect(wave3Status?.spawned).toBe(true);
     });
 
     it('should initialize boss with difficulty scaling', () => {
+      // P9.5: Wave 3 (at 60s) has boss_slime
       const world = createMockWorld({
-        gameTime: 120,
-        currentWave: 3,
+        gameTime: 60,
+        currentWave: 2,
         worldRadius: 100,
         difficulty: 1.5
       });
@@ -221,7 +229,8 @@ describe('SpawnSystem', () => {
     });
 
     it('should increment bossesSpawned metric', () => {
-      const world = createMockWorld({ gameTime: 120, currentWave: 3, worldRadius: 100 });
+      // P9.5: Wave 3 (at 60s) has boss_slime
+      const world = createMockWorld({ gameTime: 60, currentWave: 2, worldRadius: 100 });
       const gameState = createMockGameState(world, [createMockPlayer()]);
 
       spawnSystem.update(gameState, deltaTime);
@@ -487,18 +496,20 @@ describe('SpawnSystem', () => {
     });
 
     it('should clear boss spawn tracking', () => {
-      const world = createMockWorld({ gameTime: 120, currentWave: 3, worldRadius: 100 });
+      // P9.5: Wave 3 (at 60s) has boss_slime
+      const world = createMockWorld({ gameTime: 60, currentWave: 2, worldRadius: 100 });
       const gameState = createMockGameState(world, [createMockPlayer()]);
 
       spawnSystem.update(gameState, deltaTime);
 
       let status = spawnSystem.getBossSpawnStatus();
-      expect(status.find(s => s.wave === 4)?.spawned).toBe(true);
+      // P9.5: Wave 3 is the first boss wave
+      expect(status.find(s => s.wave === 3)?.spawned).toBe(true);
 
       spawnSystem.reset();
 
       status = spawnSystem.getBossSpawnStatus();
-      expect(status.find(s => s.wave === 4)?.spawned).toBe(false);
+      expect(status.find(s => s.wave === 3)?.spawned).toBe(false);
     });
   });
 
@@ -506,21 +517,24 @@ describe('SpawnSystem', () => {
     it('should return status for all boss waves', () => {
       const status = spawnSystem.getBossSpawnStatus();
 
-      // WAVE_SCHEDULE has bosses at waves 4, 6, 8
-      expect(status.length).toBe(3);
-      expect(status.map(s => s.wave)).toContain(4);
+      // P9.5: WAVE_SCHEDULE has bosses at waves 3, 6, 9, 11 (indices with bossType)
+      expect(status.length).toBe(4);
+      expect(status.map(s => s.wave)).toContain(3);
       expect(status.map(s => s.wave)).toContain(6);
-      expect(status.map(s => s.wave)).toContain(8);
+      expect(status.map(s => s.wave)).toContain(9);
+      expect(status.map(s => s.wave)).toContain(11);
     });
 
     it('should not include non-boss waves', () => {
       const status = spawnSystem.getBossSpawnStatus();
 
-      // Waves 0, 1, 2, 3, 5, 7 don't have bosses
+      // P9.5: Waves 0, 1, 2, 4, 5, 7, 8, 10 don't have bosses
       expect(status.map(s => s.wave)).not.toContain(0);
       expect(status.map(s => s.wave)).not.toContain(1);
       expect(status.map(s => s.wave)).not.toContain(2);
-      expect(status.map(s => s.wave)).not.toContain(3);
+      expect(status.map(s => s.wave)).not.toContain(4);
+      expect(status.map(s => s.wave)).not.toContain(5);
+      expect(status.map(s => s.wave)).not.toContain(7);
     });
   });
 });
