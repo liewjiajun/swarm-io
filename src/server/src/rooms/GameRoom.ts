@@ -11,7 +11,7 @@ import {
   WorldEventSystem,
   PowerUpSystem
 } from '../systems/index.js';
-import { GAME_CONSTANTS, randomPointOnCircle } from '@swarm-io/shared';
+import { GAME_CONSTANTS, randomPointOnCircle, getCharacterClassIds } from '@swarm-io/shared';
 import { InputMessage, UpgradeMessage, TradeOfferMessage, TradeResponseMessage } from '@swarm-io/shared';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -365,12 +365,22 @@ export class GameRoom extends Room<GameState> {
           .replace(/[<>&"'`]/g, ''); // Remove HTML-sensitive chars
       }
 
+      // P9.3: Extract and validate playerClass from options
+      let playerClass = 'survivor';
+      if (options?.playerClass && typeof options.playerClass === 'string') {
+        const validClasses = getCharacterClassIds();
+        const requestedClass = options.playerClass.toLowerCase().trim();
+        if (validClasses.includes(requestedClass)) {
+          playerClass = requestedClass;
+        }
+      }
+
       // Generate spawn position near center with some spread
       const spawnRadius = Math.min(100, this.state.world.worldRadius * 0.2);
       const spawnPos = randomPointOnCircle(spawnRadius);
 
-      // Add player to game state with nickname
-      this.state.addPlayer(client.sessionId, spawnPos.x, spawnPos.y, nickname);
+      // Add player to game state with nickname and class
+      this.state.addPlayer(client.sessionId, spawnPos.x, spawnPos.y, nickname, playerClass);
 
       // Initialize client data
       this.clientData.set(client.sessionId, {

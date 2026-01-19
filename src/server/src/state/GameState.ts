@@ -7,7 +7,7 @@ import { XPOrbSchema } from './XPOrbSchema';
 import { WorldSchema } from './WorldSchema';
 import { WorldEventSchema } from './WorldEventSchema';
 import { PowerUpSchema } from './PowerUpSchema';
-import { generateId, getRandomStartingWeapons } from '@swarm-io/shared';
+import { generateId, getCharacterClass, getClassStartingWeapons } from '@swarm-io/shared';
 import { GAME_CONSTANTS } from '@swarm-io/shared';
 import { ObjectPool, resetProjectile, resetEnemy, resetXPOrb, resetPowerUp } from '../systems/ObjectPool';
 
@@ -149,19 +149,23 @@ export class GameState extends Schema {
     this.powerUps = new MapSchema<PowerUpSchema>();
   }
 
-  addPlayer(id: string, x: number, y: number, nickname?: string): PlayerSchema {
+  addPlayer(id: string, x: number, y: number, nickname?: string, playerClass?: string): PlayerSchema {
     const player = new PlayerSchema();
     player.id = id;
     player.nickname = nickname || ''; // P3.1: Set player nickname
+    player.playerClass = playerClass || 'survivor'; // P9.3: Set player class
     player.x = x;
     player.y = y;
-    player.health = GAME_CONSTANTS.PLAYER_START_HEALTH;
-    player.maxHealth = GAME_CONSTANTS.PLAYER_START_HEALTH;
-    player.speed = GAME_CONSTANTS.PLAYER_BASE_SPEED;
+
+    // P9.3: Apply class-specific stat multipliers
+    const classConfig = getCharacterClass(player.playerClass);
+    player.maxHealth = Math.round(GAME_CONSTANTS.PLAYER_START_HEALTH * classConfig.healthMultiplier);
+    player.health = player.maxHealth;
+    player.speed = GAME_CONSTANTS.PLAYER_BASE_SPEED * classConfig.speedMultiplier;
     player.invulnerableTime = GAME_CONSTANTS.PLAYER_INVULN_TIME;
 
-    // P9.6: Start with random weapons (2-3, balanced between ranged and melee)
-    const startingWeapons = getRandomStartingWeapons();
+    // P9.3: Get class-specific starting weapons (or random for survivor)
+    const startingWeapons = getClassStartingWeapons(player.playerClass);
     for (const weapon of startingWeapons) {
       player.addWeapon(weapon);
     }

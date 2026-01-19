@@ -1,5 +1,5 @@
 import { GameState, PlayerSchema, EnemySchema } from '../state/GameState.js';
-import { WEAPON_CONFIGS } from '@swarm-io/shared';
+import { WEAPON_CONFIGS, getCharacterClass } from '@swarm-io/shared';
 import { SpatialHash } from './SpatialHash.js';
 import { weaponSystemLogger } from '../utils/logger.js';
 
@@ -78,8 +78,8 @@ export class WeaponSystem {
       return;
     }
 
-    // Calculate scaled stats
-    const damage = this.calculateWeaponDamage(config, weapon.level);
+    // Calculate scaled stats with class damage multiplier
+    const damage = this.calculateWeaponDamage(config, weapon.level, player);
     const cooldown = this.calculateWeaponCooldown(config, weapon.level);
 
     // Fire weapon based on type
@@ -466,12 +466,23 @@ export class WeaponSystem {
   }
 
   // Utility methods for weapon calculations
-  private calculateWeaponDamage(config: any, level: number): number {
+  private calculateWeaponDamage(config: any, level: number, player: PlayerSchema): number {
     // Damage scales by +20% per level
-    const scaledDamage = config.damage * (1 + (level - 1) * 0.2);
+    let scaledDamage = config.damage * (1 + (level - 1) * 0.2);
+
+    // P9.3: Apply class-specific damage multiplier (e.g., Warrior gets +25% damage)
+    const classConfig = getCharacterClass(player.playerClass);
+    if (classConfig.damageMultiplier !== 1.0) {
+      scaledDamage *= classConfig.damageMultiplier;
+    }
+
+    // P5.2: Apply damage boost power-up multiplier
+    if (player.hasDamageBoost) {
+      scaledDamage *= 1.5; // GAME_CONSTANTS.POWERUP_DAMAGE_BOOST_MULTIPLIER
+    }
 
     // Security validation: Ensure damage is reasonable
-    const maxDamage = config.damage * 5; // 5x safety margin
+    const maxDamage = config.damage * 5 * 1.5 * 1.25; // 5x safety margin * power-up * warrior class
     if (scaledDamage > maxDamage) {
       this.logSecurityViolation('Damage exceeds safety bounds', {
         weaponType: config.type,

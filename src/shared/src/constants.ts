@@ -671,3 +671,131 @@ export const UPGRADE_POOL: UpgradeDefinition[] = [
   { id: 'magnet_boost', type: 'stat_boost', statType: 'magnet', statBoost: 1, description: '+1 XP Magnet Range', weight: 10, maxLevel: 5 },
   { id: 'armor_boost', type: 'stat_boost', statType: 'armor', statBoost: 5, description: '-5 Damage Taken', weight: 8, maxLevel: 5 },
 ];
+
+// =============================================================================
+// P9.3: CHARACTER CLASSES
+// =============================================================================
+// Each class provides unique starting weapons and a passive bonus
+// Classes are unlocked through gameplay achievements stored in localStorage
+
+export interface CharacterClassConfig {
+  id: string;
+  name: string;
+  description: string;
+  // Starting weapons (fixed loadout, not random)
+  startingWeapons: string[];
+  // Stat multipliers (1.0 = no change)
+  healthMultiplier: number;
+  speedMultiplier: number;
+  damageMultiplier: number;
+  xpMultiplier: number;
+  // Unlock requirements (null = always unlocked)
+  unlockRequirement: CharacterClassUnlockRequirement | null;
+}
+
+export interface CharacterClassUnlockRequirement {
+  type: 'level' | 'kills' | 'survival' | 'damage_blocked';
+  value: number;
+  description: string;
+}
+
+export const CHARACTER_CLASSES: Record<string, CharacterClassConfig> = {
+  survivor: {
+    id: 'survivor',
+    name: 'Survivor',
+    description: 'Balanced start with random weapons',
+    startingWeapons: [], // Empty = use getRandomStartingWeapons()
+    healthMultiplier: 1.0,
+    speedMultiplier: 1.0,
+    damageMultiplier: 1.0,
+    xpMultiplier: 1.0,
+    unlockRequirement: null, // Always available
+  },
+  mage: {
+    id: 'mage',
+    name: 'Mage',
+    description: '+20% XP gain',
+    startingWeapons: ['wand', 'fireball'],
+    healthMultiplier: 1.0,
+    speedMultiplier: 1.0,
+    damageMultiplier: 1.0,
+    xpMultiplier: 1.2,
+    unlockRequirement: {
+      type: 'level',
+      value: 10,
+      description: 'Reach level 10 in a single run',
+    },
+  },
+  warrior: {
+    id: 'warrior',
+    name: 'Warrior',
+    description: '+25% damage',
+    startingWeapons: ['axe', 'whip'],
+    healthMultiplier: 1.0,
+    speedMultiplier: 1.0,
+    damageMultiplier: 1.25,
+    xpMultiplier: 1.0,
+    unlockRequirement: {
+      type: 'kills',
+      value: 500,
+      description: 'Kill 500 enemies total',
+    },
+  },
+  speedster: {
+    id: 'speedster',
+    name: 'Speedster',
+    description: '+30% move speed',
+    startingWeapons: ['knife', 'knife'], // Two knives!
+    healthMultiplier: 1.0,
+    speedMultiplier: 1.3,
+    damageMultiplier: 1.0,
+    xpMultiplier: 1.0,
+    unlockRequirement: {
+      type: 'survival',
+      value: 300, // 5 minutes
+      description: 'Survive for 5 minutes',
+    },
+  },
+  tank: {
+    id: 'tank',
+    name: 'Tank',
+    description: '+50% HP',
+    startingWeapons: ['garlic', 'bible'],
+    healthMultiplier: 1.5,
+    speedMultiplier: 1.0,
+    damageMultiplier: 1.0,
+    xpMultiplier: 1.0,
+    unlockRequirement: {
+      type: 'damage_blocked',
+      value: 1000,
+      description: 'Block 1000 damage total',
+    },
+  },
+};
+
+/**
+ * Get the class configuration for a given class ID
+ * Returns survivor class if the ID is invalid
+ */
+export function getCharacterClass(classId: string): CharacterClassConfig {
+  return CHARACTER_CLASSES[classId] || CHARACTER_CLASSES.survivor;
+}
+
+/**
+ * Get starting weapons for a class
+ * If the class has no preset weapons, returns random starting weapons
+ */
+export function getClassStartingWeapons(classId: string): string[] {
+  const classConfig = getCharacterClass(classId);
+  if (classConfig.startingWeapons.length === 0) {
+    return getRandomStartingWeapons();
+  }
+  return [...classConfig.startingWeapons];
+}
+
+/**
+ * Get all available class IDs
+ */
+export function getCharacterClassIds(): string[] {
+  return Object.keys(CHARACTER_CLASSES);
+}

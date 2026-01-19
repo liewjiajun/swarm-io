@@ -2,9 +2,9 @@
 
 ## Current Status: Phase 6 Complete - Core Redesign In Progress
 
-**Last Updated:** 2026-01-19 (P9.2 Server-Side Leaderboard Complete)
-**Implementation Progress:** 120/85 tasks completed (141%)
-**Test Count:** 561 tests - ALL PASSING (477 server + 84 shared)
+**Last Updated:** 2026-01-19 (P9.3 Character Classes Complete)
+**Implementation Progress:** 122/85 tasks completed (143%)
+**Test Count:** 578 tests - ALL PASSING (477 server + 101 shared)
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
 **Critical Bugs:** 0 | **Medium Bugs:** 8 | **Low Bugs:** 2 | **In Progress:** 1 (BUG-035)
 **Code Quality:** Excellent (0 TODOs, 0 FIXMEs, 0 skipped tests, 4 console.warn, ~26 `any` types)
@@ -103,15 +103,8 @@ Important for polish and retention. Can be scheduled after P1/P2.
 - [x] **P9.2: Server-Side All-Time Leaderboard** - COMPLETED 2026-01-19
   - See COMPLETED TASKS section for details
 
-- [ ] **P9.3: Character Classes (Basic 3-5)** - NOT STARTED
-  - Status: No class system; all players identical at spawn (knife only, 100 HP, speed 8)
-  - Current Player Init: GameState.addPlayer() → PlayerSchema with fixed stats
-  - Files:
-    - New: `src/shared/src/classes.ts` - Class definitions
-    - `src/client/src/ui/HUD.ts` - Class selection UI
-    - `src/client/src/storage/LocalStorage.ts` - Unlock progress
-  - Classes: Survivor, Mage, Warrior, Speedster, Tank
-  - Dependencies: P9.1 (localStorage abstraction)
+- [x] **P9.3: Character Classes (Basic 3-5)** - COMPLETED 2026-01-19
+  - See COMPLETED TASKS section for details
 
 - [ ] **P9.4: Weapon Evolution System** - NOT STARTED
   - Status: No evolution configs exist
@@ -226,7 +219,7 @@ Blocking production deployment. Should be addressed in parallel with feature wor
 | PlayerSchema | 1 | 48 | Excellent |
 | HiddenPowerUps | 1 | 47 | Excellent |
 | InputSystem | 1 | 41 | Excellent |
-| Shared Constants | 1 | 41 | Good |
+| Shared Constants | 1 | 58 | Excellent |
 | CombatSystem | 1 | 40 | Good |
 | ObjectPool | 1 | 37 | Good |
 | TelemetryService | 1 | 34 | Good |
@@ -338,6 +331,37 @@ Blocking production deployment. Should be addressed in parallel with feature wor
     - Modified: src/client/src/network/NetworkClient.ts - Leaderboard update callback
     - Modified: src/client/src/ui/HUD.ts - All-time leaderboard display
   - Test Count: 561 tests (477 server + 84 shared)
+
+- [x] **P9.3: Character Classes (Basic 3-5)** - COMPLETED 2026-01-19
+  - Created 5 character classes with stat multipliers and unique abilities:
+    - **Survivor**: Default class, balanced stats, random starting weapons
+    - **Mage**: +20% XP gain, starts with Wand + Fireball (unlock: reach level 10)
+    - **Warrior**: +25% damage, starts with Axe + Whip (unlock: kill 500 enemies)
+    - **Speedster**: +30% move speed, starts with 2x Knife (unlock: survive 5 minutes)
+    - **Tank**: +50% HP, starts with Garlic + Bible (unlock: block 1000 damage)
+  - Server-side implementation:
+    - Added CHARACTER_CLASSES config and helper functions to constants.ts
+    - PlayerSchema tracks playerClass with stat multipliers applied on spawn/respawn
+    - GameState.addPlayer() accepts playerClass parameter
+    - GameRoom.ts validates and extracts playerClass from client options
+    - XPSystem applies class xpMultiplier
+    - WeaponSystem applies class damageMultiplier
+  - Client-side implementation:
+    - Class selection modal shown after nickname entry
+    - localStorage stores class unlock progress
+    - NetworkClient sends playerClass on connect
+  - Files Modified:
+    - Modified: src/shared/src/constants.ts - CHARACTER_CLASSES, getCharacterClass(), getClassStartingWeapons(), getCharacterClassIds()
+    - Modified: src/server/src/state/PlayerSchema.ts - playerClass field, class-based stats
+    - Modified: src/server/src/state/GameState.ts - addPlayer() accepts playerClass
+    - Modified: src/server/src/rooms/GameRoom.ts - playerClass validation
+    - Modified: src/server/src/systems/XPSystem.ts - class XP multiplier
+    - Modified: src/server/src/systems/WeaponSystem.ts - class damage multiplier
+    - Modified: src/client/src/network/NetworkClient.ts - playerClass field
+    - Modified: src/client/src/ui/HUD.ts - class selection modal and unlock progress
+    - Modified: src/client/src/game/Game.ts - class selection flow
+    - Modified: src/shared/src/constants.test.ts - 17 new tests for character classes
+  - Test Count: 578 tests (477 server + 101 shared)
 
 - [x] **P9.5: Accelerate XP/Progression ~6x** - COMPLETED 2026-01-19
   - **Summary:** Achieved ~6x effective progression boost (3x multiplier + 2x enemy XP + 50% compressed XP curve)
@@ -490,10 +514,10 @@ Post-implementation testing criteria.
 | Metric | Value | Notes |
 |--------|-------|-------|
 | Total Tasks | 85 | Across 6 phases |
-| Completed | 120 | 141% (all phases complete + extras) |
+| Completed | 122 | 143% (all phases complete + extras) |
 | Critical Bugs | 0 | All critical bugs fixed |
 | Medium Bugs | 8 | BUG-040-045, BUG-051-052 |
-| Test Coverage | 561 tests | All passing (477 server + 84 shared) |
+| Test Coverage | 578 tests | All passing (477 server + 101 shared) |
 | Testing Gaps | CRITICAL | Renderer (0), GameRoom (0), Integration (0) |
 | Code Quality | Excellent | 0 TODOs, 0 FIXMEs, 0 skipped tests |
 
@@ -514,7 +538,7 @@ Post-implementation testing criteria.
 | Persistent high score | Working | P9.1 complete (16 tests) |
 | Random starting weapons | Working | P9.6 complete (2-3 weapons, 8 tests) |
 | Server leaderboard | Working | P9.2 complete (30 tests) |
-| Character classes | NOT STARTED | No class definitions |
+| Character classes | Working | P9.3 complete (5 classes, 17 tests) |
 | Weapon evolution | NOT STARTED | No evolution configs |
 
 ---
@@ -545,7 +569,7 @@ Post-implementation testing criteria.
 | PlayerSchema | 1 | 48 | Excellent |
 | HiddenPowerUps | 1 | 47 | Excellent |
 | InputSystem | 1 | 41 | Excellent |
-| Shared Constants | 1 | 41 | Good |
+| Shared Constants | 1 | 58 | Excellent |
 | CombatSystem | 1 | 40 | Good |
 | ObjectPool | 1 | 37 | Good |
 | TelemetryService | 1 | 34 | Good |
@@ -1051,29 +1075,38 @@ interface PlayerStats {
 
 ---
 
-### P9.3: Character Classes (Basic) [NOT STARTED]
+### P9.3: Character Classes (Basic) [COMPLETED 2026-01-19]
 
-**Description:** 3-5 starter character classes with preset weapons and unique abilities. More classes unlock through play.
+**Description:** 5 character classes with preset weapons and stat multipliers. More classes unlock through play.
 
-**Initial Classes:**
+**Implementation Summary:**
+- Created CHARACTER_CLASSES config in shared/constants.ts with helper functions
+- Server validates class selection and applies stat multipliers (health, speed, damage, XP)
+- Client shows class selection modal after nickname entry
+- Class unlock progress persists in localStorage
+
+**Classes Implemented:**
 | Class | Starting Weapons | Unique Ability | Unlock Condition |
 |-------|------------------|----------------|------------------|
-| **Survivor** | Knife, Garlic | None (default) | Always available |
+| **Survivor** | Random (2-3) | None (default) | Always available |
 | **Mage** | Wand, Fireball | +20% XP gain | Reach level 10 |
 | **Warrior** | Axe, Whip | +25% damage | Kill 500 enemies |
 | **Speedster** | Knife x2 | +30% move speed | Survive 5 minutes |
 | **Tank** | Garlic, Bible | +50% HP | Block 1000 damage |
 
-**Requirements:**
-- Class selection on start screen
-- Visual indicator of class (sprite tint or icon)
-- Class unlock progress stored in localStorage
-- Locked classes show unlock requirement
+**Files Modified:**
+- `src/shared/src/constants.ts` - CHARACTER_CLASSES, getCharacterClass(), getClassStartingWeapons(), getCharacterClassIds()
+- `src/server/src/state/PlayerSchema.ts` - playerClass field, class-based stats
+- `src/server/src/state/GameState.ts` - addPlayer() accepts playerClass
+- `src/server/src/rooms/GameRoom.ts` - playerClass validation
+- `src/server/src/systems/XPSystem.ts` - class XP multiplier
+- `src/server/src/systems/WeaponSystem.ts` - class damage multiplier
+- `src/client/src/network/NetworkClient.ts` - playerClass field
+- `src/client/src/ui/HUD.ts` - class selection modal and unlock progress
+- `src/client/src/game/Game.ts` - class selection flow
+- `src/shared/src/constants.test.ts` - 17 new tests for character classes
 
-**Location:**
-- New file: `src/shared/src/classes.ts` - Class definitions
-- `src/client/src/ui/HUD.ts` - Class selection UI
-- `src/client/src/storage/LocalStorage.ts` - Unlock progress
+**Test Count:** 578 tests (477 server + 101 shared)
 
 ---
 
@@ -1439,6 +1472,17 @@ npm run test:memory --players=20 --duration=30
 ---
 
 ## CHANGELOG SUMMARY
+
+**2026-01-19 (P9.3 Character Classes Complete):**
+- **P9.3 COMPLETED**: Character Classes fully implemented
+  - Created 5 character classes: Survivor, Mage, Warrior, Speedster, Tank
+  - Each class has unique stat multipliers (health, speed, damage, XP) and starting weapons
+  - Server-side: PlayerSchema tracks playerClass, GameState/GameRoom validate and apply class
+  - XPSystem applies class xpMultiplier, WeaponSystem applies class damageMultiplier
+  - Client-side: Class selection modal after nickname, localStorage for unlock progress
+  - Added 17 new tests for character class system
+- **Test count updated**: 578 tests (477 server + 101 shared)
+- **Implementation progress**: 122/85 tasks (143%)
 
 **2026-01-19 (P9.2 Server-Side Leaderboard Complete):**
 - **P9.2 COMPLETED**: Server-Side All-Time Leaderboard fully implemented

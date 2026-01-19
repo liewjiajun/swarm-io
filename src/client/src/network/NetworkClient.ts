@@ -45,6 +45,7 @@ interface UpgradeChoice {
 interface SerializedPlayer {
   id: string;
   nickname: string; // P3.1: Player display name
+  playerClass: string; // P9.3: Character class
   x: number;
   y: number;
   health: number;
@@ -150,6 +151,9 @@ export class NetworkClient {
   // P3.1: Player nickname (stored for reconnection)
   private playerNickname: string = '';
 
+  // P9.3: Player class (stored for reconnection)
+  private playerClass: string = 'survivor';
+
   // P3.4: Client-side rate limiting (match server's 30 inputs/sec limit)
   private readonly MAX_INPUTS_PER_SECOND = 30;
   private readonly RATE_LIMIT_WINDOW = 1000; // 1 second window
@@ -246,7 +250,7 @@ export class NetworkClient {
     return true;
   }
 
-  async connect(nickname?: string): Promise<void> {
+  async connect(nickname?: string, playerClass?: string): Promise<void> {
     if (this.isReconnecting) {
       logger.debug('Already reconnecting, skipping');
       return;
@@ -255,6 +259,11 @@ export class NetworkClient {
     // P3.1: Store nickname for potential reconnection
     if (nickname) {
       this.playerNickname = nickname;
+    }
+
+    // P9.3: Store playerClass for potential reconnection
+    if (playerClass) {
+      this.playerClass = playerClass;
     }
 
     try {
@@ -268,15 +277,15 @@ export class NetworkClient {
         } catch (reconnectError) {
           logger.info({ error: String(reconnectError) }, 'Reconnection failed, clearing stale session and joining fresh');
           localStorage.removeItem('swarm_session');
-          // P3.1: Send nickname when joining fresh
-          this.room = await this.client.joinOrCreate('game', { nickname: this.playerNickname });
+          // P3.1 + P9.3: Send nickname and class when joining fresh
+          this.room = await this.client.joinOrCreate('game', { nickname: this.playerNickname, playerClass: this.playerClass });
         }
       } else {
-        // P3.1: Send nickname when joining
-        this.room = await this.client.joinOrCreate('game', { nickname: this.playerNickname });
+        // P3.1 + P9.3: Send nickname and class when joining
+        this.room = await this.client.joinOrCreate('game', { nickname: this.playerNickname, playerClass: this.playerClass });
       }
 
-      logger.info({ roomId: this.room.id, nickname: this.playerNickname }, 'Connected to room');
+      logger.info({ roomId: this.room.id, nickname: this.playerNickname, playerClass: this.playerClass }, 'Connected to room');
 
       // Store session for reconnection
       if (this.room.reconnectionToken) {
@@ -503,6 +512,7 @@ export class NetworkClient {
       players.set(id, {
         id: player.id,
         nickname: player.nickname || '', // P3.1: Include player nickname
+        playerClass: player.playerClass || 'survivor', // P9.3: Include player class
         x: player.x,
         y: player.y,
         health: player.health,

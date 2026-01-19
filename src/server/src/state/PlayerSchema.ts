@@ -1,11 +1,12 @@
 import { Schema, ArraySchema, defineTypes } from '@colyseus/schema';
 import { WeaponSchema } from './WeaponSchema';
-import { GAME_CONSTANTS, WEAPON_CONFIGS, getXPForLevel, getRandomStartingWeapons } from '@swarm-io/shared';
+import { GAME_CONSTANTS, WEAPON_CONFIGS, getXPForLevel, getCharacterClass, getClassStartingWeapons } from '@swarm-io/shared';
 
 export class PlayerSchema extends Schema {
   // Don't use class field initializers - they bypass prototype getters/setters
   id!: string;
   nickname!: string; // P3.1: Player display name
+  playerClass!: string; // P9.3: Character class (survivor, mage, warrior, speedster, tank)
   x!: number;
   y!: number;
   health!: number;
@@ -56,6 +57,7 @@ export class PlayerSchema extends Schema {
     // Initialize all synced values through the setters (with useDefineForClassFields: false)
     this.id = '';
     this.nickname = ''; // P3.1: Default empty nickname
+    this.playerClass = 'survivor'; // P9.3: Default class
     this.x = 0;
     this.y = 0;
     this.health = 100;
@@ -206,10 +208,13 @@ export class PlayerSchema extends Schema {
     this.invulnerableTime = GAME_CONSTANTS.PLAYER_INVULN_TIME;
     this.killedBy = '';
 
-    // Reset all stats to initial values
-    this.maxHealth = 100;
+    // P9.3: Apply class-specific stat multipliers
+    const classConfig = getCharacterClass(this.playerClass);
+
+    // Reset all stats to initial values with class multipliers
+    this.maxHealth = Math.round(GAME_CONSTANTS.PLAYER_START_HEALTH * classConfig.healthMultiplier);
     this.health = this.maxHealth;
-    this.speed = 5;
+    this.speed = GAME_CONSTANTS.PLAYER_BASE_SPEED * classConfig.speedMultiplier;
     this.armor = 0;
     this.magnetRange = GAME_CONSTANTS.XP_MAGNET_RADIUS;
 
@@ -240,8 +245,8 @@ export class PlayerSchema extends Schema {
     this.magnetBoostTime = 0;
 
     this.weapons.clear();
-    // P9.6: Get random starting weapons on respawn (same as initial spawn)
-    const startingWeapons = getRandomStartingWeapons();
+    // P9.3: Get class-specific starting weapons (or random for survivor)
+    const startingWeapons = getClassStartingWeapons(this.playerClass);
     for (const weapon of startingWeapons) {
       this.addWeapon(weapon);
     }
@@ -309,6 +314,7 @@ export class PlayerSchema extends Schema {
 defineTypes(PlayerSchema, {
   id: 'string',
   nickname: 'string', // P3.1: Synced player nickname
+  playerClass: 'string', // P9.3: Synced player class
   x: 'number',
   y: 'number',
   health: 'number',

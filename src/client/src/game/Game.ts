@@ -22,6 +22,7 @@ export class Game {
   private inputSequence: number = 0;
   private paused: boolean = false;
   private playerNickname: string = ''; // P3.1: Store player nickname
+  private playerClass: string = 'survivor'; // P9.3: Store player class
 
   // BUG-011 FIX: Throttle input sending to match server rate limit (30Hz)
   // Previously game sent 60Hz inputs but NetworkClient dropped 50% due to rate limiting
@@ -145,21 +146,31 @@ export class Game {
       }
     });
 
-    // P3.1: Show nickname modal first, then tutorial
+    // P3.1 + P9.3: Show nickname modal first, then class selection, then tutorial
     // Load stored nickname if available for returning players
     const storedNickname = this.hud.getStoredNickname();
+    const storedClass = this.hud.getStoredPlayerClass();
+
     if (storedNickname) {
       // Returning player - use stored nickname
       this.playerNickname = storedNickname;
-      this.hud.showTutorialIfFirstTime(() => {
-        this.startGameConnection();
+      // Show class selection (they may want to change class)
+      this.hud.showClassSelectionModal((classId) => {
+        this.playerClass = classId;
+        this.hud.showTutorialIfFirstTime(() => {
+          this.startGameConnection();
+        });
       });
     } else {
       // First time player - show nickname modal first
       this.hud.showNicknameModal((nickname) => {
         this.playerNickname = nickname;
-        this.hud.showTutorialIfFirstTime(() => {
-          this.startGameConnection();
+        // Then show class selection
+        this.hud.showClassSelectionModal((classId) => {
+          this.playerClass = classId;
+          this.hud.showTutorialIfFirstTime(() => {
+            this.startGameConnection();
+          });
         });
       });
     }
@@ -167,7 +178,7 @@ export class Game {
 
   /**
    * Initiates the network connection and starts the game loop
-   * P3.1: Now passes the player's nickname when connecting
+   * P3.1 + P9.3: Now passes the player's nickname and class when connecting
    */
   private async startGameConnection() {
     try {
@@ -175,12 +186,12 @@ export class Game {
       // This ensures we don't miss the initial state update
       this.setupNetworkHandlers();
 
-      // Connect to server with nickname (P3.1)
-      await this.network.connect(this.playerNickname);
+      // Connect to server with nickname and class (P3.1 + P9.3)
+      await this.network.connect(this.playerNickname, this.playerClass);
       this.localPlayerId = this.network.sessionId;
       this.connected = true;
 
-      logger.info({ playerId: this.localPlayerId, nickname: this.playerNickname }, 'Connected');
+      logger.info({ playerId: this.localPlayerId, nickname: this.playerNickname, playerClass: this.playerClass }, 'Connected');
 
       // Start gameplay music
       this.audio.playMusic('gameplay');

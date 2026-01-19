@@ -11,6 +11,10 @@ import {
   BOSS_ABILITY_CONFIGS,
   WEAPON_CATEGORIES,
   getRandomStartingWeapons,
+  CHARACTER_CLASSES,
+  getCharacterClass,
+  getClassStartingWeapons,
+  getCharacterClassIds,
 } from './constants';
 
 describe('GAME_CONSTANTS', () => {
@@ -458,5 +462,139 @@ describe('getRandomStartingWeapons', () => {
         expect(allValidWeapons.has(weapon)).toBe(true);
       });
     }
+  });
+});
+
+// P9.3: Character Classes tests
+describe('CHARACTER_CLASSES', () => {
+  it('should have 5 character classes', () => {
+    expect(Object.keys(CHARACTER_CLASSES).length).toBe(5);
+  });
+
+  it('should have all required classes', () => {
+    expect(CHARACTER_CLASSES.survivor).toBeDefined();
+    expect(CHARACTER_CLASSES.mage).toBeDefined();
+    expect(CHARACTER_CLASSES.warrior).toBeDefined();
+    expect(CHARACTER_CLASSES.speedster).toBeDefined();
+    expect(CHARACTER_CLASSES.tank).toBeDefined();
+  });
+
+  it('should have valid configurations for all classes', () => {
+    for (const [id, config] of Object.entries(CHARACTER_CLASSES)) {
+      expect(config.id).toBe(id);
+      expect(config.name).toBeTruthy();
+      expect(config.description).toBeTruthy();
+      expect(config.healthMultiplier).toBeGreaterThan(0);
+      expect(config.speedMultiplier).toBeGreaterThan(0);
+      expect(config.damageMultiplier).toBeGreaterThan(0);
+      expect(config.xpMultiplier).toBeGreaterThan(0);
+      expect(Array.isArray(config.startingWeapons)).toBe(true);
+    }
+  });
+
+  it('survivor should have no stat bonuses', () => {
+    const survivor = CHARACTER_CLASSES.survivor;
+    expect(survivor.healthMultiplier).toBe(1.0);
+    expect(survivor.speedMultiplier).toBe(1.0);
+    expect(survivor.damageMultiplier).toBe(1.0);
+    expect(survivor.xpMultiplier).toBe(1.0);
+    expect(survivor.unlockRequirement).toBeNull();
+  });
+
+  it('mage should have +20% XP gain', () => {
+    const mage = CHARACTER_CLASSES.mage;
+    expect(mage.xpMultiplier).toBe(1.2);
+    expect(mage.startingWeapons).toEqual(['wand', 'fireball']);
+  });
+
+  it('warrior should have +25% damage', () => {
+    const warrior = CHARACTER_CLASSES.warrior;
+    expect(warrior.damageMultiplier).toBe(1.25);
+    expect(warrior.startingWeapons).toEqual(['axe', 'whip']);
+  });
+
+  it('speedster should have +30% move speed', () => {
+    const speedster = CHARACTER_CLASSES.speedster;
+    expect(speedster.speedMultiplier).toBe(1.3);
+    expect(speedster.startingWeapons).toEqual(['knife', 'knife']);
+  });
+
+  it('tank should have +50% HP', () => {
+    const tank = CHARACTER_CLASSES.tank;
+    expect(tank.healthMultiplier).toBe(1.5);
+    expect(tank.startingWeapons).toEqual(['garlic', 'bible']);
+  });
+
+  it('non-survivor classes should have unlock requirements', () => {
+    const nonSurvivorClasses = ['mage', 'warrior', 'speedster', 'tank'];
+    for (const classId of nonSurvivorClasses) {
+      const config = CHARACTER_CLASSES[classId];
+      expect(config.unlockRequirement).not.toBeNull();
+      expect(config.unlockRequirement?.type).toBeTruthy();
+      expect(config.unlockRequirement?.value).toBeGreaterThan(0);
+      expect(config.unlockRequirement?.description).toBeTruthy();
+    }
+  });
+
+  it('class starting weapons should all be valid weapon types', () => {
+    for (const config of Object.values(CHARACTER_CLASSES)) {
+      for (const weapon of config.startingWeapons) {
+        expect(WEAPON_CONFIGS[weapon]).toBeDefined();
+      }
+    }
+  });
+});
+
+describe('getCharacterClass', () => {
+  it('should return correct class for valid IDs', () => {
+    expect(getCharacterClass('survivor').id).toBe('survivor');
+    expect(getCharacterClass('mage').id).toBe('mage');
+    expect(getCharacterClass('warrior').id).toBe('warrior');
+    expect(getCharacterClass('speedster').id).toBe('speedster');
+    expect(getCharacterClass('tank').id).toBe('tank');
+  });
+
+  it('should return survivor for invalid class IDs', () => {
+    expect(getCharacterClass('invalid').id).toBe('survivor');
+    expect(getCharacterClass('').id).toBe('survivor');
+  });
+});
+
+describe('getClassStartingWeapons', () => {
+  it('should return preset weapons for classes with fixed loadouts', () => {
+    expect(getClassStartingWeapons('mage')).toEqual(['wand', 'fireball']);
+    expect(getClassStartingWeapons('warrior')).toEqual(['axe', 'whip']);
+    expect(getClassStartingWeapons('speedster')).toEqual(['knife', 'knife']);
+    expect(getClassStartingWeapons('tank')).toEqual(['garlic', 'bible']);
+  });
+
+  it('should return random weapons for survivor', () => {
+    // Survivor has empty startingWeapons, so should get random
+    const weapons = getClassStartingWeapons('survivor');
+    expect(weapons.length).toBeGreaterThanOrEqual(2);
+    expect(weapons.length).toBeLessThanOrEqual(3);
+  });
+
+  it('should return new array instance (not reference)', () => {
+    const weapons1 = getClassStartingWeapons('mage');
+    const weapons2 = getClassStartingWeapons('mage');
+    expect(weapons1).not.toBe(weapons2); // Different array instances
+    expect(weapons1).toEqual(weapons2); // Same contents
+  });
+});
+
+describe('getCharacterClassIds', () => {
+  it('should return all 5 class IDs', () => {
+    const ids = getCharacterClassIds();
+    expect(ids.length).toBe(5);
+  });
+
+  it('should include all class IDs', () => {
+    const ids = getCharacterClassIds();
+    expect(ids).toContain('survivor');
+    expect(ids).toContain('mage');
+    expect(ids).toContain('warrior');
+    expect(ids).toContain('speedster');
+    expect(ids).toContain('tank');
   });
 });

@@ -1,7 +1,7 @@
 import { GameState, PlayerSchema, XPOrbSchema } from '../state/GameState.js';
 import { SpatialHash } from './SpatialHash.js';
 import type { WorldEventSystem } from './WorldEventSystem.js';
-import { GAME_CONSTANTS, UPGRADE_POOL, getXPForLevel, WEAPON_CONFIGS } from '@swarm-io/shared';
+import { GAME_CONSTANTS, UPGRADE_POOL, getXPForLevel, WEAPON_CONFIGS, getCharacterClass } from '@swarm-io/shared';
 import { xpSystemLogger } from '../utils/logger.js';
 
 interface XPMetrics {
@@ -138,6 +138,12 @@ export class XPSystem {
     // P9.5: Apply global XP progression multiplier for accelerated leveling
     // This achieves the Snake.io style ~5 minute session target
     validatedValue = Math.floor(validatedValue * GAME_CONSTANTS.XP_PROGRESSION_MULTIPLIER);
+
+    // P9.3: Apply class-specific XP multiplier (e.g., Mage gets +20% XP)
+    const classConfig = getCharacterClass(player.playerClass);
+    if (classConfig.xpMultiplier !== 1.0) {
+      validatedValue = Math.floor(validatedValue * classConfig.xpMultiplier);
+    }
 
     // P5.1c: Apply double XP zone multiplier if player is in a double XP zone
     if (this.worldEventSystem) {

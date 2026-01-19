@@ -53,6 +53,9 @@ interface HUDElements {
   nicknameModal: HTMLElement; // P3.1: Nickname input modal
   nicknameInput: HTMLInputElement; // P3.1: Nickname text input
   nicknameSubmitBtn: HTMLElement; // P3.1: Submit button
+  classModal: HTMLElement; // P9.3: Class selection modal
+  classChoices: HTMLElement; // P9.3: Class choice container
+  classSubmitBtn: HTMLElement; // P9.3: Submit button
 }
 
 interface AudioSettings {
@@ -374,7 +377,16 @@ export class HUD {
           <div class="nickname-title">ENTER YOUR NAME</div>
           <input type="text" class="nickname-input" placeholder="Survivor" maxlength="16" autocomplete="off" spellcheck="false">
           <div class="nickname-hint">Max 16 characters</div>
-          <button class="nickname-submit-btn">PLAY</button>
+          <button class="nickname-submit-btn">NEXT</button>
+        </div>
+      </div>
+
+      <!-- P9.3: Class Selection Modal -->
+      <div class="class-modal hidden">
+        <div class="class-content">
+          <div class="class-title">CHOOSE YOUR CLASS</div>
+          <div class="class-choices"></div>
+          <button class="class-submit-btn">PLAY</button>
         </div>
       </div>
     `;
@@ -1455,6 +1467,117 @@ export class HUD {
         background: #1abc9c;
         transform: scale(1.05);
       }
+
+      /* P9.3: Class Selection Modal */
+      .class-modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.95);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 600;
+        font-family: 'Press Start 2P', monospace;
+        pointer-events: auto;
+      }
+
+      .class-modal.hidden {
+        display: none;
+      }
+
+      .class-content {
+        background: rgba(0, 0, 0, 0.95);
+        padding: 30px;
+        border: 4px solid #4ecdc4;
+        text-align: center;
+        max-width: 600px;
+        width: 90%;
+      }
+
+      .class-title {
+        font-size: 18px;
+        color: #4ecdc4;
+        margin-bottom: 20px;
+        text-shadow: 2px 2px 0 #000;
+      }
+
+      .class-choices {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+
+      .class-choice {
+        background: rgba(255, 255, 255, 0.05);
+        border: 2px solid #555;
+        padding: 15px 10px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: center;
+      }
+
+      .class-choice:hover:not(.locked) {
+        border-color: #4ecdc4;
+        background: rgba(78, 205, 196, 0.1);
+      }
+
+      .class-choice.selected {
+        border-color: #ffd700;
+        background: rgba(255, 215, 0, 0.1);
+      }
+
+      .class-choice.locked {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .class-choice-name {
+        font-size: 12px;
+        color: white;
+        margin-bottom: 8px;
+        text-shadow: 1px 1px 0 #000;
+      }
+
+      .class-choice-desc {
+        font-size: 8px;
+        color: #4ecdc4;
+        text-shadow: 1px 1px 0 #000;
+      }
+
+      .class-choice-unlock {
+        font-size: 6px;
+        color: #ff6b6b;
+        margin-top: 6px;
+        text-shadow: 1px 1px 0 #000;
+      }
+
+      .class-choice-weapons {
+        font-size: 6px;
+        color: #888;
+        margin-top: 4px;
+        text-shadow: 1px 1px 0 #000;
+      }
+
+      .class-submit-btn {
+        font-family: 'Press Start 2P', monospace;
+        font-size: 14px;
+        padding: 12px 30px;
+        background: #4ecdc4;
+        color: white;
+        border: none;
+        cursor: pointer;
+        text-shadow: 2px 2px 0 #000;
+        transition: all 0.2s ease;
+      }
+
+      .class-submit-btn:hover {
+        background: #1abc9c;
+        transform: scale(1.05);
+      }
     `;
     document.head.appendChild(style);
   }
@@ -1498,7 +1621,10 @@ export class HUD {
       pauseOverlay: this.container.querySelector('.pause-overlay') as HTMLElement,
       nicknameModal: this.container.querySelector('.nickname-modal') as HTMLElement, // P3.1
       nicknameInput: this.container.querySelector('.nickname-input') as HTMLInputElement, // P3.1
-      nicknameSubmitBtn: this.container.querySelector('.nickname-submit-btn') as HTMLElement // P3.1
+      nicknameSubmitBtn: this.container.querySelector('.nickname-submit-btn') as HTMLElement, // P3.1
+      classModal: this.container.querySelector('.class-modal') as HTMLElement, // P9.3
+      classChoices: this.container.querySelector('.class-choices') as HTMLElement, // P9.3
+      classSubmitBtn: this.container.querySelector('.class-submit-btn') as HTMLElement // P9.3
     };
   }
 
@@ -2422,6 +2548,152 @@ export class HUD {
    */
   getStoredNickname(): string {
     return localStorage.getItem('swarm-io-nickname') || '';
+  }
+
+  /**
+   * P9.3: Shows the character class selection modal
+   * @param onSelect - Callback with the selected class ID
+   */
+  showClassSelectionModal(onSelect: (classId: string) => void): void {
+    // Import class definitions from shared constants
+    const CHARACTER_CLASSES = {
+      survivor: { id: 'survivor', name: 'Survivor', description: 'Balanced start with random weapons', startingWeapons: [] as string[], unlockRequirement: null as any },
+      mage: { id: 'mage', name: 'Mage', description: '+20% XP gain', startingWeapons: ['wand', 'fireball'], unlockRequirement: { type: 'level', value: 10, description: 'Reach level 10' } },
+      warrior: { id: 'warrior', name: 'Warrior', description: '+25% damage', startingWeapons: ['axe', 'whip'], unlockRequirement: { type: 'kills', value: 500, description: 'Kill 500 enemies' } },
+      speedster: { id: 'speedster', name: 'Speedster', description: '+30% move speed', startingWeapons: ['knife', 'knife'], unlockRequirement: { type: 'survival', value: 300, description: 'Survive 5 minutes' } },
+      tank: { id: 'tank', name: 'Tank', description: '+50% HP', startingWeapons: ['garlic', 'bible'], unlockRequirement: { type: 'damage_blocked', value: 1000, description: 'Block 1000 damage' } },
+    };
+
+    // Load unlock progress from localStorage
+    const unlockedClasses = this.getUnlockedClasses();
+
+    // Load stored class selection
+    const storedClass = localStorage.getItem('swarm-io-player-class') || 'survivor';
+
+    // Track selected class
+    let selectedClass = unlockedClasses.includes(storedClass) ? storedClass : 'survivor';
+
+    // Build class choices
+    this.elements.classChoices.innerHTML = '';
+    for (const [classId, classConfig] of Object.entries(CHARACTER_CLASSES)) {
+      const isUnlocked = !classConfig.unlockRequirement || unlockedClasses.includes(classId);
+      const isSelected = classId === selectedClass;
+
+      const choiceDiv = document.createElement('div');
+      choiceDiv.className = `class-choice${isSelected ? ' selected' : ''}${!isUnlocked ? ' locked' : ''}`;
+      choiceDiv.dataset.classId = classId;
+
+      // Class name
+      const nameDiv = document.createElement('div');
+      nameDiv.className = 'class-choice-name';
+      nameDiv.textContent = classConfig.name;
+      choiceDiv.appendChild(nameDiv);
+
+      // Class description
+      const descDiv = document.createElement('div');
+      descDiv.className = 'class-choice-desc';
+      descDiv.textContent = classConfig.description;
+      choiceDiv.appendChild(descDiv);
+
+      // Starting weapons (if preset)
+      if (classConfig.startingWeapons.length > 0) {
+        const weaponsDiv = document.createElement('div');
+        weaponsDiv.className = 'class-choice-weapons';
+        weaponsDiv.textContent = classConfig.startingWeapons.join(' + ').toUpperCase();
+        choiceDiv.appendChild(weaponsDiv);
+      } else {
+        const weaponsDiv = document.createElement('div');
+        weaponsDiv.className = 'class-choice-weapons';
+        weaponsDiv.textContent = 'RANDOM WEAPONS';
+        choiceDiv.appendChild(weaponsDiv);
+      }
+
+      // Unlock requirement (if locked)
+      if (!isUnlocked && classConfig.unlockRequirement) {
+        const unlockDiv = document.createElement('div');
+        unlockDiv.className = 'class-choice-unlock';
+        unlockDiv.textContent = classConfig.unlockRequirement.description;
+        choiceDiv.appendChild(unlockDiv);
+      }
+
+      // Handle click
+      if (isUnlocked) {
+        choiceDiv.addEventListener('click', () => {
+          // Deselect previous
+          this.elements.classChoices.querySelectorAll('.class-choice.selected').forEach(el => {
+            el.classList.remove('selected');
+          });
+          // Select this one
+          choiceDiv.classList.add('selected');
+          selectedClass = classId;
+          this.uiSounds?.playClick();
+        });
+      }
+
+      this.elements.classChoices.appendChild(choiceDiv);
+    }
+
+    // Show modal
+    this.elements.classModal.classList.remove('hidden');
+
+    // Setup submit handler
+    const handleSubmit = () => {
+      // Store selection for next time
+      localStorage.setItem('swarm-io-player-class', selectedClass);
+      this.uiSounds?.playClick();
+      this.hideClassSelectionModal();
+      onSelect(selectedClass);
+    };
+
+    // Clone button to remove existing listeners
+    const newBtn = this.elements.classSubmitBtn.cloneNode(true) as HTMLElement;
+    this.elements.classSubmitBtn.parentNode?.replaceChild(newBtn, this.elements.classSubmitBtn);
+    this.elements.classSubmitBtn = newBtn;
+
+    this.elements.classSubmitBtn.addEventListener('click', handleSubmit);
+  }
+
+  /**
+   * P9.3: Hides the class selection modal
+   */
+  hideClassSelectionModal(): void {
+    this.elements.classModal.classList.add('hidden');
+  }
+
+  /**
+   * P9.3: Gets the list of unlocked classes from localStorage
+   * Returns array of class IDs that have been unlocked
+   */
+  getUnlockedClasses(): string[] {
+    const stored = localStorage.getItem('swarm-io-unlocked-classes');
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch {
+        return ['survivor'];
+      }
+    }
+    return ['survivor']; // Survivor is always unlocked
+  }
+
+  /**
+   * P9.3: Unlocks a class and saves to localStorage
+   * @param classId - The class ID to unlock
+   */
+  unlockClass(classId: string): void {
+    const unlocked = this.getUnlockedClasses();
+    if (!unlocked.includes(classId)) {
+      unlocked.push(classId);
+      localStorage.setItem('swarm-io-unlocked-classes', JSON.stringify(unlocked));
+    }
+  }
+
+  /**
+   * P9.3: Gets the stored player class from localStorage
+   * Returns 'survivor' if not found
+   */
+  getStoredPlayerClass(): string {
+    return localStorage.getItem('swarm-io-player-class') || 'survivor';
   }
 
   /**
