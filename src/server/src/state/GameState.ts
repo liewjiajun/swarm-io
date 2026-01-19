@@ -242,16 +242,19 @@ export class GameState extends Schema {
     }
   }
 
-  addXPOrb(x: number, y: number, value: number): XPOrbSchema {
+  addXPOrb(x: number, y: number, value: number, isJackpot: boolean = false): XPOrbSchema {
     const id = generateId();
     const orb = this.xpOrbPool.acquire();
     orb.id = id;
     orb.x = x;
     orb.y = y;
     orb.value = value;
+    orb.isJackpot = isJackpot;
 
-    // Determine size based on value
-    if (value >= 25) {
+    // P5.5: Jackpot orbs have a special size
+    if (isJackpot) {
+      orb.size = 'jackpot';
+    } else if (value >= 25) {
       orb.size = 'large';
     } else if (value >= 5) {
       orb.size = 'medium';

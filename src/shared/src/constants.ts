@@ -610,6 +610,20 @@ export const XP_ORB_VALUES = {
   small: 2,   // P9.5: Doubled from 1
   medium: 10, // P9.5: Doubled from 5
   large: 50,  // P9.5: Doubled from 25
+  jackpot: 500, // P5.5: Jackpot orb - rare spawn with massive XP
+} as const;
+
+// =============================================================================
+// P5.5: JACKPOT XP ORB CONFIGURATION
+// =============================================================================
+// Jackpot orbs are rare spawns that give 500 XP and attract nearby enemies
+export const JACKPOT_ORB_CONFIG = {
+  SPAWN_CHANCE: 0.01,       // 1% chance to spawn jackpot orb when enemy dies
+  XP_VALUE: 500,            // XP value of jackpot orb
+  AGGRO_RADIUS: 30,         // Radius within which enemies are attracted to jackpot orb
+  SIZE_MULTIPLIER: 2.5,     // Visual size multiplier compared to large orb
+  PULSE_SPEED: 3,           // Speed of golden pulse animation
+  MIN_GAME_TIME: 30,        // Minimum game time (seconds) before jackpot orbs can spawn
 } as const;
 
 // =============================================================================

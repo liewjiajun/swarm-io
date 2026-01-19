@@ -153,6 +153,7 @@ function createMockGameState(players: any[] = [], enemies: any[] = [], projectil
     enemies: enemiesObj,
     projectiles: projectilesMap,
     xpOrbs: new Map(),
+    world: { gameTime: 0 }, // P5.5: Required for jackpot orb spawn timing
     addXPOrb: vi.fn(),
     addProjectile: vi.fn().mockReturnValue({ id: 'explosion-1' }),
     removeEnemy: vi.fn().mockImplementation(function(this: any, id: string) {
@@ -662,7 +663,9 @@ describe('CombatSystem', () => {
 
       combatSystem.update(gameState, spatialHash, deltaTime);
 
-      expect(gameState.addXPOrb).toHaveBeenCalledWith(5, 10, 5);
+      // P5.5: addXPOrb now takes a 4th parameter (isJackpot: boolean)
+      // At gameTime=0, jackpot orbs can't spawn (MIN_GAME_TIME=30), so it's always false
+      expect(gameState.addXPOrb).toHaveBeenCalledWith(5, 10, 5, false);
       expect(gameState.removeEnemy).toHaveBeenCalledWith('enemy-1');
     });
 

@@ -1,6 +1,6 @@
 import { GameState, PlayerSchema, EnemySchema, ProjectileSchema } from '../state/GameState.js';
 import { SpatialHash } from './SpatialHash.js';
-import { GAME_CONSTANTS, WEAPON_CONFIGS, ENEMY_CONFIGS, BOSS_ABILITY_CONFIGS } from '@swarm-io/shared';
+import { GAME_CONSTANTS, WEAPON_CONFIGS, ENEMY_CONFIGS, BOSS_ABILITY_CONFIGS, JACKPOT_ORB_CONFIG } from '@swarm-io/shared';
 import { combatSystemLogger } from '../utils/logger.js';
 
 interface CombatMetrics {
@@ -603,8 +603,25 @@ export class CombatSystem {
         // Check for boss ability on death (e.g., slime split)
         this.handleBossDeathAbility(gameState, enemy);
 
-        // Spawn XP orb at enemy position
-        gameState.addXPOrb(enemy.x, enemy.y, enemy.xpValue);
+        // P5.5: Spawn jackpot orb with small chance, or regular XP orb
+        // Only spawn jackpot orbs after MIN_GAME_TIME has passed
+        const gameTime = gameState.world.gameTime;
+        const canSpawnJackpot = gameTime >= JACKPOT_ORB_CONFIG.MIN_GAME_TIME;
+        const isJackpot = canSpawnJackpot && Math.random() < JACKPOT_ORB_CONFIG.SPAWN_CHANCE;
+
+        if (isJackpot) {
+          // Spawn jackpot orb
+          gameState.addXPOrb(enemy.x, enemy.y, JACKPOT_ORB_CONFIG.XP_VALUE, true);
+          combatSystemLogger.info({
+            x: enemy.x,
+            y: enemy.y,
+            killedEnemy: enemy.type,
+            gameTime
+          }, 'Jackpot XP orb spawned!');
+        } else {
+          // Spawn regular XP orb at enemy position
+          gameState.addXPOrb(enemy.x, enemy.y, enemy.xpValue, false);
+        }
 
         // Remove from state and return to pool
         gameState.removeEnemy(enemyId);

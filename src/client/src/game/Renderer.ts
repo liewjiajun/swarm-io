@@ -1994,11 +1994,20 @@ export class Renderer {
       sprite.visible = true;
 
       // Scale based on orb size
-      const scale = orb.size === 'large' ? 2.0 : orb.size === 'medium' ? 1.5 : 1.0;
+      // P5.5: Jackpot orbs are larger (2.5x) and have a pulsing animation
+      let scale: number;
+      if (orb.size === 'jackpot') {
+        // Pulsing scale animation for jackpot orbs (between 2.3 and 2.7)
+        const pulseOffset = Math.sin(Date.now() * 0.003) * 0.2;
+        scale = 2.5 + pulseOffset;
+      } else {
+        scale = orb.size === 'large' ? 2.0 : orb.size === 'medium' ? 1.5 : 1.0;
+      }
       sprite.scale.set(scale, scale, 1);
 
-      // Bob up and down animation
-      const bobOffset = Math.sin(Date.now() * 0.005 + orb.x) * 0.2;
+      // Bob up and down animation (jackpot bobs higher for more visibility)
+      const bobAmplitude = orb.size === 'jackpot' ? 0.4 : 0.2;
+      const bobOffset = Math.sin(Date.now() * 0.005 + orb.x) * bobAmplitude;
       sprite.position.set(orb.x, 0.5 + bobOffset, orb.y);
     });
 
@@ -2024,10 +2033,18 @@ export class Renderer {
       // Skip orbs outside view
       if (!this.isInView(orb.x, orb.y, 0.5)) return;
 
-      const scale = orb.size === 'large' ? 1.0 : orb.size === 'medium' ? 0.7 : 0.5; // Larger for visibility
+      // P5.5: Jackpot orbs are larger with pulsing effect
+      let scale: number;
+      if (orb.size === 'jackpot') {
+        const pulseOffset = Math.sin(Date.now() * 0.003) * 0.15;
+        scale = 1.5 + pulseOffset;
+      } else {
+        scale = orb.size === 'large' ? 1.0 : orb.size === 'medium' ? 0.7 : 0.5;
+      }
 
-      // Bob up and down
-      const bobOffset = Math.sin(Date.now() * 0.005 + orb.x) * 0.2;
+      // Bob up and down (jackpot bobs higher)
+      const bobAmplitude = orb.size === 'jackpot' ? 0.4 : 0.2;
+      const bobOffset = Math.sin(Date.now() * 0.005 + orb.x) * bobAmplitude;
 
       this.dummy.position.set(orb.x, 0.5 + bobOffset, orb.y);
       this.dummy.rotation.set(0, 0, 0);
@@ -2060,8 +2077,17 @@ export class Renderer {
 
     orbs.forEach(orb => {
       // Frustum culling already done in sprite method
-      const scale = orb.size === 'large' ? 1.0 : orb.size === 'medium' ? 0.7 : 0.5;
-      const bobOffset = Math.sin(Date.now() * 0.005 + orb.x) * 0.2;
+      // P5.5: Jackpot orbs are larger with pulsing effect
+      let scale: number;
+      if (orb.size === 'jackpot') {
+        const pulseOffset = Math.sin(Date.now() * 0.003) * 0.15;
+        scale = 1.5 + pulseOffset;
+      } else {
+        scale = orb.size === 'large' ? 1.0 : orb.size === 'medium' ? 0.7 : 0.5;
+      }
+
+      const bobAmplitude = orb.size === 'jackpot' ? 0.4 : 0.2;
+      const bobOffset = Math.sin(Date.now() * 0.005 + orb.x) * bobAmplitude;
 
       this.dummy.position.set(orb.x, 0.5 + bobOffset, orb.y);
       this.dummy.rotation.set(0, 0, 0);

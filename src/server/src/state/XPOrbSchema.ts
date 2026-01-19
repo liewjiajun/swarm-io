@@ -5,10 +5,11 @@ export class XPOrbSchema extends Schema {
   id!: string;
   x!: number;
   y!: number;
-  size!: string; // 'small' | 'medium' | 'large'
+  size!: string; // 'small' | 'medium' | 'large' | 'jackpot'
   value!: number;
   magnetized!: boolean;
   targetPlayerId!: string;
+  isJackpot!: boolean; // P5.5: Whether this is a jackpot orb
 
   // Not synced - can use regular initializer
   collected: boolean = false;
@@ -23,6 +24,7 @@ export class XPOrbSchema extends Schema {
     this.value = 1;
     this.magnetized = false;
     this.targetPlayerId = '';
+    this.isJackpot = false;
   }
 }
 
@@ -34,5 +36,6 @@ defineTypes(XPOrbSchema, {
   size: 'string',
   value: 'number',
   magnetized: 'boolean',
-  targetPlayerId: 'string'
+  targetPlayerId: 'string',
+  isJackpot: 'boolean'
 });

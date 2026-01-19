@@ -175,6 +175,19 @@
       "frame": { "x": 312, "y": 64, "w": 32, "h": 32 },
       "sourceSize": { "w": 32, "h": 32 }
     },
+    "_P5.5_jackpot_orb": "P5.5: Jackpot XP orb - rare 500 XP spawn that attracts enemies",
+    "xp_orb_jackpot": {
+      "frame": { "x": 0, "y": 288, "w": 48, "h": 48 },
+      "sourceSize": { "w": 48, "h": 48 }
+    },
+    "xp_orb_jackpot_0": {
+      "frame": { "x": 0, "y": 288, "w": 48, "h": 48 },
+      "sourceSize": { "w": 48, "h": 48 }
+    },
+    "xp_orb_jackpot_1": {
+      "frame": { "x": 48, "y": 288, "w": 48, "h": 48 },
+      "sourceSize": { "w": 48, "h": 48 }
+    },
     "projectile_slash_0": {
       "frame": { "x": 200, "y": 32, "w": 24, "h": 24 },
       "sourceSize": { "w": 24, "h": 24 }

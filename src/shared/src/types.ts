@@ -151,13 +151,14 @@ export interface EnemyState extends Entity {
 // XP ORBS
 // =============================================================================
 
-export type XPOrbSize = 'small' | 'medium' | 'large';
+export type XPOrbSize = 'small' | 'medium' | 'large' | 'jackpot';
 
 export interface XPOrbState extends Entity {
-  size: string; // XPOrbSize at runtime ('small' | 'medium' | 'large')
+  size: string; // XPOrbSize at runtime ('small' | 'medium' | 'large' | 'jackpot')
   value: number;
   magnetized: boolean; // Being pulled toward a player
   targetPlayerId: string; // Empty string when no target
+  isJackpot: boolean; // P5.5: Whether this is a jackpot orb (rare, 500 XP, attracts enemies)
 }
 
 // =============================================================================

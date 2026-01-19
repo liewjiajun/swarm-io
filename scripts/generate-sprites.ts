@@ -84,6 +84,12 @@ const COLORS = {
   XP_LARGE_DARK: { r: 180, g: 130, b: 0, a: 255 },
   XP_LARGE_MID: { r: 255, g: 200, b: 50, a: 255 },
   XP_LARGE_LIGHT: { r: 255, g: 255, b: 180, a: 255 },
+  // P5.5: Jackpot orb - Bright gold/white theme (legendary)
+  XP_JACKPOT_OUTLINE: { r: 180, g: 120, b: 0, a: 255 },
+  XP_JACKPOT_DARK: { r: 255, g: 180, b: 0, a: 255 },
+  XP_JACKPOT_MID: { r: 255, g: 215, b: 0, a: 255 },
+  XP_JACKPOT_LIGHT: { r: 255, g: 255, b: 200, a: 255 },
+  XP_JACKPOT_GLOW: { r: 255, g: 255, b: 150, a: 200 },
   // Legacy (keep for backwards compatibility)
   XP_SMALL: { r: 0, g: 255, b: 136, a: 255 },
   XP_MEDIUM: { r: 0, g: 255, b: 255, a: 255 },
@@ -611,7 +617,7 @@ function drawDemon(canvas: PixelCanvas, x: number, y: number, frame: number): vo
   canvas.setPixel(cx + 2, cy + bob, COLORS.WHITE);
 }
 
-function drawXPOrb(canvas: PixelCanvas, x: number, y: number, size: 'small' | 'medium' | 'large', frame: number = 0): void {
+function drawXPOrb(canvas: PixelCanvas, x: number, y: number, size: 'small' | 'medium' | 'large' | 'jackpot', frame: number = 0): void {
   // 4-color palettes for Game Boy aesthetic
   const palettes = {
     small: {
@@ -632,12 +638,19 @@ function drawXPOrb(canvas: PixelCanvas, x: number, y: number, size: 'small' | 'm
       mid: COLORS.XP_LARGE_MID,
       light: COLORS.XP_LARGE_LIGHT,
     },
+    // P5.5: Jackpot orb - bright gold legendary orb
+    jackpot: {
+      outline: COLORS.XP_JACKPOT_OUTLINE,
+      dark: COLORS.XP_JACKPOT_DARK,
+      mid: COLORS.XP_JACKPOT_MID,
+      light: COLORS.XP_JACKPOT_LIGHT,
+    },
   };
 
-  const radii = { small: 5, medium: 8, large: 12 };
+  const radii = { small: 5, medium: 8, large: 12, jackpot: 18 };
   const palette = palettes[size];
   const radius = radii[size];
-  const dims = { small: 16, medium: 24, large: 32 };
+  const dims = { small: 16, medium: 24, large: 32, jackpot: 48 };
   const cx = x + dims[size] / 2;
   const cy = y + dims[size] / 2;
 
@@ -1651,6 +1664,9 @@ async function generateAtlas(): Promise<void> {
   drawXPOrb(canvas, 272, 64, 'small', 1);  // 16x16 - frame 1
   drawXPOrb(canvas, 288, 64, 'medium', 1); // 24x24 - frame 1
   drawXPOrb(canvas, 312, 64, 'large', 1);  // 32x32 - frame 1
+  // P5.5: Jackpot XP orb (48x48) - placed in row 9 at y=288 (new row after decorations)
+  drawXPOrb(canvas, 0, 288, 'jackpot', 0);   // 48x48 - frame 0
+  drawXPOrb(canvas, 48, 288, 'jackpot', 1);  // 48x48 - frame 1
 
   // Projectiles (row 1, starting at x=200) - All weapons now have 2-frame animations
   // Slash (Knife): 2 frames (animated)
@@ -1745,12 +1761,12 @@ async function generateAtlas(): Promise<void> {
   console.log('Atlas contents:');
   console.log('  - Player sprites: 20 (idle + 4-direction walk)');
   console.log('  - Enemy sprites: 12 (6 types x 2 frames)');
-  console.log('  - XP orb sprites: 6 (3 sizes x 2 frames - BUG-035 polish)');
+  console.log('  - XP orb sprites: 8 (3 sizes x 2 frames + jackpot 2 frames - P5.5)');
   console.log('  - Projectile sprites: 18 (all 8 weapons x 2 frames + 2 extra)');
   console.log('  - Environment tiles: 5 (P1.7)');
   console.log('  - UI frames: 9 (P1.8)');
   console.log('  - Decoration sprites: 10 (3 rocks + 1 debris + 2 trees + 4 pillars - BUG-043)');
-  console.log('  Total: 80 sprites');
+  console.log('  Total: 82 sprites');
 }
 
 generateAtlas().catch(console.error);

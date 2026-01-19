@@ -3,11 +3,11 @@
 ## Current Status: Phase 7 - Gameplay Polish & New Content
 
 **Last Updated:** 2026-01-19
-**Implementation Progress:** 139/85 core tasks completed (163%) + 6 new tasks pending
+**Implementation Progress:** 140/85 core tasks completed (165%) + 5 new tasks pending
 **Test Count:** 1059 tests - ALL PASSING (565 server + 121 shared + 373 client)
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
-**Pending Tasks:** 6 HIGH PRIORITY tasks (see PRIORITIZED TASK LIST below)
-**Total Sprites:** 80 (player 9 + enemies 16 + weapons/projectiles 18 + XP orbs 6 + power-ups 6 + world events 6 + decorations 10 + misc 9)
+**Pending Tasks:** 5 HIGH PRIORITY tasks (see PRIORITIZED TASK LIST below)
+**Total Sprites:** 82 (player 9 + enemies 16 + weapons/projectiles 18 + XP orbs 8 + power-ups 6 + world events 6 + decorations 10 + misc 9)
 **Code Quality:** Excellent (0 TODOs, 0 FIXMEs, 0 skipped tests, 0 lint warnings, ~2 production `any` types - intentional for security logging)
 **CI/CD Status:** GitHub Actions configured (.github/workflows/test.yml, release.yml)
 
@@ -19,8 +19,8 @@
 
 | Metric | Value | Notes |
 |--------|-------|-------|
-| Core Tasks | 139/85 | 163% complete |
-| **Pending Tasks** | **6** | **HIGH PRIORITY - Implement now** |
+| Core Tasks | 140/85 | 165% complete |
+| **Pending Tasks** | **5** | **HIGH PRIORITY - Implement now** |
 | Test Coverage | 1059 tests | All passing |
 | Code Quality | Excellent | 0 TODOs, 0 FIXMEs, 0 skipped tests |
 
@@ -98,10 +98,16 @@ These tasks improve core gameplay feel. Use suggested values.
   - Ice patches: Slow movement, spawns in groups
   - Teleporters: Paired portals, random placement
 
-- [ ] **P5.5: Jackpot XP Orbs**
-  - Rare spawn (1% chance), gives 500 XP
-  - Glows golden, larger size
-  - Attracts nearby enemies (aggro radius 30)
+- [x] **P5.5: Jackpot XP Orbs** ✅ DONE (2026-01-19)
+  - Rare spawn (1% chance after 30s game time), gives 500 XP
+  - Glows golden with pulsing animation, 2.5x size of large orb
+  - Attracts nearby enemies within aggro radius (30 units)
+  - Added `isJackpot` field to `XPOrbSchema` and `XPOrbState`
+  - Added `JACKPOT_ORB_CONFIG` constants in `src/shared/src/constants.ts`
+  - Implemented spawning in `CombatSystem.cleanupDeadEntities()`
+  - Enemy aggro logic in `PhysicsSystem.findNearbyJackpotOrb()`
+  - Added `xp_orb_jackpot` sprite (48x48, 2 frames) to atlas
+  - Pulsing and bobbing animation in `Renderer.updateXPOrbsSprite()`
 
 - [ ] **P5.6: Shape-Shifting Enemy**
   - Copies random player's current weapons
@@ -196,6 +202,7 @@ Batch spawning goes in `src/server/src/systems/SpawnSystem.ts`:
 ## CHANGELOG
 
 See git history for detailed changelog. Recent highlights:
+- 2026-01-19: P5.5 - Jackpot XP Orbs (1% spawn chance, 500 XP, attracts enemies, golden pulsing sprite)
 - 2026-01-19: P5.3 - Secret Boss (spawns at world center when all players reach level 15+, 2000 HP, 10 new tests)
 - 2026-01-19: P8.1 - Player size scales with level (1.0x at level 1 → 1.5x at level 40, visual only)
 - 2026-01-19: BUG-043 - Environment decorations (10 new sprites: rocks, trees, debris, pillars; 70-100 visual objects scattered in world)
@@ -210,7 +217,7 @@ See git history for detailed changelog. Recent highlights:
 
 ## COMPLETED TASKS
 
-**All planned tasks complete:** 139/85 tasks (163%)
+**All planned tasks complete:** 140/85 tasks (165%)
 
 **Phase 1-6 Summary:**
 - P1: Sprite/animation system, CRT shader, 32-color palette (11 tasks)

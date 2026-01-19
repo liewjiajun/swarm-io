@@ -192,6 +192,7 @@ export function resetEnemy(e: {
 /**
  * Reset function for XPOrbSchema objects.
  * Clears all state to defaults for clean reuse.
+ * P5.5: Added isJackpot field for jackpot orb support
  */
 export function resetXPOrb(o: {
   id: string;
@@ -202,6 +203,7 @@ export function resetXPOrb(o: {
   magnetized: boolean;
   targetPlayerId: string;
   collected: boolean;
+  isJackpot: boolean;
 }): void {
   o.id = '';
   o.x = 0;
@@ -211,6 +213,7 @@ export function resetXPOrb(o: {
   o.magnetized = false;
   o.targetPlayerId = '';
   o.collected = false;
+  o.isJackpot = false;
 }
 
 /**

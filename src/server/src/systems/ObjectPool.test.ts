@@ -274,6 +274,7 @@ describe('resetXPOrb', () => {
       magnetized: true,
       targetPlayerId: 'player-2',
       collected: true,
+      isJackpot: true, // P5.5: Jackpot orb field
     };
 
     resetXPOrb(orb);
@@ -286,5 +287,6 @@ describe('resetXPOrb', () => {
     expect(orb.magnetized).toBe(false);
     expect(orb.targetPlayerId).toBe('');
     expect(orb.collected).toBe(false);
+    expect(orb.isJackpot).toBe(false); // P5.5: Should reset to false
   });
 });

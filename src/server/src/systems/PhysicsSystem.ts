@@ -1,8 +1,9 @@
 import type { GameState } from '../state/GameState';
 import type { EnemySchema } from '../state/EnemySchema';
 import type { PlayerSchema } from '../state/PlayerSchema';
+import type { XPOrbSchema } from '../state/XPOrbSchema';
 import type { SpatialHash } from './SpatialHash';
-import { GAME_CONSTANTS, ENEMY_ATTACK_CONFIGS, BOSS_ABILITY_CONFIGS, ENEMY_CONFIGS } from '@swarm-io/shared';
+import { GAME_CONSTANTS, ENEMY_ATTACK_CONFIGS, BOSS_ABILITY_CONFIGS, ENEMY_CONFIGS, JACKPOT_ORB_CONFIG } from '@swarm-io/shared';
 import { direction, distance } from '@swarm-io/shared';
 import { physicsSystemLogger } from '../utils/logger.js';
 
@@ -162,6 +163,24 @@ export class PhysicsSystem {
     // Check if this is a boss enemy
     const enemyConfig = ENEMY_CONFIGS[enemy.type];
     const isBoss = enemyConfig?.isBoss ?? false;
+
+    // P5.5: Check if a jackpot orb is nearby and should attract this enemy
+    // Non-boss enemies within aggro radius will be attracted to jackpot orbs
+    if (!isBoss) {
+      const nearbyJackpotOrb = this.findNearbyJackpotOrb(state, enemy.x, enemy.y);
+      if (nearbyJackpotOrb) {
+        // Move toward the jackpot orb instead of players
+        const dir = direction(
+          { x: enemy.x, y: enemy.y },
+          { x: nearbyJackpotOrb.x, y: nearbyJackpotOrb.y }
+        );
+        enemy.velocityX = dir.x * enemy.speed;
+        enemy.velocityY = dir.y * enemy.speed;
+        enemy.x += enemy.velocityX * dt;
+        enemy.y += enemy.velocityY * dt;
+        return; // Skip normal AI - attracted to jackpot orb
+      }
+    }
 
     // P4.5: Use shared aggro system for bosses to target multiple players
     let targetPlayer: { x: number; y: number; id: string } | null = null;
@@ -490,5 +509,34 @@ export class PhysicsSystem {
       attackConfig.projectileRadius,
       GAME_CONSTANTS.ENEMY_PROJECTILE_PIERCE
     );
+  }
+
+  /**
+   * P5.5: Find a jackpot orb within aggro radius of the given position
+   * Returns the nearest jackpot orb if one exists within range, null otherwise
+   */
+  private findNearbyJackpotOrb(
+    state: GameState,
+    x: number,
+    y: number
+  ): XPOrbSchema | null {
+    let nearestOrb: XPOrbSchema | null = null;
+    let nearestDist: number = JACKPOT_ORB_CONFIG.AGGRO_RADIUS;
+
+    state.xpOrbs.forEach(orb => {
+      // Only check jackpot orbs
+      if (!orb.isJackpot) return;
+
+      // Calculate distance
+      const dist = distance({ x, y }, { x: orb.x, y: orb.y });
+
+      // Check if within aggro radius and closer than previous nearest
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearestOrb = orb;
+      }
+    });
+
+    return nearestOrb;
   }
 }
