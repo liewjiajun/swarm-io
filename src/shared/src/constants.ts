@@ -81,7 +81,7 @@ export const GAME_CONSTANTS = {
 
   // Player
   PLAYER_START_HEALTH: 100,
-  PLAYER_BASE_SPEED: 8,
+  PLAYER_BASE_SPEED: 12, // BUG-040: Increased from 8 for better gameplay feel
   PLAYER_HITBOX_RADIUS: 0.5,
   PLAYER_INVULN_TIME: 3, // Seconds after respawn
   RESPAWN_DELAY: 3, // Seconds before respawn allowed
@@ -89,7 +89,7 @@ export const GAME_CONSTANTS = {
   // XP & Leveling
   XP_COLLECTION_RADIUS: 0.5, // Radius for XP orb collection
   XP_MAGNET_RADIUS: 3, // Radius for magnetizing XP orbs
-  XP_ORB_SPEED: 8, // Speed when magnetized
+  XP_ORB_SPEED: 12, // BUG-042: Increased from 8 for better collection feel
 
   // P9.5: Accelerated Progression - 3x XP gain for ~5 minute sessions
   // Target: Reach level 8 by minute 3 (Snake.io style pacing)
@@ -346,7 +346,7 @@ export const WEAPON_CONFIGS: Record<string, WeaponConfig> = {
     baseDamage: 20,
     baseCooldown: 1.5,
     baseRange: 12,
-    projectileSpeed: 8,
+    projectileSpeed: 14, // BUG-042: Increased from 8 for better gameplay feel
   },
   fireball: {
     type: 'fireball',
@@ -359,7 +359,7 @@ export const WEAPON_CONFIGS: Record<string, WeaponConfig> = {
     baseDamage: 30,
     baseCooldown: 3.0,
     baseRange: 20,
-    projectileSpeed: 10,
+    projectileSpeed: 20, // BUG-042: Increased from 10 for better gameplay feel
     area: 3,
   },
   whip: {
@@ -467,12 +467,13 @@ export const BOSS_ABILITY_CONFIGS: Record<string, BossAbilityConfig> = {
 
 // P9.5: Enemy XP values doubled for accelerated progression
 // Combined with XP_PROGRESSION_MULTIPLIER = 3.0 and compressed XP curve
+// BUG-040: Enemy speeds scaled 1.5x to match increased player speed (8→12)
 export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
   bat: {
     type: 'bat',
     name: 'Bat',
     health: 10,
-    speed: 6,          // Increased from 4 (BUG-037: 50% faster)
+    speed: 9,          // BUG-040: 6→9 (1.5x scale for player speed 8→12)
     damage: 5,
     xpValue: 2,        // P9.5: Doubled from 1
     size: 0.4,
@@ -482,7 +483,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
     type: 'skeleton',
     name: 'Skeleton',
     health: 25,
-    speed: 3.75,       // Increased from 2.5 (BUG-037: 50% faster)
+    speed: 5.6,        // BUG-040: 3.75→5.6 (1.5x scale)
     damage: 10,
     xpValue: 6,        // P9.5: Doubled from 3
     size: 0.5,
@@ -492,7 +493,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
     type: 'zombie',
     name: 'Zombie',
     health: 50,
-    speed: 2.25,       // Increased from 1.5 (BUG-037: 50% faster)
+    speed: 3.4,        // BUG-040: 2.25→3.4 (1.5x scale)
     damage: 15,
     xpValue: 10,       // P9.5: Doubled from 5
     size: 0.6,
@@ -502,7 +503,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
     type: 'ghost',
     name: 'Ghost',
     health: 15,
-    speed: 4.5,        // Increased from 3 (BUG-037: 50% faster)
+    speed: 6.75,       // BUG-040: 4.5→6.75 (1.5x scale)
     damage: 8,
     xpValue: 8,        // P9.5: Doubled from 4
     size: 0.5,
@@ -512,7 +513,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
     type: 'slime',
     name: 'Slime',
     health: 20,
-    speed: 3,          // Increased from 2 (BUG-037: 50% faster)
+    speed: 4.5,        // BUG-040: 3→4.5 (1.5x scale)
     damage: 8,
     xpValue: 4,        // P9.5: Doubled from 2
     size: 0.5,
@@ -522,7 +523,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
     type: 'mini_slime',
     name: 'Mini Slime',
     health: 8,
-    speed: 3.75,       // Increased from 2.5 (BUG-037: 50% faster)
+    speed: 5.6,        // BUG-040: 3.75→5.6 (1.5x scale)
     damage: 4,
     xpValue: 2,        // P9.5: Doubled from 1
     size: 0.3,
@@ -532,7 +533,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
     type: 'demon',
     name: 'Demon',
     health: 40,
-    speed: 3.75,       // Increased from 2.5 (BUG-037: 50% faster)
+    speed: 5.6,        // BUG-040: 3.75→5.6 (1.5x scale)
     damage: 20,
     xpValue: 16,       // P9.5: Doubled from 8
     size: 0.7,
@@ -542,7 +543,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
     type: 'boss_slime',
     name: 'Giant Slime',
     health: 500,
-    speed: 1.5,        // Increased from 1 (BUG-037: 50% faster)
+    speed: 2.25,       // BUG-040: 1.5→2.25 (1.5x scale)
     damage: 30,
     xpValue: 200,      // P9.5: Doubled from 100
     size: 3,
@@ -552,7 +553,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
     type: 'boss_skeleton',
     name: 'Skeleton King',
     health: 800,
-    speed: 2.25,       // Increased from 1.5 (BUG-037: 50% faster)
+    speed: 3.4,        // BUG-040: 2.25→3.4 (1.5x scale)
     damage: 40,
     xpValue: 300,      // P9.5: Doubled from 150
     size: 2.5,
@@ -562,7 +563,7 @@ export const ENEMY_CONFIGS: Record<string, EnemyConfig> = {
     type: 'boss_demon',
     name: 'Demon Lord',
     health: 1200,
-    speed: 3,          // Increased from 2 (BUG-037: 50% faster)
+    speed: 4.5,        // BUG-040: 3→4.5 (1.5x scale)
     damage: 50,
     xpValue: 500,      // P9.5: Doubled from 250
     size: 3,

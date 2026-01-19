@@ -155,26 +155,33 @@ export class SpawnSystem {
       return;
     }
 
-    // Select enemy type using weighted random selection
-    const enemyType = this.selectEnemyType(wave.enemies);
-    if (!enemyType || !ENEMY_CONFIGS[enemyType]) {
-      this.logSecurityViolation('Invalid enemy type selected', { enemyType, wave: currentWave });
-      return;
+    // BUG-041: Batch spawning - spawn 2-3 enemies per cycle for better gameplay pacing
+    const batchSize = 2 + Math.floor(Math.random() * 2); // Random 2-3 enemies
+    const enemiesToSpawn = Math.min(batchSize, maxEnemies - currentEnemyCount);
+
+    for (let i = 0; i < enemiesToSpawn; i++) {
+      // Select enemy type using weighted random selection
+      const enemyType = this.selectEnemyType(wave.enemies);
+      if (!enemyType || !ENEMY_CONFIGS[enemyType]) {
+        this.logSecurityViolation('Invalid enemy type selected', { enemyType, wave: currentWave });
+        continue;
+      }
+
+      // Generate spawn position
+      const spawnPos = this.generateSpawnPosition(gameState);
+      if (!this.validateSpawnPosition(spawnPos, gameState.world.worldRadius)) {
+        this.logSecurityViolation('Invalid spawn position', spawnPos);
+        continue;
+      }
+
+      // Create enemy and initialize with difficulty scaling
+      const enemy = gameState.addEnemy(enemyType, spawnPos.x, spawnPos.y);
+      enemy.initialize(enemyType, gameState.world.difficulty);
+      this.spawnMetrics.enemiesSpawned++;
+      this.spawnMetrics.totalSpawned++;
     }
 
-    // Generate spawn position
-    const spawnPos = this.generateSpawnPosition(gameState);
-    if (!this.validateSpawnPosition(spawnPos, gameState.world.worldRadius)) {
-      this.logSecurityViolation('Invalid spawn position', spawnPos);
-      return;
-    }
-
-    // Create enemy and initialize with difficulty scaling
-    const enemy = gameState.addEnemy(enemyType, spawnPos.x, spawnPos.y);
-    enemy.initialize(enemyType, gameState.world.difficulty);
     this.lastSpawnTime = currentTime;
-    this.spawnMetrics.enemiesSpawned++;
-    this.spawnMetrics.totalSpawned++;
   }
 
   private selectEnemyType(enemies: { [type: string]: number }): string | null {

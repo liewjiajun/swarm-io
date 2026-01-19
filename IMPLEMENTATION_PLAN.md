@@ -1,12 +1,12 @@
 # SWARM.IO Implementation Plan
 
-## Current Status: Phase 6 Complete - All Critical Bugs Fixed
+## Current Status: Phase 7 - Gameplay Polish & New Content
 
-**Last Updated:** 2026-01-19 (BUG-044 moved to DEFERRED - CRT is a working feature)
-**Implementation Progress:** 131/85 tasks completed (154%)
+**Last Updated:** 2026-01-19
+**Implementation Progress:** 134/85 core tasks completed (158%) + 11 new tasks pending
 **Test Count:** 1049 tests - ALL PASSING (555 server + 121 shared + 373 client)
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
-**Critical Bugs:** 0 | **Medium Bugs:** 4 | **Low Bugs:** 2
+**Pending Tasks:** 11 HIGH PRIORITY tasks (see PRIORITIZED TASK LIST below)
 **Total Sprites:** 70 (player 9 + enemies 16 + weapons/projectiles 18 + XP orbs 6 + power-ups 6 + world events 6 + misc 3)
 **Code Quality:** Excellent (0 TODOs, 0 FIXMEs, 0 skipped tests, 0 lint warnings, ~2 production `any` types - intentional for security logging)
 **CI/CD Status:** GitHub Actions configured (.github/workflows/test.yml, release.yml)
@@ -19,12 +19,9 @@
 
 | Metric | Value | Notes |
 |--------|-------|-------|
-| Total Tasks | 85 | Across 6 phases |
-| Completed | 128 | 151% (all phases complete + extras) |
-| Critical Bugs | 0 | All fixed (BUG-050, BUG-053) |
-| Medium Bugs | 4 | BUG-040-043 (BUG-044 deferred, BUG-052 fixed) |
-| Test Coverage | 1049 tests | All passing (373 client + 555 server + 121 shared) |
-| Testing Gaps | None | All major client files tested |
+| Core Tasks | 134/85 | 158% complete |
+| **Pending Tasks** | **11** | **HIGH PRIORITY - Implement now** |
+| Test Coverage | 1049 tests | All passing |
 | Code Quality | Excellent | 0 TODOs, 0 FIXMEs, 0 skipped tests |
 
 ### System Status
@@ -35,44 +32,102 @@ All core systems operational: 60Hz game loop, 8 weapons with animations, multipl
 
 ## PRIORITIZED TASK LIST
 
-This section tracks all pending work organized by priority tier. Development follows a two-track parallel approach:
-- **Track 1 (Foundation):** Fix broken visual/gameplay systems
-- **Track 2 (Redesign):** Implement retention and progression features
+> **IMPORTANT: All tasks below are HIGH PRIORITY and should be implemented immediately.**
 
 ---
 
-### DEFERRED ITEMS
+### P1 - HIGH PRIORITY: Gameplay Feel (Implement Now)
 
-Items explicitly deferred for future consideration.
+These tasks improve core gameplay feel. Use suggested values.
 
-#### Gameplay Tuning (Awaits Telemetry Data)
+- [x] **BUG-040: Movement Speed Too Slow** ✅ DONE (2026-01-19)
+  - Changed `PLAYER_BASE_SPEED` from 8 → 12 in `src/shared/src/constants.ts`
+  - Scaled all enemy speeds 1.5x: bat 6→9, skeleton 3.75→5.6, zombie 2.25→3.4, ghost 4.5→6.75, slime 3→4.5, etc.
 
-- [ ] **BUG-040: Movement Speed Still Slow** - DEFERRED (Current: 8, Suggested: 12-14)
-- [ ] **BUG-041: Enemy Spawn Rate Too Low** - DEFERRED (1 enemy per 0.48s cycle)
-- [ ] **BUG-042: Projectile Speed Issues (Axe/Fireball)** - DEFERRED
-- [ ] **BUG-043: Environment Too Empty** - DEFERRED
-- [ ] **P8.1: Player Size Scales With Level** - DEFERRED
-- [ ] **P8.2: Research and Add More Weapons** - DEFERRED
+- [x] **BUG-041: Enemy Spawn Rate Too Low** ✅ DONE (2026-01-19)
+  - Added batch spawning (2-3 enemies per cycle) in `src/server/src/systems/SpawnSystem.ts`
+  - Now spawns 2-3 enemies per 0.5s cycle instead of 1
 
-#### Surprise Mechanics (P5.3-P5.7) - DEFERRED
+- [x] **BUG-042: Projectile Speed Issues** ✅ DONE (2026-01-19)
+  - Axe: 8 → 14 in `src/shared/src/constants.ts`
+  - Fireball: 10 → 20
+  - XP Orbs: 8 → 12
 
-- [ ] **P5.3** Secret boss that spawns when all players reach certain level
-- [ ] **P5.4** Environmental hazards (lava pools, ice patches, teleporters)
-- [ ] **P5.5** "Jackpot" XP orbs that give massive XP but attract enemies
-- [ ] **P5.6** Shape-shifting enemy that mimics player abilities
-- [ ] **P5.7** Day/night cycle affecting enemy spawns and player abilities
+- [ ] **P6.1: Balance Enemy Health/Damage**
+  - Early waves (0-60s): Enemies die in 2-3 hits
+  - Mid waves (60-180s): Enemies die in 4-6 hits
+  - Late waves (180s+): Enemies die in 6-10 hits
 
-#### Balance Tuning (P6.1-P6.2) - DEFERRED (Awaits Telemetry)
+- [ ] **P6.2: Balance Boss Difficulty**
+  - First boss (60s): Beatable at level 5-6
+  - Second boss (150s): Requires level 10+ or evolved weapon
+  - Third boss (240s): Requires multiple evolutions
 
-- [ ] **P6.1** Playtest and tune enemy health/damage vs player DPS per wave
-- [ ] **P6.2** Verify boss difficulty spikes are appropriate
+---
 
-#### Design Preferences
+### P2 - HIGH PRIORITY: Visual Polish (Implement Now)
 
-- [ ] **BUG-044: Remove CRT Option** - DEFERRED
-  - CRT shader is a complete, tested feature (P1.10)
-  - Currently provides optional retro scanline effect
-  - Decision: Keep until user feedback suggests removal
+- [ ] **BUG-043: Environment Too Empty**
+  - Add decorative objects: rocks (3 variants), dead trees (2), debris/bones, pillars/ruins (4)
+  - Generate sprites in `scripts/generate-sprites.ts` using Game Boy palette
+  - Add `createEnvironmentDecorations()` in `src/client/src/game/Renderer.ts`
+  - Scatter 50-100 visual-only objects within world bounds
+
+- [ ] **P8.1: Player Size Scales With Level**
+  - Scale formula: `1.0 + (level - 1) * 0.0125` (1.0x at level 1 → 1.5x at level 40)
+  - Modify player sprite rendering in `src/client/src/game/Renderer.ts`
+  - Visual only - hitbox unchanged
+
+---
+
+### P3 - HIGH PRIORITY: Surprise Mechanics (Implement Now)
+
+- [ ] **P5.3: Secret Boss**
+  - Trigger: All alive players reach level 15+
+  - Add `secret_boss` enemy type, spawn at world center with announcement
+
+- [ ] **P5.4: Environmental Hazards**
+  - Lava pools: DOT damage, spawns randomly
+  - Ice patches: Slow movement, spawns in groups
+  - Teleporters: Paired portals, random placement
+
+- [ ] **P5.5: Jackpot XP Orbs**
+  - Rare spawn (1% chance), gives 500 XP
+  - Glows golden, larger size
+  - Attracts nearby enemies (aggro radius 30)
+
+- [ ] **P5.6: Shape-Shifting Enemy**
+  - Copies random player's current weapons
+  - Changes appearance to match copied player
+  - Spawns after wave 5 (rare)
+
+- [ ] **P5.7: Day/Night Cycle**
+  - 2-minute cycle (1 min day, 1 min night)
+  - Day: Normal spawns, +10% XP
+  - Night: 2x spawn rate, enemies +20% damage, -20% visibility
+
+---
+
+### P4 - HIGH PRIORITY: New Weapons (Implement Now)
+
+- [ ] **P8.2: Add 4 New Weapons**
+  1. **Boomerang** - Returns to player, hits enemies both ways
+  2. **Chain Lightning** - Jumps between 3-5 enemies
+  3. **Poison Cloud** - DOT area denial (3s duration)
+  4. **Shield** - Blocks damage, reflects projectiles
+
+  For each weapon, update:
+  - `src/shared/src/constants.ts` - WEAPON_CONFIGS
+  - `src/shared/src/types.ts` - WeaponType union
+  - `src/server/src/systems/WeaponSystem.ts` - Fire logic
+  - `scripts/generate-sprites.ts` - Weapon sprites
+  - `src/client/src/game/Renderer.ts` - Rendering
+
+---
+
+### LOW PRIORITY (Skip for now)
+
+- [ ] **BUG-044: Remove CRT Option** - Keep as optional feature
 
 ---
 
@@ -111,31 +166,30 @@ Items explicitly deferred for future consideration.
 
 ---
 
-## MEDIUM BUG DETAILS
+## IMPLEMENTATION DETAILS (Reference for tasks above)
 
-### BUG-040: Movement Speed Still Too Slow
-- **Current:** Player 8, Enemies proportionally scaled
-- **Suggested:** Player 12-14
-- **Location:** `src/shared/src/constants.ts`
+### BUG-040-042: Speed Constants Location
+All speed values are in `src/shared/src/constants.ts`:
+- `PLAYER_BASE_SPEED` (line ~84)
+- `ENEMY_CONFIGS` speeds (lines ~471-571)
+- `WEAPON_CONFIGS` projectile speeds (lines ~274-378)
+- `XP_ORB_SPEED` (line ~92)
 
-### BUG-041: Enemy Spawn Rate Too Low
-- **Current:** 1 enemy per 0.48s cycle, no batch spawning
-- **Location:** `src/server/src/systems/SpawnSystem.ts`
+### BUG-041: Spawn System Location
+Batch spawning goes in `src/server/src/systems/SpawnSystem.ts`:
+- `handleEnemySpawning()` method (lines ~114-178)
+- Add loop to spawn multiple enemies per tick
 
-### BUG-042: Projectile Speed Issues
-- **Issues:** Axe speed = player speed (8), Fireball borderline (10)
-- **Suggested:** Axe 12-15, Fireball 16-24, XP Orbs 10-12
-- **Location:** `src/shared/src/constants.ts`
-
-### BUG-043: Environment Too Empty
-- **Issue:** Arena feels barren - only floor tiles and boundary ring
-- **Location:** `src/client/src/game/Renderer.ts`, `scripts/generate-sprites.ts`
+### BUG-043: Environment Decoration Locations
+- Sprites: `scripts/generate-sprites.ts`
+- Rendering: `src/client/src/game/Renderer.ts` - add `createEnvironmentDecorations()` near `createGround()`
 
 ---
 
 ## CHANGELOG
 
 See git history for detailed changelog. Recent highlights:
+- 2026-01-19: BUG-040/041/042 - Gameplay feel improvements (movement speed 8→12, batch spawning 2-3, projectile speeds)
 - 2026-01-19: BUG-050, BUG-053 fixed; TypeScript cleanup (95%); XP orb animations; All weapon sprites complete
 - 2026-01-19: Integration tests (46), HUD tests (108), NetworkClient tests (67), GameRoom tests (70)
 - 2026-01-19: Weapon evolution, character classes, server leaderboard, accelerated XP
@@ -157,6 +211,9 @@ See git history for detailed changelog. Recent highlights:
 - P9: Retention systems - high scores, leaderboard, classes, evolution, accelerated XP (8 tasks)
 
 **Recent Bug Fixes:**
+- BUG-040: Movement speed 8→12, enemy speeds scaled 1.5x
+- BUG-041: Batch spawning (2-3 enemies per cycle)
+- BUG-042: Projectile speeds (Axe 8→14, Fireball 10→20, XP orbs 8→12)
 - BUG-053: Bible weapon orbiting fixed (expanding_orb type handling)
 - BUG-051: Projectile spawn position correction
 - BUG-050: Player position during level up fixed
