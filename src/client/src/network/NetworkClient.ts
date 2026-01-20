@@ -146,6 +146,9 @@ interface ColyseusWorldSchema {
   gameTime: number;
   currentWave: number;
   difficulty: number;
+  // P5.7: Day/Night Cycle
+  dayNightPhase: string;
+  dayNightCycleTime: number;
 }
 
 /**
@@ -296,6 +299,9 @@ interface SerializedWorld {
   gameTime: number;
   currentWave: number;
   difficulty: number;
+  // P5.7: Day/Night Cycle
+  dayNightPhase: string;
+  dayNightCycleTime: number;
 }
 
 export interface SerializedGameState {
@@ -812,6 +818,9 @@ export class NetworkClient {
         gameTime: state.world.gameTime,
         currentWave: state.world.currentWave,
         difficulty: state.world.difficulty,
+        // P5.7: Day/Night Cycle
+        dayNightPhase: state.world.dayNightPhase || 'day',
+        dayNightCycleTime: state.world.dayNightCycleTime || 0,
       },
     };
   }

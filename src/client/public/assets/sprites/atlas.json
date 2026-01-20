@@ -244,6 +244,48 @@
       "frame": { "x": 424, "y": 32, "w": 32, "h": 32 },
       "sourceSize": { "w": 32, "h": 32 }
     },
+    "projectile_garlic_0": {
+      "frame": { "x": 424, "y": 32, "w": 32, "h": 32 },
+      "sourceSize": { "w": 32, "h": 32 }
+    },
+    "projectile_garlic_1": {
+      "frame": { "x": 240, "y": 64, "w": 32, "h": 32 },
+      "sourceSize": { "w": 32, "h": 32 }
+    },
+
+    "_P8.2_new_weapons": "P8.2: New weapon projectile sprites - boomerang, chain lightning, poison cloud, shield",
+    "projectile_boomerang_0": {
+      "frame": { "x": 0, "y": 96, "w": 24, "h": 24 },
+      "sourceSize": { "w": 24, "h": 24 }
+    },
+    "projectile_boomerang_1": {
+      "frame": { "x": 24, "y": 96, "w": 24, "h": 24 },
+      "sourceSize": { "w": 24, "h": 24 }
+    },
+    "projectile_chain_lightning_0": {
+      "frame": { "x": 48, "y": 96, "w": 24, "h": 24 },
+      "sourceSize": { "w": 24, "h": 24 }
+    },
+    "projectile_chain_lightning_1": {
+      "frame": { "x": 72, "y": 96, "w": 24, "h": 24 },
+      "sourceSize": { "w": 24, "h": 24 }
+    },
+    "projectile_poison_cloud_0": {
+      "frame": { "x": 96, "y": 96, "w": 32, "h": 32 },
+      "sourceSize": { "w": 32, "h": 32 }
+    },
+    "projectile_poison_cloud_1": {
+      "frame": { "x": 128, "y": 96, "w": 32, "h": 32 },
+      "sourceSize": { "w": 32, "h": 32 }
+    },
+    "projectile_shield_0": {
+      "frame": { "x": 160, "y": 96, "w": 24, "h": 24 },
+      "sourceSize": { "w": 24, "h": 24 }
+    },
+    "projectile_shield_1": {
+      "frame": { "x": 184, "y": 96, "w": 24, "h": 24 },
+      "sourceSize": { "w": 24, "h": 24 }
+    },
 
     "_P1.7_environment_tiles": "Environment tiles for arena floor and boundaries",
     "floor_tile": {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { PlayerState, EnemyState, ProjectileState, XPOrbState, PowerUpState, WorldEventState, WorldEventType } from '@swarm-io/shared';
+import type { PlayerState, EnemyState, ProjectileState, XPOrbState, PowerUpState, WorldEventState, WorldEventType, DayNightPhase } from '@swarm-io/shared';
 
 // =============================================================================
 // THREE.JS MOCKS
@@ -113,6 +113,9 @@ vi.mock('three', () => {
     constructor(_hex?: number) {}
     set = vi.fn().mockReturnThis();
     setHex = vi.fn().mockReturnThis();
+    // P5.7: Day/Night cycle uses copy and lerp for color transitions
+    copy = vi.fn().mockReturnThis();
+    lerp = vi.fn().mockReturnThis();
   }
 
   class MockVector2 {
@@ -155,6 +158,9 @@ vi.mock('three', () => {
   class MockIcosahedronGeometry {}
   class MockRingGeometry {}
   class MockCircleGeometry {}
+  // P8.2: New weapons use additional geometries
+  class MockDodecahedronGeometry {} // Shield orb
+  class MockTorusKnotGeometry {} // Poison cloud
 
   class MockMeshBasicMaterial {
     color: any;
@@ -237,6 +243,9 @@ vi.mock('three', () => {
     IcosahedronGeometry: MockIcosahedronGeometry,
     RingGeometry: MockRingGeometry,
     CircleGeometry: MockCircleGeometry,
+    // P8.2: New weapons use additional geometries
+    DodecahedronGeometry: MockDodecahedronGeometry, // Shield orb
+    TorusKnotGeometry: MockTorusKnotGeometry, // Poison cloud
     MeshBasicMaterial: MockMeshBasicMaterial,
     MeshStandardMaterial: MockMeshStandardMaterial,
     SpriteMaterial: MockSpriteMaterial,
@@ -770,6 +779,9 @@ describe('Renderer', () => {
           gameTime: 0,
           currentWave: 1,
           difficulty: 1,
+          // P5.7: Day/Night Cycle
+          dayNightPhase: 'day' as DayNightPhase,
+          dayNightCycleTime: 0,
         },
       };
 

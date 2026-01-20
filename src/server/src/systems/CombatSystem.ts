@@ -2,6 +2,7 @@ import { GameState, PlayerSchema, EnemySchema, ProjectileSchema } from '../state
 import { SpatialHash } from './SpatialHash.js';
 import { GAME_CONSTANTS, WEAPON_CONFIGS, ENEMY_CONFIGS, BOSS_ABILITY_CONFIGS, JACKPOT_ORB_CONFIG } from '@swarm-io/shared';
 import { combatSystemLogger } from '../utils/logger.js';
+import type { WorldSchema } from '../state/WorldSchema.js';
 
 interface CombatMetrics {
   totalDamageDealt: number;
@@ -407,6 +408,13 @@ export class CombatSystem {
     // Validate damage - enemy projectiles deal full damage
     let validatedDamage = this.validateDamage(projectile.damage, 'projectile', projectile.type, 1);
 
+    // P5.7: Apply day/night damage multiplier (night = +20% enemy damage)
+    const world = gameState.world as WorldSchema;
+    const dayNightDamageMultiplier = world.isNighttime()
+      ? GAME_CONSTANTS.NIGHT_DAMAGE_MULTIPLIER
+      : GAME_CONSTANTS.DAY_DAMAGE_MULTIPLIER;
+    validatedDamage = Math.floor(validatedDamage * dayNightDamageMultiplier);
+
     // P4.3: Apply team zone defense bonus (damage reduction)
     const defenseBonus = this.calculateTeamZoneDefenseBonus(gameState, player.id);
     if (defenseBonus > 0) {
@@ -435,6 +443,13 @@ export class CombatSystem {
   }
 
   private processContactDamage(gameState: GameState, spatialHash: SpatialHash, deltaTime: number): void {
+    // P5.7: Get day/night damage multiplier
+    // Night: enemies deal +20% damage (NIGHT_DAMAGE_MULTIPLIER = 1.2)
+    const world = gameState.world as WorldSchema;
+    const dayNightDamageMultiplier = world.isNighttime()
+      ? GAME_CONSTANTS.NIGHT_DAMAGE_MULTIPLIER
+      : GAME_CONSTANTS.DAY_DAMAGE_MULTIPLIER;
+
     gameState.players.forEach(player => {
       // Skip dead or invulnerable players
       if (player.dead || player.isInvulnerable) return;
@@ -462,6 +477,9 @@ export class CombatSystem {
           const damage = damagePerSecond * deltaTime;
 
           let validatedDamage = this.validateDamage(damage, 'contact', enemy.type, 1);
+
+          // P5.7: Apply day/night damage multiplier (night = +20% enemy damage)
+          validatedDamage = Math.floor(validatedDamage * dayNightDamageMultiplier);
 
           // P4.3: Apply team zone defense bonus (damage reduction)
           const defenseBonus = this.calculateTeamZoneDefenseBonus(gameState, player.id);

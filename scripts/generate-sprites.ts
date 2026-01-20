@@ -105,6 +105,15 @@ const COLORS = {
   PROJ_FIREBALL: { r: 255, g: 69, b: 0, a: 255 },
   PROJ_WHIP: { r: 165, g: 42, b: 42, a: 255 },
   PROJ_GARLIC: { r: 144, g: 238, b: 144, a: 255 },
+  // P8.2: New weapon projectile colors
+  PROJ_BOOMERANG: { r: 218, g: 165, b: 32, a: 255 }, // Goldenrod
+  PROJ_BOOMERANG_DARK: { r: 139, g: 90, b: 0, a: 255 }, // Dark gold
+  PROJ_CHAIN_LIGHTNING: { r: 125, g: 249, b: 255, a: 255 }, // Electric blue
+  PROJ_CHAIN_LIGHTNING_DARK: { r: 0, g: 200, b: 230, a: 255 }, // Darker blue
+  PROJ_POISON_CLOUD: { r: 154, g: 205, b: 50, a: 255 }, // Yellow-green
+  PROJ_POISON_CLOUD_DARK: { r: 80, g: 140, b: 20, a: 255 }, // Dark green
+  PROJ_SHIELD: { r: 135, g: 206, b: 235, a: 255 }, // Sky blue
+  PROJ_SHIELD_DARK: { r: 70, g: 130, b: 180, a: 255 }, // Steel blue
 
   // P5.4: Hazard colors
   // Lava - warm red-orange bubbling pool
@@ -999,6 +1008,187 @@ function drawProjectileGarlic(canvas: PixelCanvas, x: number, y: number, frame: 
 }
 
 // =============================================================================
+// P8.2: NEW WEAPON PROJECTILES
+// =============================================================================
+
+/**
+ * Draw Boomerang projectile - spinning curved blade
+ * 24x24 sprite, 2 frames (spinning)
+ */
+function drawProjectileBoomerang(canvas: PixelCanvas, x: number, y: number, frame: number = 0): void {
+  const cx = x + 12;
+  const cy = y + 12;
+
+  // Rotation based on frame (spinning effect)
+  const rotation = frame === 0 ? 0 : Math.PI / 4;
+
+  // Draw curved boomerang shape
+  // Outer arm 1
+  for (let t = 0; t < Math.PI * 0.7; t += 0.1) {
+    const r = 8 + Math.sin(t) * 2;
+    const angle = t + rotation;
+    const px = cx + Math.cos(angle) * r;
+    const py = cy + Math.sin(angle) * r;
+    canvas.fillCircle(Math.round(px), Math.round(py), 2, COLORS.PROJ_BOOMERANG);
+    // Dark outline
+    canvas.setPixel(Math.round(px) - 1, Math.round(py) - 1, COLORS.PROJ_BOOMERANG_DARK);
+  }
+
+  // Outer arm 2 (opposite side)
+  for (let t = 0; t < Math.PI * 0.7; t += 0.1) {
+    const r = 8 + Math.sin(t) * 2;
+    const angle = t + rotation + Math.PI;
+    const px = cx + Math.cos(angle) * r;
+    const py = cy + Math.sin(angle) * r;
+    canvas.fillCircle(Math.round(px), Math.round(py), 2, COLORS.PROJ_BOOMERANG);
+    // Dark outline
+    canvas.setPixel(Math.round(px) + 1, Math.round(py) + 1, COLORS.PROJ_BOOMERANG_DARK);
+  }
+
+  // Center grip (darker)
+  canvas.fillCircle(cx, cy, 3, COLORS.PROJ_BOOMERANG_DARK);
+  canvas.fillCircle(cx, cy, 2, COLORS.PROJ_BOOMERANG);
+
+  // Highlight
+  canvas.setPixel(cx - 1, cy - 1, COLORS.WHITE);
+}
+
+/**
+ * Draw Chain Lightning projectile - electric bolt with chain effect
+ * 24x24 sprite, 2 frames (crackling)
+ */
+function drawProjectileChainLightning(canvas: PixelCanvas, x: number, y: number, frame: number = 0): void {
+  const cx = x + 12;
+  const cy = y + 12;
+
+  // Main bolt core
+  const jitter = frame === 0 ? 0 : 1; // Frame 1 has slight jitter
+
+  // Draw main lightning bolt (zig-zag)
+  const points: { x: number; y: number }[] = [
+    { x: cx, y: cy - 10 + jitter },
+    { x: cx + 3, y: cy - 6 },
+    { x: cx - 2 + jitter, y: cy - 2 },
+    { x: cx + 2, y: cy + 2 },
+    { x: cx - 3 + jitter, y: cy + 6 },
+    { x: cx, y: cy + 10 },
+  ];
+
+  // Draw bolt segments
+  for (let i = 0; i < points.length - 1; i++) {
+    canvas.drawLine(points[i].x, points[i].y, points[i + 1].x, points[i + 1].y, COLORS.PROJ_CHAIN_LIGHTNING);
+    // Glow effect
+    canvas.setPixel(points[i].x - 1, points[i].y, { ...COLORS.PROJ_CHAIN_LIGHTNING, a: 150 });
+    canvas.setPixel(points[i].x + 1, points[i].y, { ...COLORS.PROJ_CHAIN_LIGHTNING, a: 150 });
+  }
+
+  // Chain sparks (side bolts indicating chain effect)
+  const sparkOffset = frame === 0 ? 0 : 2;
+  // Left spark
+  canvas.drawLine(cx - 2, cy - 2, cx - 6, cy - 4 + sparkOffset, COLORS.PROJ_CHAIN_LIGHTNING_DARK);
+  canvas.setPixel(cx - 6, cy - 4 + sparkOffset, COLORS.PROJ_CHAIN_LIGHTNING);
+  // Right spark
+  canvas.drawLine(cx + 2, cy + 2, cx + 6, cy + 4 - sparkOffset, COLORS.PROJ_CHAIN_LIGHTNING_DARK);
+  canvas.setPixel(cx + 6, cy + 4 - sparkOffset, COLORS.PROJ_CHAIN_LIGHTNING);
+
+  // Center glow
+  canvas.fillCircle(cx, cy, 2, COLORS.WHITE);
+}
+
+/**
+ * Draw Poison Cloud projectile - toxic gas cloud
+ * 32x32 sprite, 2 frames (swirling)
+ */
+function drawProjectilePoisonCloud(canvas: PixelCanvas, x: number, y: number, frame: number = 0): void {
+  const cx = x + 16;
+  const cy = y + 16;
+
+  // Animation: Frame 0 = normal, Frame 1 = swirled
+  const rotationOffset = frame === 0 ? 0 : Math.PI / 6;
+
+  // Outer cloud layer (semi-transparent particles)
+  for (let angle = rotationOffset; angle < Math.PI * 2 + rotationOffset; angle += 0.5) {
+    const r = 10 + Math.sin(angle * 3) * 2;
+    const px = cx + Math.cos(angle) * r;
+    const py = cy + Math.sin(angle) * r;
+    canvas.fillCircle(Math.round(px), Math.round(py), 3, { ...COLORS.PROJ_POISON_CLOUD, a: 100 });
+  }
+
+  // Middle cloud layer
+  for (let angle = -rotationOffset; angle < Math.PI * 2 - rotationOffset; angle += 0.7) {
+    const r = 6 + Math.cos(angle * 2) * 2;
+    const px = cx + Math.cos(angle) * r;
+    const py = cy + Math.sin(angle) * r;
+    canvas.fillCircle(Math.round(px), Math.round(py), 3, { ...COLORS.PROJ_POISON_CLOUD, a: 150 });
+  }
+
+  // Inner cloud core (denser)
+  canvas.fillCircle(cx, cy, 5, COLORS.PROJ_POISON_CLOUD_DARK);
+  canvas.fillCircle(cx, cy, 3, COLORS.PROJ_POISON_CLOUD);
+
+  // Skull symbol hint in center (toxic indicator)
+  if (frame === 0) {
+    // Eyes
+    canvas.setPixel(cx - 2, cy - 1, COLORS.BLACK);
+    canvas.setPixel(cx + 2, cy - 1, COLORS.BLACK);
+    // Nose
+    canvas.setPixel(cx, cy + 1, COLORS.BLACK);
+  }
+
+  // Bubbling particles (different positions per frame)
+  const bubbleOffset = frame === 0 ? 0 : 3;
+  canvas.fillCircle(cx - 5, cy - 3 + bubbleOffset, 1, COLORS.PROJ_POISON_CLOUD);
+  canvas.fillCircle(cx + 6, cy + 2 - bubbleOffset, 1, COLORS.PROJ_POISON_CLOUD);
+  canvas.fillCircle(cx + 3, cy - 6 + bubbleOffset, 1, COLORS.PROJ_POISON_CLOUD);
+}
+
+/**
+ * Draw Shield projectile - protective barrier orb
+ * 24x24 sprite, 2 frames (shimmering)
+ */
+function drawProjectileShield(canvas: PixelCanvas, x: number, y: number, frame: number = 0): void {
+  const cx = x + 12;
+  const cy = y + 12;
+
+  // Animation: Frame 0 = solid, Frame 1 = shimmering glow
+  const glowIntensity = frame === 0 ? 80 : 120;
+
+  // Outer glow ring
+  for (let angle = 0; angle < Math.PI * 2; angle += 0.3) {
+    const r = frame === 0 ? 10 : 11;
+    const px = cx + Math.cos(angle) * r;
+    const py = cy + Math.sin(angle) * r;
+    canvas.setPixel(Math.round(px), Math.round(py), { ...COLORS.PROJ_SHIELD, a: glowIntensity });
+  }
+
+  // Main shield orb (hexagonal-ish shape)
+  canvas.fillCircle(cx, cy, 7, COLORS.PROJ_SHIELD);
+
+  // Inner highlight ring
+  for (let angle = 0; angle < Math.PI * 2; angle += 0.5) {
+    const r = 4;
+    const px = cx + Math.cos(angle) * r;
+    const py = cy + Math.sin(angle) * r;
+    canvas.setPixel(Math.round(px), Math.round(py), COLORS.WHITE);
+  }
+
+  // Center core
+  canvas.fillCircle(cx, cy, 3, COLORS.PROJ_SHIELD_DARK);
+  canvas.fillCircle(cx, cy, 2, COLORS.PROJ_SHIELD);
+
+  // Shield cross pattern (indicates protection)
+  const crossColor = { ...COLORS.WHITE, a: frame === 0 ? 200 : 255 };
+  canvas.drawLine(cx - 4, cy, cx + 4, cy, crossColor);
+  canvas.drawLine(cx, cy - 4, cx, cy + 4, crossColor);
+
+  // Shimmer sparkle (alternates position)
+  if (frame === 1) {
+    canvas.setPixel(cx - 3, cy - 3, COLORS.WHITE);
+    canvas.setPixel(cx + 4, cy - 2, COLORS.WHITE);
+  }
+}
+
+// =============================================================================
 // P1.7: ENVIRONMENT TILES
 // =============================================================================
 
@@ -1851,6 +2041,25 @@ async function generateAtlas(): Promise<void> {
   // Garlic: 2 frames (animated) - NEW ANIMATION - pulsing aura effect
   drawProjectileGarlic(canvas, 424, 32, 0);  // 32x32 - frame 0
   drawProjectileGarlic(canvas, 240, 64, 1);  // 32x32 - frame 1 (row 2)
+
+  // =============================================================================
+  // P8.2: NEW WEAPON PROJECTILES (row 3-4, y=96 and y=128)
+  // =============================================================================
+  // Boomerang: 2 frames (spinning) - 24x24
+  drawProjectileBoomerang(canvas, 0, 96, 0);   // 24x24 - frame 0
+  drawProjectileBoomerang(canvas, 24, 96, 1);  // 24x24 - frame 1
+
+  // Chain Lightning: 2 frames (crackling) - 24x24
+  drawProjectileChainLightning(canvas, 48, 96, 0);  // 24x24 - frame 0
+  drawProjectileChainLightning(canvas, 72, 96, 1);  // 24x24 - frame 1
+
+  // Poison Cloud: 2 frames (swirling) - 32x32
+  drawProjectilePoisonCloud(canvas, 96, 96, 0);   // 32x32 - frame 0
+  drawProjectilePoisonCloud(canvas, 128, 96, 1);  // 32x32 - frame 1
+
+  // Shield: 2 frames (shimmering) - 24x24
+  drawProjectileShield(canvas, 160, 96, 0);  // 24x24 - frame 0
+  drawProjectileShield(canvas, 184, 96, 1);  // 24x24 - frame 1
 
   // =============================================================================
   // P1.7: ENVIRONMENT TILES (row 5, y=160)

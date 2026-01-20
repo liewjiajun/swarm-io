@@ -9,6 +9,7 @@ function createMockWorld(overrides: Partial<{
   gameTime: number;
   currentWave: number;
   difficulty: number;
+  dayNightPhase: string;
 }> = {}) {
   return {
     worldRadius: overrides.worldRadius ?? 100,
@@ -16,7 +17,14 @@ function createMockWorld(overrides: Partial<{
     gameTime: overrides.gameTime ?? 0,
     currentWave: overrides.currentWave ?? 0,
     difficulty: overrides.difficulty ?? 1,
-    updateDifficulty: vi.fn()
+    // P5.7: Day/Night Cycle - required for spawn system to track phase changes
+    dayNightPhase: overrides.dayNightPhase ?? 'day',
+    dayNightCycleTime: 0,
+    updateDifficulty: vi.fn(),
+    // P5.7: Mock method for day/night cycle updates (returns false = no phase change)
+    updateDayNightCycle: vi.fn().mockReturnValue(false),
+    // P5.7: Mock method to check if it's nighttime (returns false = daytime)
+    isNighttime: vi.fn().mockReturnValue(false)
   } as any;
 }
 

@@ -97,6 +97,9 @@ interface WorldState {
   currentWave: number;
   playerCount: number;
   worldRadius: number;
+  // P5.7: Day/Night Cycle
+  dayNightPhase?: string;
+  dayNightCycleTime?: number;
 }
 
 // P3.3: Enemy state for minimap enhancements
@@ -1794,12 +1797,27 @@ export class HUD {
 
   /**
    * Updates game info display (time, wave, players)
+   * P5.7: Added day/night cycle indicator
    */
   private updateGameInfo(world: WorldState): void {
+    // P5.7: Day/Night cycle indicator with icon and time remaining
+    const phase = world.dayNightPhase || 'day';
+    const cycleTime = world.dayNightCycleTime || 0;
+    const isDay = phase === 'day';
+    const phaseIcon = isDay ? '☀️' : '🌙';
+    const phaseName = isDay ? 'Day' : 'Night';
+    // Calculate time remaining in current phase (60 second phases)
+    const timeInPhase = isDay ? cycleTime : (cycleTime - 60);
+    const timeRemaining = Math.max(0, 60 - timeInPhase);
+    const phaseColor = isDay ? '#ffd700' : '#4169e1';
+
     this.elements.gameInfo.innerHTML = `
       <div class="game-time">${this.formatTime(world.gameTime)}</div>
       <div class="game-wave">Wave ${world.currentWave}</div>
       <div class="game-players">${world.playerCount} Player${world.playerCount !== 1 ? 's' : ''}</div>
+      <div class="day-night-indicator" style="color: ${phaseColor}; margin-top: 4px;">
+        ${phaseIcon} ${phaseName} (${Math.ceil(timeRemaining)}s)
+      </div>
     `;
   }
 

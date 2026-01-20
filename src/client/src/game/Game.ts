@@ -4,7 +4,7 @@ import { Interpolator, ExtendedGameState } from './Interpolator';
 import { NetworkClient, SerializedGameState } from '../network';
 import { HUD } from '../ui';
 import { AudioManager } from '../audio';
-import type { PlayerInput, WeaponType, PlayerState, ProjectileState, EnemyState, XPOrbState } from '@swarm-io/shared';
+import type { PlayerInput, WeaponType, PlayerState, ProjectileState, EnemyState, XPOrbState, DayNightPhase } from '@swarm-io/shared';
 import { gameLogger as logger } from '../utils/logger';
 
 export class Game {
@@ -448,7 +448,10 @@ export class Game {
         playerCount: state.world.playerCount,
         gameTime: state.world.gameTime,
         currentWave: state.world.currentWave,
-        difficulty: state.world.difficulty
+        difficulty: state.world.difficulty,
+        // P5.7: Day/Night Cycle
+        dayNightPhase: (state.world.dayNightPhase || 'day') as DayNightPhase,
+        dayNightCycleTime: state.world.dayNightCycleTime || 0
       }
     };
   }
@@ -493,7 +496,10 @@ export class Game {
         playerCount: 1,
         gameTime: 0,
         currentWave: 1,
-        difficulty: 1
+        difficulty: 1,
+        // P5.7: Day/Night Cycle
+        dayNightPhase: 'day' as DayNightPhase,
+        dayNightCycleTime: 0
       }
     };
 

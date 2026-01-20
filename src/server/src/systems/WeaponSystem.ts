@@ -117,6 +117,19 @@ export class WeaponSystem {
       case 'whip':
         this.fireWhip(gameState, player, weapon, damage, evolution);
         break;
+      // P8.2: New weapons
+      case 'boomerang':
+        this.fireBoomerang(gameState, player, weapon, damage, evolution);
+        break;
+      case 'chain_lightning':
+        this.fireChainLightning(gameState, player, weapon, damage, evolution);
+        break;
+      case 'poison_cloud':
+        this.firePoisonCloud(gameState, player, weapon, damage, evolution);
+        break;
+      case 'shield':
+        this.fireShield(gameState, player, weapon, damage, evolution);
+        break;
       default:
         this.logSecurityViolation('Unknown weapon type', {
           playerId: player.id,
@@ -569,6 +582,270 @@ export class WeaponSystem {
         999                             // piercing (unlimited)
       );
 
+      this.weaponMetrics.projectilesCreated++;
+    }
+  }
+
+  // =========================================================================
+  // P8.2: NEW WEAPONS
+  // =========================================================================
+
+  // BOOMERANG: Returns to player, hits enemies both ways
+  // P9.4 Evolution (Chakram): 3x boomerangs, homing on return path
+  private fireBoomerang(gameState: GameState, player: PlayerSchema, weapon: WeaponSchema, damage: number, evolution: WeaponEvolutionConfig | null): void {
+    const config = WEAPON_CONFIGS.boomerang;
+    if (!config) return;
+
+    const speed = config.projectileSpeed || 12;
+
+    // Calculate number of boomerangs based on level (1-3)
+    let boomerangCount = Math.min(1 + Math.floor(weapon.level / 3), 3);
+
+    // P9.4: Apply evolution projectile multiplier (Chakram: 3x)
+    if (evolution) {
+      boomerangCount = Math.floor(boomerangCount * evolution.projectileMultiplier);
+    }
+
+    // Calculate range with level scaling
+    let scaledRange = this.calculateWeaponRange(config, weapon.level);
+    if (evolution) {
+      scaledRange *= evolution.rangeMultiplier;
+    }
+
+    // Boomerang lifetime: time to reach max range and return (2 * range / speed)
+    const lifetime = (2 * scaledRange / speed) + 0.5; // Extra 0.5s buffer for return
+
+    // P9.4: Determine projectile type (evolved has homing on return)
+    const boomerangType = (evolution && evolution.homing) ? 'homing_boomerang' : 'boomerang';
+
+    for (let i = 0; i < boomerangCount; i++) {
+      // Calculate spread angle for multiple boomerangs
+      const angleOffset = (i - (boomerangCount - 1) / 2) * 0.4; // 0.4 rad spread
+      const cos = Math.cos(angleOffset);
+      const sin = Math.sin(angleOffset);
+
+      // Rotate facing direction by angle offset
+      const dirX = player.facingX * cos - player.facingY * sin;
+      const dirY = player.facingX * sin + player.facingY * cos;
+
+      gameState.addProjectile(
+        boomerangType,     // type
+        player.id,         // ownerId
+        player.x,          // x
+        player.y,          // y
+        dirX * speed,      // velocityX
+        dirY * speed,      // velocityY
+        damage,            // damage
+        lifetime,          // lifetime
+        0.6,               // radius
+        999                // piercing (unlimited - hits enemies both ways)
+      );
+
+      this.weaponMetrics.projectilesCreated++;
+    }
+  }
+
+  // CHAIN LIGHTNING: Jumps between 3-5 enemies
+  // P9.4 Evolution (Storm Caller): 8 jumps, larger radius
+  private fireChainLightning(gameState: GameState, player: PlayerSchema, weapon: WeaponSchema, damage: number, evolution: WeaponEvolutionConfig | null): void {
+    const config = WEAPON_CONFIGS.chain_lightning;
+    if (!config || !this.spatialHash) return;
+
+    // Calculate jump count based on level (3-5, max 5 without evolution)
+    let jumpCount = Math.min(3 + Math.floor(weapon.level / 3), 5);
+
+    // P9.4: Apply evolution projectile multiplier (Storm Caller: 2x jumps = 6-10)
+    if (evolution) {
+      jumpCount = Math.floor(jumpCount * evolution.projectileMultiplier);
+    }
+
+    let range = this.calculateWeaponRange(config, weapon.level);
+    if (evolution) {
+      range *= evolution.rangeMultiplier;
+    }
+
+    // Find nearest enemy to start the chain
+    const nearestEnemy = this.spatialHash.queryNearestOfType(
+      player.x, player.y, 'enemy', range
+    );
+
+    if (!nearestEnemy) return;
+
+    // Get all nearby enemies for chain targets
+    const nearbyEnemies = this.spatialHash.queryRadius(
+      player.x, player.y, range * 1.5, 'enemy' // Extended range for chaining
+    );
+
+    if (nearbyEnemies.length === 0) return;
+
+    // Track hit enemies to prevent double-hitting
+    const hitEnemyIds = new Set<string>();
+    let currentTarget: { id: string; x: number; y: number } | null = nearestEnemy;
+    let chainDamage = damage;
+
+    // Create chain lightning bolts jumping between enemies
+    for (let i = 0; i < jumpCount && currentTarget; i++) {
+      hitEnemyIds.add(currentTarget.id);
+
+      // Damage reduction per jump (90% of previous)
+      if (i > 0) {
+        chainDamage *= 0.9;
+      }
+
+      // Create lightning bolt at target position
+      gameState.addProjectile(
+        'chain_lightning_bolt', // type
+        player.id,             // ownerId
+        currentTarget.x,       // x
+        currentTarget.y,       // y
+        0,                     // velocityX (stationary)
+        0,                     // velocityY
+        chainDamage,           // damage (decreasing per jump)
+        0.2,                   // lifetime (short visual)
+        0.5,                   // radius
+        1                      // piercing (single hit per bolt)
+      );
+
+      this.weaponMetrics.projectilesCreated++;
+
+      // Find next nearest enemy that hasn't been hit
+      const jumpRange = 8; // Max distance between chain targets
+      let nextTarget: { id: string; x: number; y: number } | null = null;
+      let nearestDist = Infinity;
+
+      for (const enemy of nearbyEnemies) {
+        if (hitEnemyIds.has(enemy.id)) continue;
+
+        const dist = Math.sqrt(
+          (enemy.x - currentTarget.x) ** 2 +
+          (enemy.y - currentTarget.y) ** 2
+        );
+
+        if (dist < nearestDist && dist <= jumpRange) {
+          nearestDist = dist;
+          nextTarget = enemy;
+        }
+      }
+
+      currentTarget = nextTarget;
+    }
+  }
+
+  // POISON CLOUD: DOT area denial (3s duration)
+  // P9.4 Evolution (Plague): 2x radius, spreads on kill
+  private firePoisonCloud(gameState: GameState, player: PlayerSchema, weapon: WeaponSchema, damage: number, evolution: WeaponEvolutionConfig | null): void {
+    const config = WEAPON_CONFIGS.poison_cloud;
+    if (!config || !this.spatialHash) return;
+
+    // Find nearest enemy to target the cloud
+    let targetRange = this.calculateWeaponRange(config, weapon.level);
+    if (evolution) {
+      targetRange *= evolution.rangeMultiplier;
+    }
+
+    const nearestEnemy = this.spatialHash.queryNearestOfType(
+      player.x, player.y, 'enemy', targetRange
+    );
+
+    // Target nearest enemy or use facing direction
+    let cloudX = player.x + player.facingX * (targetRange * 0.5);
+    let cloudY = player.y + player.facingY * (targetRange * 0.5);
+
+    if (nearestEnemy) {
+      cloudX = nearestEnemy.x;
+      cloudY = nearestEnemy.y;
+    }
+
+    // Calculate cloud radius with level scaling
+    let cloudRadius = (config.area || 4) * (1 + (weapon.level - 1) * 0.1);
+    if (evolution) {
+      cloudRadius *= evolution.rangeMultiplier;
+    }
+
+    // Cloud duration: 3 seconds base, longer with evolution
+    const duration = (evolution && evolution.expandsOutward) ? 5 : 3;
+
+    // P9.4: Determine projectile type (evolved expands over time)
+    const cloudType = (evolution && evolution.expandsOutward) ? 'expanding_poison_cloud' : 'poison_cloud';
+
+    // Create poison cloud AOE projectile
+    gameState.addProjectile(
+      cloudType,         // type
+      player.id,         // ownerId
+      cloudX,            // x
+      cloudY,            // y
+      0,                 // velocityX (stationary)
+      0,                 // velocityY
+      damage,            // damage per tick
+      duration,          // lifetime (3-5 seconds)
+      cloudRadius,       // radius
+      999                // piercing (unlimited - DOT area)
+    );
+
+    this.weaponMetrics.projectilesCreated++;
+  }
+
+  // SHIELD: Orbital barrier that blocks damage and reflects projectiles
+  // P9.4 Evolution (Aegis): 3 shields, 2x reflect damage, heals on block
+  private fireShield(gameState: GameState, player: PlayerSchema, weapon: WeaponSchema, damage: number, evolution: WeaponEvolutionConfig | null): void {
+    const config = WEAPON_CONFIGS.shield;
+    if (!config) return;
+
+    // Calculate number of shield orbs (1 + level scaling, max 3)
+    let shieldCount = Math.min(1 + Math.floor((weapon.level - 1) / 3), 3);
+
+    // P9.4: Apply evolution projectile multiplier (Aegis: 3x shields)
+    if (evolution) {
+      shieldCount = Math.floor(shieldCount * evolution.projectileMultiplier);
+    }
+
+    // P9.4: Determine projectile type (evolved heals on block)
+    const shieldType = (evolution && evolution.heals) ? 'healing_shield' : 'shield_orb';
+
+    // Find existing shield projectiles for this player
+    const existingShields: string[] = [];
+    gameState.projectiles.forEach((proj, id) => {
+      if (proj.ownerId === player.id && (proj.type === 'shield_orb' || proj.type === 'healing_shield')) {
+        existingShields.push(id);
+        // Update damage on existing shields
+        proj.damage = damage;
+      }
+    });
+
+    // Only remove excess shields if we have too many
+    while (existingShields.length > shieldCount) {
+      const id = existingShields.pop()!;
+      gameState.removeProjectile(id);
+    }
+
+    // Shield orbit radius scales with level
+    let orbitRadius = config.range * (1 + (weapon.level - 1) * 0.1);
+    if (evolution) {
+      orbitRadius *= evolution.rangeMultiplier;
+    }
+
+    // Only create new shields if we need more
+    while (existingShields.length < shieldCount) {
+      // Space new shields evenly in the circle
+      const angle = (existingShields.length / shieldCount) * Math.PI * 2;
+
+      const shieldX = player.x + Math.cos(angle) * orbitRadius;
+      const shieldY = player.y + Math.sin(angle) * orbitRadius;
+
+      gameState.addProjectile(
+        shieldType,        // type
+        player.id,         // ownerId
+        shieldX,           // x
+        shieldY,           // y
+        0,                 // velocityX (will be updated in physics for orbit)
+        0,                 // velocityY
+        damage,            // reflect damage
+        999,               // lifetime (very long - like bible)
+        0.8,               // radius (slightly larger for blocking)
+        999                // piercing (blocks unlimited projectiles)
+      );
+
+      existingShields.push('new');
       this.weaponMetrics.projectilesCreated++;
     }
   }

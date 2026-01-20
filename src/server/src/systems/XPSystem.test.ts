@@ -90,6 +90,12 @@ function createMockGameState(players: any[] = [], xpOrbs: any[] = []) {
   return {
     players: playersMap,
     xpOrbs: xpOrbsMap,
+    // P5.7: Mock world object with isDaytime method for XP multiplier calculation
+    world: {
+      isDaytime: vi.fn().mockReturnValue(true),
+      dayNightPhase: 'day',
+      dayNightCycleTime: 0
+    },
     removeXPOrb: vi.fn().mockImplementation(function(this: any, id: string) {
       this.xpOrbs.delete(id);
     })
@@ -226,8 +232,9 @@ describe('XPSystem', () => {
 
       expect(orb.collected).toBe(true);
       // P9.5: XP is multiplied by XP_PROGRESSION_MULTIPLIER (3.0)
-      // 10 * 3 = 30
-      expect(player.addXP).toHaveBeenCalledWith(30);
+      // P5.7: During day (mock default), XP is multiplied by DAY_XP_MULTIPLIER (1.1)
+      // 10 * 3 * 1.1 = 33
+      expect(player.addXP).toHaveBeenCalledWith(33);
     });
 
     it('should not collect orbs outside collection radius', () => {
@@ -274,8 +281,9 @@ describe('XPSystem', () => {
 
       const metrics = xpSystem.getXPMetrics();
       // P9.5: XP is multiplied by XP_PROGRESSION_MULTIPLIER (3.0)
-      // 15 * 3 = 45
-      expect(metrics.totalXPCollected).toBe(45);
+      // P5.7: During day (mock default), XP is multiplied by DAY_XP_MULTIPLIER (1.1)
+      // 15 * 3 * 1.1 = 49 (floor)
+      expect(metrics.totalXPCollected).toBe(49);
       expect(metrics.orbsCollected).toBe(1);
     });
   });
@@ -314,8 +322,9 @@ describe('XPSystem', () => {
       xpSystem.update(gameState, spatialHash, deltaTime);
 
       // P9.5: XP is capped at 1000, then multiplied by XP_PROGRESSION_MULTIPLIER (3.0)
-      // 1000 (cap) * 3 = 3000
-      expect(player.addXP).toHaveBeenCalledWith(3000);
+      // P5.7: During day (mock default), XP is multiplied by DAY_XP_MULTIPLIER (1.1)
+      // 1000 (cap) * 3 * 1.1 = 3300
+      expect(player.addXP).toHaveBeenCalledWith(3300);
     });
   });
 

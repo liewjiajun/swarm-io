@@ -195,6 +195,9 @@ export class Interpolator {
       gameTime: 0,
       currentWave: 0,
       difficulty: 1.0,
+      // P5.7: Day/Night Cycle - default to day phase
+      dayNightPhase: 'day',
+      dayNightCycleTime: 0,
     };
 
     return {

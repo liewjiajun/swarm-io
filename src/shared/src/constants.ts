@@ -37,7 +37,7 @@ export const COLOR_PALETTE = {
   SECRET_BOSS: 0x9400d3,     // P5.3: Secret Boss - dark violet (mysterious/ancient)
   SHAPESHIFTER: 0xff00ff,    // P5.6: Shapeshifter - magenta (shifting/unstable)
 
-  // Projectile colors (8)
+  // Projectile colors (12)
   PROJ_KNIFE: 0xc0c0c0,      // Knife slash - silver
   PROJ_WAND: 0x9b59b6,       // Magic wand - purple
   PROJ_BIBLE: 0xffd700,      // Bible orb - gold
@@ -46,6 +46,11 @@ export const COLOR_PALETTE = {
   PROJ_FIREBALL: 0xff4500,   // Fireball - orange-red
   PROJ_WHIP: 0xa52a2a,       // Whip - dark red
   PROJ_GARLIC: 0x90ee90,     // Garlic - light green
+  // P8.2: New weapon projectile colors
+  PROJ_BOOMERANG: 0xdaa520,  // Boomerang - goldenrod
+  PROJ_CHAIN_LIGHTNING: 0x7df9ff, // Chain lightning - electric blue
+  PROJ_POISON_CLOUD: 0x9acd32, // Poison cloud - yellow-green
+  PROJ_SHIELD: 0x87ceeb,     // Shield - sky blue
 
   // XP orb colors (3)
   XP_SMALL: 0x00ff88,        // Small XP orb - teal-green
@@ -200,6 +205,20 @@ export const GAME_CONSTANTS = {
   HAZARD_TELEPORTER_RADIUS: 2, // Collision radius (smaller, precise)
   HAZARD_TELEPORTER_COOLDOWN: 3, // Seconds before same player can teleport again
   HAZARD_TELEPORTER_DURATION: 90, // Seconds before despawning
+
+  // P5.7: Day/Night Cycle - 2 minute cycle (1 min day, 1 min night)
+  DAY_NIGHT_CYCLE_DURATION: 120, // Full cycle duration in seconds (2 minutes)
+  DAY_DURATION: 60, // Day phase duration in seconds (1 minute)
+  NIGHT_DURATION: 60, // Night phase duration in seconds (1 minute)
+  // Day effects: Normal spawns, +10% XP
+  DAY_XP_MULTIPLIER: 1.1, // +10% XP during day
+  DAY_SPAWN_MULTIPLIER: 1.0, // Normal spawn rate during day
+  DAY_DAMAGE_MULTIPLIER: 1.0, // Normal enemy damage during day
+  // Night effects: 2x spawn rate, enemies +20% damage, -20% visibility
+  NIGHT_XP_MULTIPLIER: 1.0, // Normal XP during night
+  NIGHT_SPAWN_MULTIPLIER: 2.0, // 2x spawn rate during night
+  NIGHT_DAMAGE_MULTIPLIER: 1.2, // +20% enemy damage during night
+  NIGHT_VISIBILITY: 0.8, // 80% visibility (20% darker) during night
 
   // Combat
   PVP_DAMAGE_MULTIPLIER: 0.15, // 15% damage to other players
@@ -407,6 +426,58 @@ export const WEAPON_CONFIGS: Record<string, WeaponConfig> = {
     baseCooldown: 1.0,
     baseRange: 4,
     area: 4,
+  },
+  // P8.2: New Weapons
+  boomerang: {
+    type: 'boomerang',
+    name: 'Boomerang',
+    description: 'Returns to player, hits enemies both ways',
+    damage: 18,
+    cooldown: 1.8,
+    range: 15,
+    maxLevel: 8,
+    baseDamage: 18,
+    baseCooldown: 1.8,
+    baseRange: 15,
+    projectileSpeed: 12,
+    projectileCount: 1,
+  },
+  chain_lightning: {
+    type: 'chain_lightning',
+    name: 'Chain Lightning',
+    description: 'Jumps between 3-5 enemies',
+    damage: 20,
+    cooldown: 2.5,
+    range: 12,
+    maxLevel: 8,
+    baseDamage: 20,
+    baseCooldown: 2.5,
+    baseRange: 12,
+  },
+  poison_cloud: {
+    type: 'poison_cloud',
+    name: 'Poison Cloud',
+    description: 'DOT area denial (3s duration)',
+    damage: 8, // Per tick damage
+    cooldown: 4.0,
+    range: 10,
+    maxLevel: 8,
+    baseDamage: 8,
+    baseCooldown: 4.0,
+    baseRange: 10,
+    area: 4, // Cloud radius
+  },
+  shield: {
+    type: 'shield',
+    name: 'Shield',
+    description: 'Blocks damage, reflects projectiles',
+    damage: 15, // Reflect damage
+    cooldown: 0, // Continuous like bible
+    range: 2, // Shield orbit radius
+    maxLevel: 8,
+    baseDamage: 15,
+    baseCooldown: 0,
+    baseRange: 2,
   },
 };
 
@@ -764,6 +835,11 @@ export const UPGRADE_POOL: UpgradeDefinition[] = [
   { id: 'new_axe', type: 'new_weapon', weaponType: 'axe', description: 'Axe - Piercing throw', weight: 8, maxLevel: 8 },
   { id: 'new_fireball', type: 'new_weapon', weaponType: 'fireball', description: 'Fireball - Explodes on impact', weight: 6, maxLevel: 8 },
   { id: 'new_whip', type: 'new_weapon', weaponType: 'whip', description: 'Whip - Wide arc attack', weight: 8, maxLevel: 8 },
+  // P8.2: New weapons
+  { id: 'new_boomerang', type: 'new_weapon', weaponType: 'boomerang', description: 'Boomerang - Returns to player', weight: 7, maxLevel: 8 },
+  { id: 'new_chain_lightning', type: 'new_weapon', weaponType: 'chain_lightning', description: 'Chain Lightning - Jumps between enemies', weight: 6, maxLevel: 8 },
+  { id: 'new_poison_cloud', type: 'new_weapon', weaponType: 'poison_cloud', description: 'Poison Cloud - DOT area denial', weight: 7, maxLevel: 8 },
+  { id: 'new_shield', type: 'new_weapon', weaponType: 'shield', description: 'Shield - Blocks damage, reflects projectiles', weight: 5, maxLevel: 8 },
 
   // Stat boosts
   { id: 'health_boost', type: 'stat_boost', statType: 'health', statBoost: 20, description: '+20 Max Health', weight: 15, maxLevel: 99 },
@@ -1084,6 +1160,88 @@ export const WEAPON_EVOLUTIONS: Record<string, WeaponEvolutionConfig> = {
     bounces: true, // Chain lightning effect
     executeDamage: 0,
     heals: false,
+    expandsOutward: false,
+    splitsOnReturn: false,
+  },
+
+  // P8.2: New weapon evolutions
+
+  // Boomerang -> Chakram: 3x boomerangs, faster return, homing on return path
+  boomerang: {
+    baseWeapon: 'boomerang',
+    evolvedType: 'chakram',
+    name: 'Chakram',
+    description: '3x boomerangs, homing return',
+    damageMultiplier: 1.5,
+    cooldownMultiplier: 0.7,
+    rangeMultiplier: 1.3,
+    projectileMultiplier: 3.0,
+    pierceAll: false,
+    homing: true, // Homes on return path
+    leaveTrail: false,
+    bounces: false,
+    executeDamage: 0,
+    heals: false,
+    expandsOutward: false,
+    splitsOnReturn: true,
+  },
+
+  // Chain Lightning -> Storm Caller: 8 jumps, larger radius, stuns enemies
+  chain_lightning: {
+    baseWeapon: 'chain_lightning',
+    evolvedType: 'storm_caller',
+    name: 'Storm Caller',
+    description: '8 jumps, larger radius',
+    damageMultiplier: 1.4,
+    cooldownMultiplier: 0.6,
+    rangeMultiplier: 2.0,
+    projectileMultiplier: 2.0, // Doubles jump count
+    pierceAll: false,
+    homing: false,
+    leaveTrail: false,
+    bounces: true, // Enhanced bouncing
+    executeDamage: 0,
+    heals: false,
+    expandsOutward: false,
+    splitsOnReturn: false,
+  },
+
+  // Poison Cloud -> Plague: 2x radius, enemies spread poison on death
+  poison_cloud: {
+    baseWeapon: 'poison_cloud',
+    evolvedType: 'plague',
+    name: 'Plague',
+    description: '2x radius, spreads on kill',
+    damageMultiplier: 1.3,
+    cooldownMultiplier: 0.8,
+    rangeMultiplier: 2.0,
+    projectileMultiplier: 1.0,
+    pierceAll: false,
+    homing: false,
+    leaveTrail: true, // Poison spreads from killed enemies
+    bounces: false,
+    executeDamage: 0,
+    heals: false,
+    expandsOutward: true, // Cloud expands over time
+    splitsOnReturn: false,
+  },
+
+  // Shield -> Aegis: 3 shields, reflects all projectiles with 2x damage
+  shield: {
+    baseWeapon: 'shield',
+    evolvedType: 'aegis',
+    name: 'Aegis',
+    description: '3 shields, 2x reflect damage',
+    damageMultiplier: 2.0,
+    cooldownMultiplier: 1.0,
+    rangeMultiplier: 1.5,
+    projectileMultiplier: 3.0, // 3 shield orbs
+    pierceAll: false,
+    homing: false,
+    leaveTrail: false,
+    bounces: true, // Reflected projectiles bounce to nearby enemies
+    executeDamage: 0,
+    heals: true, // Heals on blocked damage
     expandsOutward: false,
     splitsOnReturn: false,
   },

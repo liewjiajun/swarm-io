@@ -76,6 +76,90 @@ export class PhysicsSystem {
           // Owner died or disconnected, mark for cleanup
           expiredProjectiles.push(id);
         }
+      }
+      // P8.2: Shield orbits around player like Bible
+      else if (projectile.type === 'shield_orb' || projectile.type === 'healing_shield') {
+        const owner = state.players.get(projectile.ownerId);
+        if (owner && !owner.dead) {
+          // Calculate current angle from owner
+          const dx = projectile.x - owner.x;
+          const dy = projectile.y - owner.y;
+          const currentDist = Math.sqrt(dx * dx + dy * dy);
+          const currentAngle = Math.atan2(dy, dx);
+
+          // Shields orbit slightly faster than Bible orbs (1.5 rev per 2 seconds)
+          const shieldOrbitSpeed = GAME_CONSTANTS.ORB_ORBIT_SPEED * 1.5;
+          const newAngle = currentAngle + shieldOrbitSpeed * dt;
+
+          // Maintain orbit radius
+          const orbitRadius = currentDist > GAME_CONSTANTS.ORB_MIN_DISTANCE_THRESHOLD
+            ? currentDist
+            : 2; // Default shield orbit radius
+
+          // Update position to orbit around owner
+          projectile.x = owner.x + Math.cos(newAngle) * orbitRadius;
+          projectile.y = owner.y + Math.sin(newAngle) * orbitRadius;
+        } else {
+          // Owner died or disconnected, mark for cleanup
+          expiredProjectiles.push(id);
+        }
+      }
+      // P8.2: Boomerang returns to player after reaching max distance
+      else if (projectile.type === 'boomerang' || projectile.type === 'homing_boomerang') {
+        const owner = state.players.get(projectile.ownerId);
+        if (owner && !owner.dead) {
+          // Calculate distance from owner
+          const dx = projectile.x - owner.x;
+          const dy = projectile.y - owner.y;
+          const distFromOwner = Math.sqrt(dx * dx + dy * dy);
+
+          // Get the boomerang config range
+          const boomerangConfig = WEAPON_CONFIGS.boomerang;
+          const maxRange = boomerangConfig?.range || 15;
+
+          // Check if boomerang should return (reached max range or is returning)
+          // Use a flag based on velocity direction vs owner direction
+          const movingAway = (projectile.velocityX * dx + projectile.velocityY * dy) > 0;
+
+          if (distFromOwner >= maxRange || !movingAway) {
+            // Return phase: move back toward owner
+            const returnSpeed = (boomerangConfig?.projectileSpeed || 12) * 1.2; // Slightly faster return
+            const dirToOwner = direction(
+              { x: projectile.x, y: projectile.y },
+              { x: owner.x, y: owner.y }
+            );
+
+            projectile.velocityX = dirToOwner.x * returnSpeed;
+            projectile.velocityY = dirToOwner.y * returnSpeed;
+          }
+
+          // Move the boomerang
+          projectile.x += projectile.velocityX * dt;
+          projectile.y += projectile.velocityY * dt;
+
+          // Check if returned to owner (within pickup radius)
+          const returnDist = Math.sqrt(
+            (projectile.x - owner.x) ** 2 +
+            (projectile.y - owner.y) ** 2
+          );
+          if (!movingAway && returnDist < 1.5) {
+            // Returned to owner, remove projectile
+            expiredProjectiles.push(id);
+          }
+        } else {
+          // Owner died or disconnected, continue straight
+          projectile.x += projectile.velocityX * dt;
+          projectile.y += projectile.velocityY * dt;
+        }
+      }
+      // P8.2: Poison cloud stays in place (stationary DOT)
+      else if (projectile.type === 'poison_cloud' || projectile.type === 'expanding_poison_cloud') {
+        // Poison clouds don't move, but expanding clouds grow over time
+        if (projectile.type === 'expanding_poison_cloud') {
+          // Expand radius by 10% per second
+          projectile.radius *= (1 + 0.1 * dt);
+        }
+        // No position update needed - stationary DOT zone
       } else {
         // Standard projectile movement
         projectile.x += projectile.velocityX * dt;

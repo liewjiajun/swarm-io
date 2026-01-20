@@ -49,14 +49,19 @@ export interface PlayerInput {
 // =============================================================================
 
 export type WeaponType =
-  | 'knife'      // Directional slash
-  | 'wand'       // Directional projectile
-  | 'bible'      // Orbital rotation
-  | 'garlic'     // AOE around player
-  | 'lightning'  // Homing strike
-  | 'axe'        // Piercing throw (passes through enemies)
-  | 'fireball'   // Exploding projectile
-  | 'whip';      // Wide arc attack
+  | 'knife'          // Directional slash
+  | 'wand'           // Directional projectile
+  | 'bible'          // Orbital rotation
+  | 'garlic'         // AOE around player
+  | 'lightning'      // Homing strike
+  | 'axe'            // Piercing throw (passes through enemies)
+  | 'fireball'       // Exploding projectile
+  | 'whip'           // Wide arc attack
+  // P8.2: New weapons
+  | 'boomerang'      // Returns to player, hits enemies both ways
+  | 'chain_lightning' // Jumps between 3-5 enemies
+  | 'poison_cloud'   // DOT area denial (3s duration)
+  | 'shield';        // Blocks damage, reflects projectiles
 
 export interface WeaponConfig {
   type: WeaponType;
@@ -96,7 +101,12 @@ export type ProjectileType =
   | 'axe_spin'
   | 'fireball'
   | 'explosion'
-  | 'demon_fireball';
+  | 'demon_fireball'
+  // P8.2: New projectile types
+  | 'boomerang'          // Boomerang projectile (returns to player)
+  | 'chain_lightning_bolt' // Chain lightning bolt (jumps to enemies)
+  | 'poison_cloud'       // Poison cloud AOE
+  | 'shield_orb';        // Shield orbital projectile
 
 export interface ProjectileState extends Entity {
   type: string; // ProjectileType at runtime, but Colyseus sends as string
@@ -169,12 +179,18 @@ export interface XPOrbState extends Entity {
 // WORLD STATE
 // =============================================================================
 
+// P5.7: Day/Night Cycle Phase
+export type DayNightPhase = 'day' | 'night';
+
 export interface WorldState {
   worldRadius: number;
   playerCount: number;
   gameTime: number; // Seconds since world started
   currentWave: number;
   difficulty: number; // Multiplier for enemy stats
+  // P5.7: Day/Night Cycle
+  dayNightPhase: DayNightPhase; // Current phase ('day' or 'night')
+  dayNightCycleTime: number; // Time within current cycle (0-120 seconds)
 }
 
 // =============================================================================

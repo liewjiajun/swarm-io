@@ -237,6 +237,20 @@ export class Renderer {
   private environmentDecorations: THREE.Sprite[] = [];
   private decorationsInitialized: boolean = false;
 
+  // P5.7: Day/Night Cycle visual state
+  private ambientLight: THREE.AmbientLight | null = null;
+  private directionalLight: THREE.DirectionalLight | null = null;
+  private currentDayNightPhase: string = 'day';
+  private dayNightTransitionProgress: number = 1; // 0-1 for smooth transitions
+  // Day colors
+  private readonly dayBackgroundColor = new THREE.Color(0x1a1a2e);
+  private readonly dayAmbientIntensity = 0.6;
+  private readonly dayDirectionalIntensity = 0.8;
+  // Night colors (darker, bluer tint)
+  private readonly nightBackgroundColor = new THREE.Color(0x0a0a18);
+  private readonly nightAmbientIntensity = 0.3; // -50% brightness for 20% darker effect
+  private readonly nightDirectionalIntensity = 0.4;
+
   constructor(canvas: HTMLCanvasElement) {
     // Initialize sprite system (P1.1 and P1.2)
     this.spriteLoader = new SpriteLoader('/assets/sprites/');
@@ -836,12 +850,64 @@ export class Renderer {
   }
 
   private createLighting() {
-    const ambient = new THREE.AmbientLight(0xffffff, 0.6);
-    this.scene.add(ambient);
+    // P5.7: Store references for day/night cycle adjustment
+    this.ambientLight = new THREE.AmbientLight(0xffffff, this.dayAmbientIntensity);
+    this.scene.add(this.ambientLight);
 
-    const directional = new THREE.DirectionalLight(0xffffff, 0.8);
-    directional.position.set(10, 20, 10);
-    this.scene.add(directional);
+    this.directionalLight = new THREE.DirectionalLight(0xffffff, this.dayDirectionalIntensity);
+    this.directionalLight.position.set(10, 20, 10);
+    this.scene.add(this.directionalLight);
+  }
+
+  /**
+   * P5.7: Update day/night visual effects based on world state
+   * Adjusts lighting and background color for 20% darker visibility at night
+   */
+  private updateDayNightVisuals(dayNightPhase: string) {
+    // Check if phase changed
+    if (dayNightPhase !== this.currentDayNightPhase) {
+      this.currentDayNightPhase = dayNightPhase;
+      this.dayNightTransitionProgress = 0; // Start transition
+      rendererLogger.debug({ phase: dayNightPhase }, 'P5.7: Day/Night phase changed');
+    }
+
+    // Smooth transition over ~0.5 seconds
+    if (this.dayNightTransitionProgress < 1) {
+      this.dayNightTransitionProgress = Math.min(1, this.dayNightTransitionProgress + 0.02);
+    }
+
+    // Calculate interpolated values based on phase
+    const isNight = dayNightPhase === 'night';
+    const t = this.dayNightTransitionProgress;
+
+    // Interpolate ambient light intensity
+    if (this.ambientLight) {
+      const targetAmbient = isNight ? this.nightAmbientIntensity : this.dayAmbientIntensity;
+      const currentAmbient = isNight
+        ? this.dayAmbientIntensity + (this.nightAmbientIntensity - this.dayAmbientIntensity) * t
+        : this.nightAmbientIntensity + (this.dayAmbientIntensity - this.nightAmbientIntensity) * t;
+      this.ambientLight.intensity = this.dayNightTransitionProgress >= 1 ? targetAmbient : currentAmbient;
+    }
+
+    // Interpolate directional light intensity
+    if (this.directionalLight) {
+      const targetDirectional = isNight ? this.nightDirectionalIntensity : this.dayDirectionalIntensity;
+      const currentDirectional = isNight
+        ? this.dayDirectionalIntensity + (this.nightDirectionalIntensity - this.dayDirectionalIntensity) * t
+        : this.nightDirectionalIntensity + (this.dayDirectionalIntensity - this.nightDirectionalIntensity) * t;
+      this.directionalLight.intensity = this.dayNightTransitionProgress >= 1 ? targetDirectional : currentDirectional;
+    }
+
+    // Interpolate background color
+    const targetBg = isNight ? this.nightBackgroundColor : this.dayBackgroundColor;
+    const sourceBg = isNight ? this.dayBackgroundColor : this.nightBackgroundColor;
+    if (this.scene.background instanceof THREE.Color) {
+      if (this.dayNightTransitionProgress >= 1) {
+        this.scene.background.copy(targetBg);
+      } else {
+        this.scene.background.lerpColors(sourceBg, targetBg, t);
+      }
+    }
   }
 
   setCameraTarget(x: number, y: number) {
@@ -1004,6 +1070,10 @@ export class Renderer {
     this.camera.updateMatrixWorld();
     this.projScreenMatrix.multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse);
     this.frustum.setFromProjectionMatrix(this.projScreenMatrix);
+
+    // P5.7: Update day/night visual effects
+    const dayNightPhase = state.world?.dayNightPhase || 'day';
+    this.updateDayNightVisuals(dayNightPhase);
 
     // Update players
     this.updatePlayers(state.players, localPlayerId);
@@ -1559,6 +1629,14 @@ export class Renderer {
     whip_strike: 0.6,     // Whip - arc effect
     garlic_aura: 0.7,     // Garlic - medium aura
     demon_fireball: 0.6,  // Enemy fireball - medium projectile
+    // P8.2: New weapon projectiles
+    boomerang: 0.9,       // Boomerang - spinning blade
+    homing_boomerang: 0.9, // Evolved boomerang
+    chain_lightning_bolt: 0.5, // Chain lightning - electric bolt
+    poison_cloud: 2.5,    // Poison cloud - large AOE
+    expanding_poison_cloud: 3.0, // Evolved poison cloud - expanding
+    shield_orb: 0.8,      // Shield - protective orb
+    healing_shield: 0.9,  // Evolved shield - larger
   };
 
   // Per-weapon projectile colors for visual distinction
@@ -1573,6 +1651,14 @@ export class Renderer {
     whip_strike: 0xa52a2a, // Dark red - whip
     garlic_aura: 0x90ee90, // Light green - garlic
     demon_fireball: 0xff0000, // Red - enemy fireball
+    // P8.2: New weapon projectiles
+    boomerang: 0xdaa520,  // Goldenrod - boomerang
+    homing_boomerang: 0xffd700, // Gold - evolved boomerang
+    chain_lightning_bolt: 0x7df9ff, // Electric blue - chain lightning
+    poison_cloud: 0x9acd32, // Yellow-green - poison
+    expanding_poison_cloud: 0x6b8e23, // Olive drab - evolved poison
+    shield_orb: 0x87ceeb, // Sky blue - shield
+    healing_shield: 0x00bfff, // Deep sky blue - evolved shield
   };
 
   // Projectile rotation speeds (radians per second) - 0 means no rotation
@@ -1587,6 +1673,14 @@ export class Renderer {
     whip_strike: 0,       // No rotation - arc
     garlic_aura: 1.0,     // Slow spin - aura effect
     demon_fireball: 5.0,  // Medium-fast spin - tumbling
+    // P8.2: New weapon projectiles
+    boomerang: 12.0,      // Fast spin - spinning blade
+    homing_boomerang: 15.0, // Faster spin - evolved
+    chain_lightning_bolt: 0, // No rotation - bolt shape
+    poison_cloud: 0.5,    // Very slow rotation - swirling
+    expanding_poison_cloud: 0.8, // Slow rotation - expanding swirl
+    shield_orb: 3.0,      // Medium spin - orbiting shield
+    healing_shield: 4.0,  // Medium-fast spin - evolved shield
   };
 
   private getProjectileVisualSize(type: string): number {
@@ -1622,11 +1716,21 @@ export class Renderer {
     whip_strike: 'projectile_whip',   // Has animation frames _0, _1
     garlic_aura: 'projectile_garlic',
     demon_fireball: 'projectile_fireball', // Reuse fireball sprite for enemy attacks
+    // P8.2: New weapon projectiles
+    boomerang: 'projectile_boomerang',         // Has animation frames _0, _1
+    homing_boomerang: 'projectile_boomerang',  // Evolved boomerang uses same sprite
+    chain_lightning_bolt: 'projectile_chain_lightning', // Has animation frames _0, _1
+    poison_cloud: 'projectile_poison_cloud',   // Has animation frames _0, _1
+    expanding_poison_cloud: 'projectile_poison_cloud', // Evolved poison uses same sprite
+    shield_orb: 'projectile_shield',           // Has animation frames _0, _1
+    healing_shield: 'projectile_shield',       // Evolved shield uses same sprite
   };
 
   // Projectiles with animation frames (BUG-052 improvement: added slash, orb, lightning_bolt, whip_strike)
   private static readonly PROJECTILE_HAS_ANIMATION: Set<string> = new Set([
-    'slash', 'orb', 'expanding_orb', 'lightning_bolt', 'axe_spin', 'fireball', 'demon_fireball', 'explosion', 'whip_strike'
+    'slash', 'orb', 'expanding_orb', 'lightning_bolt', 'axe_spin', 'fireball', 'demon_fireball', 'explosion', 'whip_strike',
+    // P8.2: New weapon projectiles with animations
+    'boomerang', 'homing_boomerang', 'chain_lightning_bolt', 'poison_cloud', 'expanding_poison_cloud', 'shield_orb', 'healing_shield', 'garlic_aura'
   ]);
 
   /**

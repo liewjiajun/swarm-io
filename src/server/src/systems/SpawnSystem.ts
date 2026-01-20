@@ -1,5 +1,6 @@
 import { GameState } from '../state/GameState.js';
 import { GAME_CONSTANTS, WAVE_SCHEDULE, ENEMY_CONFIGS, SECRET_BOSS_CONFIG, SHAPESHIFTER_CONFIG } from '@swarm-io/shared';
+import type { DayNightPhase } from '@swarm-io/shared';
 import { randomPointOnCircle } from '@swarm-io/shared';
 import { spawnSystemLogger } from '../utils/logger.js';
 
@@ -12,6 +13,7 @@ interface SpawnMetrics {
   lastSpawnTime: number;
   secretBossSpawned: boolean; // P5.3: Track if secret boss has been spawned
   shapeshiftersSpawned: number; // P5.6: Track total shapeshifters spawned
+  dayNightTransitions: number; // P5.7: Track day/night cycle transitions
 }
 
 export class SpawnSystem {
@@ -27,8 +29,12 @@ export class SpawnSystem {
     validationErrors: 0,
     lastSpawnTime: 0,
     secretBossSpawned: false, // P5.3
-    shapeshiftersSpawned: 0 // P5.6
+    shapeshiftersSpawned: 0, // P5.6
+    dayNightTransitions: 0 // P5.7
   };
+
+  // P5.7: Callback for day/night cycle announcements
+  private dayNightAnnouncementCallback: ((phase: DayNightPhase) => void) | null = null;
 
   // P5.3: Callback for secret boss announcements
   private secretBossAnnouncementCallback: ((message: string) => void) | null = null;
@@ -44,6 +50,13 @@ export class SpawnSystem {
     this.secretBossAnnouncementCallback = callback;
   }
 
+  /**
+   * P5.7: Set callback for day/night cycle announcements
+   */
+  setDayNightAnnouncementCallback(callback: (phase: DayNightPhase) => void): void {
+    this.dayNightAnnouncementCallback = callback;
+  }
+
   update(gameState: GameState, deltaTime: number): void {
     // Security validation: Ensure gameTime is monotonically increasing
     if (gameState.world.gameTime < this.lastSpawnTime - deltaTime) {
@@ -57,6 +70,9 @@ export class SpawnSystem {
     // Update game time and current wave
     this.updateWaveProgression(gameState);
 
+    // P5.7: Update day/night cycle
+    this.updateDayNightCycle(gameState);
+
     // Handle boss spawning (immediate when wave becomes active)
     this.handleBossSpawning(gameState);
 
@@ -68,6 +84,29 @@ export class SpawnSystem {
 
     // Update metrics
     this.spawnMetrics.lastSpawnTime = gameState.world.gameTime;
+  }
+
+  /**
+   * P5.7: Update day/night cycle and broadcast phase changes
+   */
+  private updateDayNightCycle(gameState: GameState): void {
+    const phaseChanged = gameState.world.updateDayNightCycle();
+
+    if (phaseChanged) {
+      this.spawnMetrics.dayNightTransitions++;
+      const newPhase = gameState.world.dayNightPhase as DayNightPhase;
+
+      spawnSystemLogger.info({
+        phase: newPhase,
+        gameTime: gameState.world.gameTime,
+        cycleTime: gameState.world.dayNightCycleTime
+      }, `P5.7: Day/Night cycle changed to ${newPhase}`);
+
+      // Send announcement
+      if (this.dayNightAnnouncementCallback) {
+        this.dayNightAnnouncementCallback(newPhase);
+      }
+    }
   }
 
   private updateWaveProgression(gameState: GameState): void {
@@ -217,12 +256,19 @@ export class SpawnSystem {
 
     // DEBUG: Log spawn system state periodically (every ~5 seconds of game time)
     if (Math.floor(currentTime) % 5 === 0 && Math.floor(currentTime) !== Math.floor(this.lastSpawnTime)) {
-      spawnSystemLogger.debug({ gameTime: currentTime, playerCount, enemyCount: gameState.enemies.size }, 'Spawn system state');
+      spawnSystemLogger.debug({ gameTime: currentTime, playerCount, enemyCount: gameState.enemies.size, phase: gameState.world.dayNightPhase }, 'Spawn system state');
     }
 
     // Calculate spawn interval based on player count
     const baseSpawnInterval = GAME_CONSTANTS.ENEMY_SPAWN_INTERVAL; // 0.5 seconds
-    const spawnInterval = Math.max(0.1, baseSpawnInterval - (playerCount * 0.02));
+    let spawnInterval = Math.max(0.1, baseSpawnInterval - (playerCount * 0.02));
+
+    // P5.7: Apply day/night spawn multiplier
+    // During night (NIGHT_SPAWN_MULTIPLIER = 2.0), spawn interval is halved for 2x spawn rate
+    const spawnMultiplier = gameState.world.isNighttime()
+      ? GAME_CONSTANTS.NIGHT_SPAWN_MULTIPLIER
+      : GAME_CONSTANTS.DAY_SPAWN_MULTIPLIER;
+    spawnInterval = spawnInterval / spawnMultiplier;
 
     // Check if enough time has passed since last spawn
     if (currentTime - this.lastSpawnTime < spawnInterval) {
@@ -462,9 +508,21 @@ export class SpawnSystem {
       validationErrors: 0,
       lastSpawnTime: 0,
       secretBossSpawned: false, // P5.3
-      shapeshiftersSpawned: 0 // P5.6
+      shapeshiftersSpawned: 0, // P5.6
+      dayNightTransitions: 0 // P5.7
     };
     spawnSystemLogger.info('Reset for new game');
+  }
+
+  /**
+   * P5.7: Get day/night cycle status for monitoring
+   */
+  getDayNightStatus(gameState: GameState): { phase: string; cycleTime: number; transitions: number } {
+    return {
+      phase: gameState.world.dayNightPhase,
+      cycleTime: gameState.world.dayNightCycleTime,
+      transitions: this.spawnMetrics.dayNightTransitions
+    };
   }
 
   /**

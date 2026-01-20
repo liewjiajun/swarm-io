@@ -3,6 +3,7 @@ import { SpatialHash } from './SpatialHash.js';
 import type { WorldEventSystem } from './WorldEventSystem.js';
 import { GAME_CONSTANTS, UPGRADE_POOL, getXPForLevel, WEAPON_CONFIGS, getCharacterClass, canWeaponEvolve, getWeaponEvolution, UpgradeDefinition } from '@swarm-io/shared';
 import { xpSystemLogger } from '../utils/logger.js';
+import type { WorldSchema } from '../state/WorldSchema.js';
 
 interface XPMetrics {
   totalXPCollected: number;
@@ -161,6 +162,17 @@ export class XPSystem {
           finalXp: validatedValue
         }, 'XP multipliers applied');
       }
+    }
+
+    // P5.7: Apply day/night XP multiplier
+    // Day: +10% XP (DAY_XP_MULTIPLIER = 1.1)
+    // Night: Normal XP (NIGHT_XP_MULTIPLIER = 1.0)
+    const world = gameState.world as WorldSchema;
+    const dayNightXpMultiplier = world.isDaytime()
+      ? GAME_CONSTANTS.DAY_XP_MULTIPLIER
+      : GAME_CONSTANTS.NIGHT_XP_MULTIPLIER;
+    if (dayNightXpMultiplier !== 1.0) {
+      validatedValue = Math.floor(validatedValue * dayNightXpMultiplier);
     }
 
     // Award XP to player (handles hostility reduction)

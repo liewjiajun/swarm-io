@@ -81,10 +81,15 @@ describe('GAME_CONSTANTS', () => {
 });
 
 describe('WEAPON_CONFIGS', () => {
-  const expectedWeapons = ['knife', 'wand', 'bible', 'garlic', 'lightning', 'axe', 'fireball', 'whip'];
+  // Original 8 weapons + P8.2 new 4 weapons = 12 total
+  const expectedWeapons = [
+    'knife', 'wand', 'bible', 'garlic', 'lightning', 'axe', 'fireball', 'whip',
+    // P8.2: New weapons
+    'boomerang', 'chain_lightning', 'poison_cloud', 'shield'
+  ];
 
-  it('should have all 8 weapons', () => {
-    expect(Object.keys(WEAPON_CONFIGS)).toHaveLength(8);
+  it('should have all 12 weapons', () => {
+    expect(Object.keys(WEAPON_CONFIGS)).toHaveLength(12);
     expectedWeapons.forEach((weaponType) => {
       expect(WEAPON_CONFIGS[weaponType]).toBeDefined();
     });
@@ -334,9 +339,9 @@ describe('getXPForLevel', () => {
 });
 
 describe('UPGRADE_POOL', () => {
-  it('should have weapon upgrades for all 8 weapons', () => {
+  it('should have weapon upgrades for all 12 weapons', () => {
     const weaponUpgrades = UPGRADE_POOL.filter((u) => u.type === 'new_weapon');
-    expect(weaponUpgrades.length).toBe(8);
+    expect(weaponUpgrades.length).toBe(12);
 
     const weaponTypes = weaponUpgrades.map((u) => u.weaponType);
     Object.keys(WEAPON_CONFIGS).forEach((weaponType) => {
@@ -606,11 +611,12 @@ describe('getCharacterClassIds', () => {
 
 // P9.4: Weapon Evolution System tests
 describe('WEAPON_EVOLUTIONS', () => {
-  it('should have evolutions for all 8 weapons', () => {
-    expect(Object.keys(WEAPON_EVOLUTIONS).length).toBe(8);
+  it('should have evolutions for all 12 weapons', () => {
+    expect(Object.keys(WEAPON_EVOLUTIONS).length).toBe(12);
   });
 
   it('should have all required weapon evolutions', () => {
+    // Original 8 weapons
     expect(WEAPON_EVOLUTIONS.knife).toBeDefined();
     expect(WEAPON_EVOLUTIONS.wand).toBeDefined();
     expect(WEAPON_EVOLUTIONS.fireball).toBeDefined();
@@ -619,6 +625,11 @@ describe('WEAPON_EVOLUTIONS', () => {
     expect(WEAPON_EVOLUTIONS.axe).toBeDefined();
     expect(WEAPON_EVOLUTIONS.bible).toBeDefined();
     expect(WEAPON_EVOLUTIONS.lightning).toBeDefined();
+    // P8.2: New 4 weapons
+    expect(WEAPON_EVOLUTIONS.boomerang).toBeDefined();
+    expect(WEAPON_EVOLUTIONS.chain_lightning).toBeDefined();
+    expect(WEAPON_EVOLUTIONS.poison_cloud).toBeDefined();
+    expect(WEAPON_EVOLUTIONS.shield).toBeDefined();
   });
 
   it('should have valid configuration for each evolution', () => {

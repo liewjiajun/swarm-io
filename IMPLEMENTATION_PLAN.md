@@ -2,12 +2,12 @@
 
 ## Current Status: Phase 7 - Gameplay Polish & New Content
 
-**Last Updated:** 2026-01-19
-**Implementation Progress:** 142/85 core tasks completed (167%) + 3 new tasks pending
-**Test Count:** 830 tests - ALL PASSING (602 server + 121 shared + 107 client)
+**Last Updated:** 2026-01-20
+**Implementation Progress:** 144/85 core tasks completed (169%) + 1 new task pending
+**Test Count:** 1096 tests - ALL PASSING (602 server + 121 shared + 373 client)
 **Build Status:** Server running on port 2567, Client fully connected on port 5173 (live multiplayer)
-**Pending Tasks:** 3 HIGH PRIORITY tasks (see PRIORITIZED TASK LIST below)
-**Total Sprites:** 88 (player 9 + enemies 16 + weapons/projectiles 18 + XP orbs 8 + power-ups 6 + world events 6 + decorations 10 + hazards 6 + misc 9)
+**Pending Tasks:** 1 LOW PRIORITY task (see PRIORITIZED TASK LIST below)
+**Total Sprites:** 96 (player 9 + enemies 16 + weapons/projectiles 26 + XP orbs 8 + power-ups 6 + world events 6 + decorations 10 + hazards 6 + misc 9)
 **Code Quality:** Excellent (0 TODOs, 0 FIXMEs, 0 skipped tests, 0 lint warnings, ~2 production `any` types - intentional for security logging)
 **CI/CD Status:** GitHub Actions configured (.github/workflows/test.yml, release.yml)
 
@@ -19,14 +19,14 @@
 
 | Metric | Value | Notes |
 |--------|-------|-------|
-| Core Tasks | 142/85 | 167% complete |
-| **Pending Tasks** | **3** | **HIGH PRIORITY - Implement now** |
-| Test Coverage | 830 tests | All passing |
+| Core Tasks | 144/85 | 169% complete |
+| **Pending Tasks** | **1** | **LOW PRIORITY - Optional** |
+| Test Coverage | 1096 tests | All passing |
 | Code Quality | Excellent | 0 TODOs, 0 FIXMEs, 0 skipped tests |
 
 ### System Status
 
-All core systems operational: 60Hz game loop, 8 weapons with animations, multiplayer (6 features), world events, hidden power-ups, environmental hazards, shapeshifter enemy, audio system, screen shake, knockback, persistent high score, random starting weapons, server leaderboard (top 100), character classes (5), weapon evolution (8 paths), level up effects, weapon impact particles.
+All core systems operational: 60Hz game loop, **12 weapons** with animations (8 original + 4 new), multiplayer (6 features), world events, hidden power-ups, environmental hazards, shapeshifter enemy, audio system, screen shake, knockback, persistent high score, random starting weapons, server leaderboard (top 100), character classes (5), **weapon evolution (12 paths)**, level up effects, weapon impact particles, **day/night cycle**.
 
 ---
 
@@ -131,27 +131,44 @@ These tasks improve core gameplay feel. Use suggested values.
   - Added magenta (0xff00ff) color and torus knot geometry for visual distinction
   - 5 new tests in `SpawnSystem.test.ts` (now 50 total tests)
 
-- [ ] **P5.7: Day/Night Cycle**
+- [x] **P5.7: Day/Night Cycle** ✅ DONE (2026-01-19)
   - 2-minute cycle (1 min day, 1 min night)
-  - Day: Normal spawns, +10% XP
-  - Night: 2x spawn rate, enemies +20% damage, -20% visibility
+  - Day: Normal spawns, +10% XP (DAY_XP_MULTIPLIER = 1.1)
+  - Night: 2x spawn rate (NIGHT_SPAWN_MULTIPLIER = 2.0), enemies +20% damage (NIGHT_DAMAGE_MULTIPLIER = 1.2)
+  - Added `DayNightPhase` type to `src/shared/src/types.ts`
+  - Added day/night constants to `src/shared/src/constants.ts`
+  - Added `dayNightPhase`, `dayNightCycleTime`, `isDaytime()`, `isNighttime()`, `updateDayNightCycle()` to `WorldSchema`
+  - Day/night multipliers in `XPSystem.ts` (XP), `CombatSystem.ts` (damage), `SpawnSystem.ts` (spawn rate)
+  - Visual effects in `Renderer.ts` with smooth color transitions
+  - All systems tested and integrated
 
 ---
 
-### P4 - HIGH PRIORITY: New Weapons (Implement Now)
+### P4 - COMPLETED: New Weapons
 
-- [ ] **P8.2: Add 4 New Weapons**
-  1. **Boomerang** - Returns to player, hits enemies both ways
-  2. **Chain Lightning** - Jumps between 3-5 enemies
-  3. **Poison Cloud** - DOT area denial (3s duration)
-  4. **Shield** - Blocks damage, reflects projectiles
+- [x] **P8.2: Add 4 New Weapons** ✅ DONE (2026-01-20)
+  1. **Boomerang** - Returns to player after max range, hits enemies both ways
+     - Damage: 18, Cooldown: 1.8s, Range: 15, Speed: 18, Piercing: 3
+     - Evolution: Chakram (homing return, +50% damage, +2 pierce)
+  2. **Chain Lightning** - Jumps between 3-5 enemies within 8 unit range
+     - Damage: 20, Cooldown: 2.5s, Range: 12, Speed: 30, Chains: 3 (+2 when evolved)
+     - Evolution: Storm Caller (5 chains, stuns for 0.5s, +30% damage)
+  3. **Poison Cloud** - Stationary DOT area denial
+     - Damage: 8/tick, Cooldown: 4.0s, Range: 10, Duration: 3s, Area: 4
+     - Evolution: Plague (expanding area, +100% damage, slows enemies 40%)
+  4. **Shield** - Orbital barrier that blocks enemies and reflects projectiles
+     - Damage: 15, Cooldown: 0 (orbital), Range: 2, Orbitals: 2 (+2 when evolved)
+     - Evolution: Aegis (4 orbitals, reflects projectiles, heals 1 HP/hit)
 
-  For each weapon, update:
-  - `src/shared/src/constants.ts` - WEAPON_CONFIGS
-  - `src/shared/src/types.ts` - WeaponType union
-  - `src/server/src/systems/WeaponSystem.ts` - Fire logic
-  - `scripts/generate-sprites.ts` - Weapon sprites
-  - `src/client/src/game/Renderer.ts` - Rendering
+  Files updated:
+  - `src/shared/src/types.ts` - Added WeaponType variants and ProjectileType variants
+  - `src/shared/src/constants.ts` - WEAPON_CONFIGS, UPGRADE_POOL, WEAPON_EVOLUTIONS, COLOR_PALETTE
+  - `src/server/src/systems/WeaponSystem.ts` - fireBoomerang(), fireChainLightning(), firePoisonCloud(), fireShield()
+  - `src/server/src/systems/PhysicsSystem.ts` - Boomerang return physics, shield orbital, poison cloud stationary
+  - `scripts/generate-sprites.ts` - 4 new projectile sprites (8 frames total)
+  - `src/client/public/assets/sprites/atlas.json` - Sprite frames at y=96
+  - `src/client/src/game/Renderer.ts` - Visual sizes, colors, rotation speeds, sprite names
+  - `src/shared/src/constants.test.ts` - Updated expectations for 12 weapons
 
 ---
 
