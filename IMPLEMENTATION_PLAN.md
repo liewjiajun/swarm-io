@@ -216,6 +216,7 @@ These tasks improve core gameplay feel. Use suggested values.
 ## CHANGELOG
 
 See `git log` for detailed changelog. Recent highlights:
+- 2026-01-20: BUG-055 - Fixed shapeshifter weapon firing for 4 new weapons (boomerang, chain_lightning, poison_cloud, shield)
 - 2026-01-20: BUG-054 - Fixed AudioManager weapon sounds for 4 new weapons
 - 2026-01-20: P8.2 complete - 4 new weapons (Boomerang, Chain Lightning, Poison Cloud, Shield)
 - 2026-01-19: P5 features complete (Secret Boss, Hazards, Jackpot Orbs, Day/Night, Shapeshifter)

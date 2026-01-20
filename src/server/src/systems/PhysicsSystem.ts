@@ -890,6 +890,71 @@ export class PhysicsSystem {
         );
         break;
 
+      // P8.2: New weapons support for shapeshifters
+      case 'boomerang':
+        // Boomerang projectile (simplified - no return for shapeshifter)
+        state.addProjectile(
+          'boomerang',
+          enemy.id,
+          enemy.x,
+          enemy.y,
+          dirX * 12,
+          dirY * 12,
+          damage,
+          2.0,  // Lifetime
+          0.8,  // Radius
+          3     // Limited piercing
+        );
+        break;
+
+      case 'chain_lightning':
+        // Chain lightning bolt at target (no chaining for shapeshifter)
+        state.addProjectile(
+          'chain_lightning_bolt',
+          enemy.id,
+          target.x + (Math.random() - 0.5) * 2,
+          target.y + (Math.random() - 0.5) * 2,
+          0,
+          0,
+          damage,
+          0.2,  // Short lifetime
+          1.2,  // Radius
+          1     // Single target
+        );
+        break;
+
+      case 'poison_cloud':
+        // Poison cloud at target position (smaller for shapeshifter)
+        state.addProjectile(
+          'poison_cloud',
+          enemy.id,
+          target.x,
+          target.y,
+          0,
+          0,
+          Math.floor(damage * 0.3), // DOT damage per tick
+          2.0,  // Duration
+          2.0,  // Radius (smaller than player version)
+          999   // Hit many targets
+        );
+        break;
+
+      case 'shield':
+        // Shield orb - for shapeshifter, just do a defensive damage pulse
+        state.addProjectile(
+          'shield_orb',
+          enemy.id,
+          enemy.x + dirX * 2,
+          enemy.y + dirY * 2,
+          0,
+          0,
+          damage,
+          0.5,  // Short lifetime
+          1.5,  // Radius
+          3     // Limited piercing
+        );
+        break;
+
       default:
         // Generic projectile fallback
         state.addProjectile(
