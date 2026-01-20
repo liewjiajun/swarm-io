@@ -236,6 +236,7 @@ Batch spawning goes in `src/server/src/systems/SpawnSystem.ts`:
 ## CHANGELOG
 
 See git history for detailed changelog. Recent highlights:
+- 2026-01-20: BUG-054 - AudioManager missing weapon sounds for 4 new weapons (boomerang, chain_lightning, poison_cloud, shield). The P8.2 weapons commit forgot to add sound parameters causing TypeScript error. Fixed by adding sound parameters with unique synthesized chiptune sounds for each weapon.
 - 2026-01-19: P5.6 - Shape-Shifting Enemy (copies player weapons, 3% spawn chance after wave 5, magenta torus knot visual, 5 tests)
 - 2026-01-19: P5.4 - Environmental Hazards (lava DOT 15/s, ice 50% slow, teleporter pairs with 3s cooldown, 32 tests)
 - 2026-01-19: P5.5 - Jackpot XP Orbs (1% spawn chance, 500 XP, attracts enemies, golden pulsing sprite)
