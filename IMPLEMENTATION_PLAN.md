@@ -213,90 +213,17 @@ These tasks improve core gameplay feel. Use suggested values.
 
 ---
 
-## IMPLEMENTATION DETAILS (Reference for tasks above)
-
-### BUG-040-042: Speed Constants Location
-All speed values are in `src/shared/src/constants.ts`:
-- `PLAYER_BASE_SPEED` (line ~84)
-- `ENEMY_CONFIGS` speeds (lines ~471-571)
-- `WEAPON_CONFIGS` projectile speeds (lines ~274-378)
-- `XP_ORB_SPEED` (line ~92)
-
-### BUG-041: Spawn System Location
-Batch spawning goes in `src/server/src/systems/SpawnSystem.ts`:
-- `handleEnemySpawning()` method (lines ~114-178)
-- Add loop to spawn multiple enemies per tick
-
-### BUG-043: Environment Decoration Locations
-- Sprites: `scripts/generate-sprites.ts`
-- Rendering: `src/client/src/game/Renderer.ts` - add `createEnvironmentDecorations()` near `createGround()`
-
----
-
 ## CHANGELOG
 
-See git history for detailed changelog. Recent highlights:
-- 2026-01-20: BUG-054 - AudioManager missing weapon sounds for 4 new weapons (boomerang, chain_lightning, poison_cloud, shield). The P8.2 weapons commit forgot to add sound parameters causing TypeScript error. Fixed by adding sound parameters with unique synthesized chiptune sounds for each weapon.
-- 2026-01-19: P5.6 - Shape-Shifting Enemy (copies player weapons, 3% spawn chance after wave 5, magenta torus knot visual, 5 tests)
-- 2026-01-19: P5.4 - Environmental Hazards (lava DOT 15/s, ice 50% slow, teleporter pairs with 3s cooldown, 32 tests)
-- 2026-01-19: P5.5 - Jackpot XP Orbs (1% spawn chance, 500 XP, attracts enemies, golden pulsing sprite)
-- 2026-01-19: P5.3 - Secret Boss (spawns at world center when all players reach level 15+, 2000 HP, 10 new tests)
-- 2026-01-19: P8.1 - Player size scales with level (1.0x at level 1 → 1.5x at level 40, visual only)
-- 2026-01-19: BUG-043 - Environment decorations (10 new sprites: rocks, trees, debris, pillars; 70-100 visual objects scattered in world)
-- 2026-01-19: P6.1/P6.2 - Balance tuning (enemy HP scaled for wave progression, boss HP/damage tuned for level requirements)
-- 2026-01-19: BUG-040/041/042 - Gameplay feel improvements (movement speed 8→12, batch spawning 2-3, projectile speeds)
-- 2026-01-19: BUG-050, BUG-053 fixed; TypeScript cleanup (95%); XP orb animations; All weapon sprites complete
-- 2026-01-19: Integration tests (46), HUD tests (108), NetworkClient tests (67), GameRoom tests (70)
-- 2026-01-19: Weapon evolution, character classes, server leaderboard, accelerated XP
-- 2026-01-17: Snake.io redesign, screen shake, knockback, random starting weapons, persistent high score
+See `git log` for detailed changelog. Recent highlights:
+- 2026-01-20: BUG-054 - Fixed AudioManager weapon sounds for 4 new weapons
+- 2026-01-20: P8.2 complete - 4 new weapons (Boomerang, Chain Lightning, Poison Cloud, Shield)
+- 2026-01-19: P5 features complete (Secret Boss, Hazards, Jackpot Orbs, Day/Night, Shapeshifter)
+- 2026-01-19: Balance tuning (P6.1/P6.2), Gameplay feel (BUG-040/041/042)
 
 ---
 
-## COMPLETED TASKS
-
-**All planned tasks complete:** 141/85 tasks (166%)
-
-**Phase 1-6 Summary:**
-- P1: Sprite/animation system, CRT shader, 32-color palette (11 tasks)
-- P2: Audio system with procedural chiptune synthesis (8 tasks)
-- P3: Player identity, leaderboard, minimap, rate limiting, logging (6 tasks)
-- P4: Multiplayer mechanics - co-op XP, revival, team zones, combos, boss aggro, trading (6 tasks)
-- P5: World events, hidden power-ups, secret boss, environmental hazards (4 tasks)
-- P7: Testing infrastructure complete (825 tests)
-- P9: Retention systems - high scores, leaderboard, classes, evolution, accelerated XP (8 tasks)
-
-**Recent Balance & Bug Fixes:**
-- P5.4: Environmental Hazards - lava DOT, ice slow, teleporter pairs (32 new tests)
-- P5.3: Secret Boss - triggers when all players reach level 15+, spawns at world center
-- P8.1: Player size scales with level (1.0x at level 1 → 1.5x at level 40)
-- BUG-043: Environment decorations (10 new sprites, 70-100 visual objects)
-- P6.1: Enemy HP tuned for wave progression (early 2-3 hits, mid 4-6, late 6-10)
-- P6.2: Boss HP/damage tuned for level requirements (5-6, 10+, evolved)
-- BUG-040: Movement speed 8→12, enemy speeds scaled 1.5x
-- BUG-041: Batch spawning (2-3 enemies per cycle)
-- BUG-042: Projectile speeds (Axe 8→14, Fireball 10→20, XP orbs 8→12)
-- BUG-053: Bible weapon orbiting fixed (expanding_orb type handling)
-- BUG-051: Projectile spawn position correction
-- BUG-050: Player position during level up fixed
-- BUG-049: Garlic/Wand visibility fixed (instanceColor buffer)
-- BUG-048: World events rendering pipeline
-- BUG-047: Nickname input blocking WASD
-- BUG-046: Upgrade modal repositioned
-- BUG-045: Level up visual effects
-- BUG-039: Enemy spawn reset (combo fields)
-- BUG-038: Weapon visual fallback system
-- BUG-052: All weapon sprite animations (8/8 complete)
-- BUG-035: XP orb sprite polish (Game Boy palette)
-
----
-
-## TESTING INFRASTRUCTURE STATUS
-
-All testing infrastructure complete (1049 tests).
-
----
-
-## SPECIFICATION COMPLIANCE (Verified 2026-01-19)
+## SPECIFICATION COMPLIANCE (Verified 2026-01-20)
 
 All 9 specification documents verified complete and implemented:
 
