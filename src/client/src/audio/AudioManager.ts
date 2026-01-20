@@ -66,6 +66,11 @@ export class AudioManager {
     axe: { frequency: 250, duration: 0.2, type: 'triangle', attack: 0.02, decay: 0.18 },
     fireball: { frequency: 400, duration: 0.25, type: 'sawtooth', attack: 0.03, decay: 0.22, frequencyEnd: 100 },
     whip: { frequency: 900, duration: 0.1, type: 'sawtooth', attack: 0.01, decay: 0.09, frequencyEnd: 300 },
+    // New weapons added in P8.2
+    boomerang: { frequency: 500, duration: 0.15, type: 'triangle', attack: 0.02, decay: 0.13, frequencyEnd: 700 },
+    chain_lightning: { frequency: 1500, duration: 0.18, type: 'sawtooth', attack: 0.01, decay: 0.17, frequencyEnd: 300 },
+    poison_cloud: { frequency: 180, duration: 0.4, type: 'sine', attack: 0.1, decay: 0.3 },
+    shield: { frequency: 350, duration: 0.12, type: 'square', attack: 0.02, decay: 0.10 },
   };
 
   constructor() {
